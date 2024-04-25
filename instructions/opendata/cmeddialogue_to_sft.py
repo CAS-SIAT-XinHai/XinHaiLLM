@@ -11,7 +11,7 @@ import os
 
 import pandas as pd
 from tqdm import tqdm
-from second_handle import *
+from common.second_handle import *
 
 
 def convert_csv_to_json(csv_file):

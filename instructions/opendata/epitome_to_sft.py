@@ -4,7 +4,7 @@ import logging
 
 import pandas as pda
 from tqdm.auto import tqdm
-from second_handle import *
+from common.second_handle import *
 
 
 # data = [

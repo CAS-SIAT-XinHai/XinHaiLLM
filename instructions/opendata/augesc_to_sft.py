@@ -7,7 +7,7 @@ from operator import itemgetter
 from datasets import load_dataset
 from more_itertools import chunked
 from tqdm import tqdm
-from second_handle import *
+from common.second_handle import *
 
 """
 {

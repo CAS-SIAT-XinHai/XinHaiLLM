@@ -5,7 +5,7 @@ import os
 
 import jsonlines
 from tqdm import tqdm
-from second_handle import *
+from common.second_handle import *
 """
 {
     "question": "A 3900-g (8.6-lb) male infant is delivered at 39 weeks' gestation via spontaneous vaginal delivery. Pregnancy and delivery were uncomplicated but a prenatal ultrasound at 20 weeks showed a defect in the pleuroperitoneal membrane. Further evaluation of this patient is most likely to show which of the following findings?",

@@ -9,7 +9,7 @@ import json
 import logging
 
 import pandas as pd
-from second_handle import *
+from common.second_handle import *
 
 def convert(opts):
     # Read question data into a DataFrame

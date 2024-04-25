@@ -5,7 +5,7 @@ import os
 
 from more_itertools import chunked
 from tqdm import tqdm
-from second_handle import *
+from common.second_handle import *
 """
 Samantha has been trained in philosophy, psychology, and personal relationships.
 

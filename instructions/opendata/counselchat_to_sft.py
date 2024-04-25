@@ -4,7 +4,7 @@ import logging
 
 from datasets import load_dataset
 from tqdm import tqdm
-from second_handle import *
+from common.second_handle import *
 
 """
 Scrape of Counselchat.com's forum. CounselChat.com is an example of an expert community. 

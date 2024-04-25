@@ -4,7 +4,7 @@ import os
 
 import pandas as pd
 from tqdm import tqdm
-from second_handle import *
+from common.second_handle import *
 
 emotions = [
     'angry', 'furious', 'prepared', 'trusting', 'confident', 'hopeful', 'caring',

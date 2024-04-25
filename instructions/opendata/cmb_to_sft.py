@@ -6,7 +6,7 @@ import ast
 
 from datasets import load_dataset
 from tqdm import tqdm
-from second_handle import *
+from common.second_handle import *
 
 """
 {

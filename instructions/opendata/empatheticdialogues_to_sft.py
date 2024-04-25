@@ -3,7 +3,7 @@ import json
 import logging
 
 from datasets import load_dataset
-from second_handle import *
+from common.second_handle import *
 
 '''
 {

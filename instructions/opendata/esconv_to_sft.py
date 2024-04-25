@@ -9,7 +9,7 @@ from more_itertools import chunked
 from tqdm.auto import tqdm
 
 from edos_to_sft import empathetic_response_intents
-from second_handle import *
+from common.second_handle import *
 
 
 class SupportStrategy(Enum):
