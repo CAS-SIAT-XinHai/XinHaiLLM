@@ -44,6 +44,7 @@ def convert(opts):
 
     print("==================Start generate v2")
     sft_entries_v2 = process_data('llama', result_data)
+    sft_entries_v2 = remove_llm_other(sft_entries_v2)
     with open(f"{opts.output_file}_v2.json", 'w', encoding='utf-8') as json_file_v2:
         json.dump(sft_entries_v2, json_file_v2, ensure_ascii=False, indent=4)
 

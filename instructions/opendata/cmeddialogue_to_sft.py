@@ -49,6 +49,7 @@ def convert_csvs_to_jsons(input_dir, output_file):
 
     print("==================Start generate v2")
     sft_entries_v2 = process_data('qwen', result_data)
+    sft_entries_v2 = remove_llm_other(sft_entries_v2)
     with open(f"{output_file}_v2.json", 'w', encoding='utf-8') as json_file_v2:
         json.dump(sft_entries_v2, json_file_v2, ensure_ascii=False, indent=4)
 
