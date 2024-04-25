@@ -5,7 +5,7 @@ import os.path
 
 from datasets import load_dataset
 from tqdm import tqdm
-from second_handle import *
+from common.second_handle import *
 """
 MLEC-QA is composed of 5 subsets with 136,236 Chinese multi-choice biomedical questions with extra materials (images or tables) annotated by human experts, and covers the following biomedical sub-fields:
 

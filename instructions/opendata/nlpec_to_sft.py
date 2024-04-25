@@ -6,7 +6,7 @@ import os.path
 
 from datasets import load_dataset
 from tqdm import tqdm
-from second_handle import *
+from common.second_handle import *
 """
 {
     "questionType": "配伍选择题",

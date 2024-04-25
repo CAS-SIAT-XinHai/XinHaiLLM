@@ -5,7 +5,7 @@ from collections import OrderedDict
 
 from more_itertools import chunked
 from tqdm.auto import tqdm
-from second_handle import *
+from common.second_handle import *
 
 """
 label_4class is the primary type that contains:

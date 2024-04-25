@@ -6,7 +6,7 @@ from operator import itemgetter
 
 from more_itertools import chunked
 from tqdm.auto import tqdm
-from second_handle import *
+from common.second_handle import *
 """
 
   {

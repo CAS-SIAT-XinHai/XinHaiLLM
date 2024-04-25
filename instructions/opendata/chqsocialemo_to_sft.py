@@ -5,7 +5,7 @@ import os.path
 import jsonlines
 from tqdm import tqdm
 from lxml import etree
-from second_handle import *
+from common.second_handle import *
 
 
 def elem2dict(node, attributes=True):

@@ -4,7 +4,7 @@ import logging
 
 import pandas as pd
 from more_itertools import chunked
-from second_handle import *
+from common.second_handle import *
 """
 
 """

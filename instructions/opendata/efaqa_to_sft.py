@@ -14,7 +14,7 @@ from operator import itemgetter
 import jsonlines
 from more_itertools import chunked
 from tqdm import tqdm
-from second_handle import *
+from common.second_handle import *
 '''
 {
     "chats": [

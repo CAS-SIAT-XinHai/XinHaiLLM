@@ -5,10 +5,10 @@ import logging
 from datasets import load_dataset
 from more_itertools import chunked
 from tqdm.auto import tqdm
-from second_handle import *
+from common.second_handle import *
 
 def convert(opts):
-    with open("C:/Users/11018/PycharmProjects/SecondHandleXinHai/instructions/medical_dialog_zh_train_data.json", 'r', encoding='utf-8') as file:
+    with open("/data/xuancheng/medical_dialog_zh_train_data.json", 'r', encoding='utf-8') as file:
         dataset = json.load(file)
 
     # dataset_en = load_dataset("medical_dialog", split='en')

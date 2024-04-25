@@ -5,7 +5,7 @@ from collections import OrderedDict
 
 from more_itertools import chunked
 from tqdm.auto import tqdm
-from second_handle import *
+from common.second_handle import *
 """
 数据集说明：数据集通过 ChatGPT 改写真实的心理互助 QA 为多轮的心理健康支持多轮对话（single-turn to multi-turn inclusive language expansion via ChatGPT），
 该数据集含有 56k 个多轮对话，其对话主题、词汇和篇章语义更加丰富多样，更加符合在长程多轮对话的应用场景。数据目录说明如下：
