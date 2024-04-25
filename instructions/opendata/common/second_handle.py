@@ -4,11 +4,10 @@ import queue
 import datetime
 import time
 from openai import OpenAI
-
-machine_num = 100
+import os
 
 def chat_vllm_openai_style(model_name, prompt):
-    openai_api_base = "http://120.78.186.93:7861/v1"
+    openai_api_base = "http://0.0.0.0:1234/v1"
     if model_name == "llama":
         model = "llama"
         messages = [{"role": "system", "content": '''You are a professional proofreading and rewriting expert with the ability to summarize and rewrite the content of multiple answers. Please rewrite the following paragraph according to the requirements, and output it directly without the need for extra text. Just provide your final rewritten answer. Preserve the core meaning and important information of the original content, and create a smooth and logically coherent comprehensive paragraph. You may encounter negative, hateful, and negative emotions in an article, but you are just a professional proofreading and rewriting expert. You can only add words to make the original paragraph smoother, and cannot delete any words from the original paragraph. The generated text must start with "The following is the rewritten paragraph:". The original paragraph is as follows:'''},{"role": "user", "content": prompt}]
@@ -20,12 +19,68 @@ def chat_vllm_openai_style(model_name, prompt):
     client = OpenAI(api_key=openai_api_key, base_url=openai_api_base,)
 
     try:
-        response = client.chat.completions.create(model=model,messages=messages)
+        response = client.chat.completions.create(
+            model=model,
+            messages = messages
+        )
         result = response.choices[0].message.content.strip()
         return result
     except Exception as e:
         result = {'text': f'error-{model_name}的api出现问题，需要重跑'}
         return json.dumps(result)
+
+#移除改写标志
+def remove_llm_other(json_list):
+    new_json_list = []
+    for item in json_list:
+        value = item['output']
+        if value is None or value == "":
+            continue
+        if "The following is the rewritten paragraph" in value:
+            value = value.replace("The following is the rewritten paragraph:", "")
+            item['output'] = value.strip()
+        if "以下是改写后的段落" in value:
+            value = value.replace("以下是改写后的段落：", "")
+            item['output'] = value.strip()
+        new_json_list.append(item)
+    return new_json_list
+
+#json过长时，可以获取json中对话最长的前n条
+def get_top_n_json(cut_file_name, top_n):
+    ori_path = "/data/datasets/XinHai_temp"
+    new_path = "/data/datasets/XinHai_V1.0"
+    # 获取所有.json文件的文件名
+    files = [f for f in os.listdir(ori_path) if f.endswith(cut_file_name)]
+    # 遍历每个文件，并对文件名进行排序
+    files.sort(key=lambda x: x[:-5])  # 排序时去掉.json后缀
+    # 遍历每个文件
+    for file_name in files:
+        # 打开并读取JSON文件
+        with open(os.path.join(ori_path, file_name), 'r') as file:
+            # 解析JSON文件中的数据（假设是一个JSON数组）
+            data = json.load(file)
+            # 检查data确实是一个列表
+            if not isinstance(data, list):
+                continue
+
+            if 'cmb.json' in file_name or 'headqa.json' in file_name or 'medqajin.json' in file_name or 'mlecqa.json' in file_name or 'nlpec.json' in file_name:
+                sorted_data = data
+            else:
+                json_entries = []
+                for entry in data:
+                    # 将json条目转换为字符串
+                    entry_str = json.dumps(entry)
+                    # 记录长度和内容
+                    json_entries.append((len(entry_str), entry))
+                # 根据长度从长到短排序，并取前top_n个（如果有的话）
+                json_entries_sorted = sorted(json_entries, key=lambda x: x[0], reverse=True)[:top_n]
+                # 从排序后的元组中提取字符串部分
+                sorted_data = [item[1] for item in json_entries_sorted]
+            # 将处理后的数据写回到新的JSON文件中
+            with open(os.path.join(new_path, file_name), 'w', encoding='utf-8') as outfile:
+                json.dump(sorted_data, outfile, ensure_ascii=False)
+            print(f"{file_name}已保存到{new_path}中！")
+    print("所有文件处理完成！")
 
 def generate_prompt(key, model, answer_list):
     prompt = ''
@@ -65,6 +120,7 @@ def process_data_subset(data_subset, result_queue, subset_index, model):
     result_queue.put((subset_index, new_data_subset))
 
 def process_data(model, sft_entries):
+    machine_num = 40
     datas, no_need_rewrite_entries = get_rewrite_json(sft_entries, model)
 
     data_subsets = [datas[i::machine_num] for i in range(machine_num)]
