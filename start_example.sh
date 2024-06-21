@@ -30,6 +30,10 @@ unset __conda_setup
 
 conda activate $CONDA_ENV
 
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
 start_webui_script="cd ${WORK_DIR}/frontend && npm run serve"
 echo "$start_webui_script"
 #screen -dmS start_webui_$PID bash -c "$start_webui_script"
@@ -47,7 +51,7 @@ echo "$start_ocr_script"
 #screen -dmS start_ocr_$PID bash -c "$start_ocr_script"
 tmux new-session -d -s xinhai_ocr_$PID "$start_ocr_script"
 
-start_llm_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=0 PYTHONPATH=${WORK_DIR}/related_repos/LLaMA-Factory/src CONTROLLER_ADDRESS=http://localhost:5000 MODEL_NAME=Qwen1.5-7B-Chat WORKER_ADDRESS=http://localhost:40001 WORKER_HOST=0.0.0.0 WORKER_PORT=40001 python -m xinhai.workers.llm --model_name_or_path /data2/public/pretrained_models/Qwen1.5-7B-Chat --template qwen --infer_backend vllm --vllm_enforce_eager"
+start_llm_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=0 PYTHONPATH=${WORK_DIR}/related_repos/LLaMA-Factory/src CONTROLLER_ADDRESS=http://localhost:5000 MODEL_NAME=Qwen1.5-7B-Chat WORKER_ADDRESS=http://localhost:40001 WORKER_HOST=0.0.0.0 WORKER_PORT=40001 python -m xinhai.workers.llm --model_name_or_path /data2/public/pretrained_models/Qwen1.5-7B-Chat --template qwen --infer_backend vllm --vllm_enforce_eager --infer_dtype float16"
 echo "$start_llm_script"
 #screen -dmS start_llm_$PID bash -c "$start_llm_script"
 tmux new-session -d -s xinhai_llm_$PID "$start_llm_script"
