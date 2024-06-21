@@ -193,6 +193,42 @@ class Controller:
         for worker_name in to_delete:
             self.remove_worker(worker_name)
 
+    def worker_api_chat_completion(self, params):
+        worker_addr = self.get_worker_address(params["model"])
+        logger.info(f"Worker {params['model']}: {worker_addr}")
+        if not worker_addr:
+            logger.info(f"no worker: {params['model']}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            yield json.dumps(ret).encode() + b"\0"
+
+        openai_api_key = "EMPTY"  # OPENAI_API_KEY
+        openai_api_base = f"{worker_addr}/v1/"
+
+        client = OpenAI(
+            api_key=openai_api_key,
+            base_url=openai_api_base,
+        )
+
+        for content in sliced(params["content"], n=4096):
+            messages = [
+                {
+                    "role": "user",
+                    "content": content,
+                }
+            ]
+
+            logger.info(f"Sending messages: {messages}!")
+
+            for response in client.chat.completions.create(
+                    model=params["model"],
+                    messages=messages,
+                    stream=True
+            ):
+                yield response.to_json()
+
     def worker_api_generate_gists(self, params):
         worker_addr = self.get_worker_address(params["model"])
         logger.info(f"Worker {params['model']}: {worker_addr}")
@@ -449,6 +485,11 @@ async def worker_api_generate_gists(request: Request):
     generator = controller.worker_api_generate_gists(params)
     return StreamingResponse(generator)
 
+@app.post("/api/chat-completion")
+async def worker_api_chat_completion(request: Request):
+    params = await request.json()
+    generator = controller.worker_api_chat_completion(params)
+    return StreamingResponse(generator)
 
 @app.post("/api/audit-gists")
 async def worker_api_audit_gists(request: Request):

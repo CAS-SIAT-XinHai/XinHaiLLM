@@ -25,6 +25,12 @@
           <IconHome/>
           首页
         </a-menu-item>
+        <RouterLink to="/chat">
+          <a-menu-item key="0_2">
+            <IconCalendar/>
+            Chat
+          </a-menu-item>
+        </RouterLink>
         <RouterLink to="/autosop">
           <a-menu-item key="0_2">
             <IconCalendar/>
