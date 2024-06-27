@@ -34,15 +34,16 @@ export default {
     const modelName = ref("");
     const modelOptions = ref([]);
     const loading = ref(false);
-    const currentUserId = '1234';
+    const currentUserId = 'user';
     const rooms = [
       {
         roomId: '1',
         roomName: 'Room 1',
         avatar: 'https://66.media.tumblr.com/avatar_c6a8eae4303e_512.pnj',
         users: [
-          {_id: '1234', username: 'John Doe'},
-          {_id: modelName.value, username: modelName.value}
+          {_id: 'system', username: 'System', role: 'system'},
+          {_id: 'user', username: 'User', role: 'user'},
+          {_id: modelName.value, username: modelName.value, role: 'assistant'}
         ]
       }
     ];
@@ -69,6 +70,7 @@ export default {
         });
 
     function fetchMessages({options = {}}) {
+      // TODO: Replace this by retrieving messages from memory according to user_id
       setTimeout(() => {
         if (options.reset) {
           messages.value = addMessages(true)
@@ -81,20 +83,23 @@ export default {
     }
 
     function addMessages(reset) {
-      const temp_messages = []
-
-      for (let i = 0; i < 30; i++) {
-        temp_messages.push({
-          _id: reset ? i : messages.value.length + i,
-          content: `${reset ? '' : 'paginated'} message ${i + 1}`,
-          senderId: '4321',
-          username: 'John Doe',
-          date: '13 November',
-          timestamp: '10:20'
-        })
-      }
-
-      return temp_messages
+      return [{
+        _id: reset ? 0 : messages.value.length,
+        content: '你好！',
+        senderId: 'user',
+        username: 'User',
+        role: 'user',
+        date: '13 November',
+        timestamp: '10:20'
+      }, {
+        _id: reset ? 1 : messages.value.length + 1,
+        content: '你好！有什么问题我可以帮助你吗？',
+        senderId: modelName.value,
+        username: modelName.value,
+        role: 'assistant',
+        date: '13 November',
+        timestamp: '10:20'
+      }]
     }
 
     function isValidJSON(str) {
@@ -112,6 +117,7 @@ export default {
           _id: messages.value.length,
           content: message.content,
           senderId: currentUserId,
+          role: 'user',
           timestamp: new Date().toString().substring(16, 21),
           date: new Date().toDateString()
         }
@@ -125,7 +131,7 @@ export default {
           },
           body: JSON.stringify({
             model: modelName.value,
-            content: message.content,
+            messages: messages.value,
           })
         });
 
@@ -162,6 +168,7 @@ export default {
                         _id: messages.value.length,
                         content: content,
                         senderId: modelName.value,
+                        role: 'assistant',
                         timestamp: new Date().toString().substring(16, 21),
                         date: new Date().toDateString()
                       }

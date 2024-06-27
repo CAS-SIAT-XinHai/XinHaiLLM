@@ -31,14 +31,20 @@
             Chat
           </a-menu-item>
         </RouterLink>
+        <RouterLink to="/ragchat">
+          <a-menu-item key="0_3">
+            <IconCaretLeft/>
+            RAGChat
+          </a-menu-item>
+        </RouterLink>
         <RouterLink to="/autosop">
-          <a-menu-item key="0_2">
+          <a-menu-item key="0_4">
             <IconCalendar/>
             AutoSOP
           </a-menu-item>
         </RouterLink>
         <RouterLink to="/autoinvoice">
-          <a-menu-item key="0_3">
+          <a-menu-item key="0_5">
             <IconCalendar/>
             AutoInvoice
           </a-menu-item>
