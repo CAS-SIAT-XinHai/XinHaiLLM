@@ -1,12 +1,3 @@
-"""
-Copyright (c) CAS-SIAT-XinHai.
-Licensed under the CC0-1.0 license.
-
-XinHai stands for [Sea of Minds].
-
-Authors: Vimos Tan
-"""
-
 import asyncio
 import json
 import logging
@@ -14,6 +5,7 @@ from argparse import ArgumentParser
 from typing import List
 
 import yaml
+from openai import OpenAI
 
 from xinhai.arena.agents import AGENT_REGISTRY
 from xinhai.arena.agents.base import BaseAgent
@@ -63,6 +55,15 @@ class Simulation:
         self.environment.reset()
         for agent in self.agents:
             agent.reset()
+
+    def next(self, *args, **kwargs):
+        """Run the environment for one step and return the return message."""
+        return_message = asyncio.run(self.environment.step(*args, **kwargs))
+        return return_message
+
+    def update_state(self, *args, **kwargs):
+        """Run the environment for one step and return the return message."""
+        self.environment.update_state(*args, **kwargs)
 
 
 if __name__ == "__main__":

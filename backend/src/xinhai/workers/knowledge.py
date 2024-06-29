@@ -1,26 +1,20 @@
 """
 A model worker executes the model.
 """
-import base64
-import io
 import json
 import os
 import threading
 import time
 import uuid
-from typing import List
 
 import chromadb
-import numpy as np
-import pandas as pd
 import requests
-import torch
+import uvicorn
 from chromadb.utils import embedding_functions
 from fastapi import FastAPI, Request
 from sentence_transformers import CrossEncoder
-import uvicorn
 
-from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL, STATIC_PATH
+from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
 from ..utils import build_logger, pretty_print_semaphore
 
 GB = 1 << 30
@@ -58,8 +52,9 @@ class RAGWorker:
         self.pro_client = chromadb.PersistentClient(path=PRO_KNOWLEDGE_DB_PATH)
         self.ss_client = chromadb.PersistentClient(path=SS_KNOWLEDGE_DB_PATH)
         ### 因为知识库是用langchain建立的
-        self.pro_collection = self.pro_client.get_or_create_collection(name = "langchain", embedding_function=embedding_fn)
-        self.ss_collection = self.ss_client.get_or_create_collection(name = "langchain", embedding_function=embedding_fn)
+        self.pro_collection = self.pro_client.get_or_create_collection(name="langchain",
+                                                                       embedding_function=embedding_fn)
+        self.ss_collection = self.ss_client.get_or_create_collection(name="langchain", embedding_function=embedding_fn)
         self.embedding_fn = embedding_fn
         self.reranker_model = CrossEncoder(RERANKER_MODEL_PATH, max_length=512)
 
@@ -115,24 +110,24 @@ class RAGWorker:
             "speed": 1,
             "queue_length": self.get_queue_length(),
         }
-        
-    def initial_retrieval(self, query):    
+
+    def initial_retrieval(self, query):
         pro_chunks = []
         ss_chunks = []
         chunks_pro = self.pro_collection.query(query_texts=query, n_results=70)['documents'][0]
-        chunks_ss = self.ss_client.query(query_texts=query, n_results=70)['documents'][0]
+        chunks_ss = self.ss_collection.query(query_texts=query, n_results=70)['documents'][0]
         for i in range(70):
             pro_chunks.append(chunks_pro[i])
         for i in range(70):
             ss_chunks.append(chunks_ss[i])
         return pro_chunks, ss_chunks
-    
+
     def get_sentence_pairs(self, query, chunks):
         sentence_pairs = [[query, chunks[i]] for i in range(70)]
         return sentence_pairs
-    
+
     def reranker_top2(self, sentence_pairs):
-    # calculate scores of sentence pairs
+        # calculate scores of sentence pairs
         sort_scores = {}
         scores = self.reranker_model.predict(sentence_pairs)
         for i, score in enumerate(scores):
@@ -140,24 +135,23 @@ class RAGWorker:
         scores_ = sorted(sort_scores.items(), key=lambda item: item[1], reverse=True)
         index1, index2 = scores_[0][0], scores_[1][0]
         return index1, index2
-    
+
     def rag(self, params):
         ### metadatas的格式：[{"source": "Human"}, {"source": "AI"}]
         ### documents格式: ['one', 'tow']
         query = params.get('user_query')
         pro_chunks, ss_chunks = self.initial_retrieval(query)
-        pro_sentence_pairs = self.get_sentence_pairs(query,pro_chunks)
-        ss_sentence_pairs = self.get_sentence_pairs(query,ss_chunks)
+        pro_sentence_pairs = self.get_sentence_pairs(query, pro_chunks)
+        ss_sentence_pairs = self.get_sentence_pairs(query, ss_chunks)
         pro_index1, pro_index2 = self.reranker_top2(pro_sentence_pairs)
-        ss_index1, ss_index2 = self.reranker_top2(ss_sentence_pairs)   
+        ss_index1, ss_index2 = self.reranker_top2(ss_sentence_pairs)
 
         return json.dumps({
-            "rag_pro_knowledeg_1": pro_chunks[pro_index1],
-            "rag_pro_knowledeg_2": pro_chunks[pro_index2],
-            "rag_ss_knowledeg_1": pro_chunks[ss_index1],
-            "rag_ss_knowledeg_2": pro_chunks[ss_index2]
-        })
-
+            "rag_pro_knowledge_1": pro_chunks[pro_index1],
+            "rag_pro_knowledge_2": pro_chunks[pro_index2],
+            "rag_ss_knowledge_1": pro_chunks[ss_index1],
+            "rag_ss_knowledge_2": pro_chunks[ss_index2]
+        }, ensure_ascii=False)
 
 
 app = FastAPI()

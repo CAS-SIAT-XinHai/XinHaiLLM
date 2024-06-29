@@ -22,6 +22,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from more_itertools import sliced
 from openai import OpenAI, OpenAIError
+from starlette.responses import JSONResponse
 
 from .config import CONTROLLER_HEART_BEAT_EXPIRATION, LOG_DIR, STATIC_PATH
 from .utils import build_logger, server_error_msg
@@ -232,16 +233,16 @@ class Controller:
     @staticmethod
     def chat_completion(client, model, messages):
         try:
-            logger.debug(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-            logger.debug(f"Sending messages to {model}: {messages}")
+            logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+            logger.info(f"Sending messages to {model}: {messages}")
             chat_response = client.chat.completions.create(
                 model=model,
                 messages=messages
             )
-            logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
             content = chat_response.choices[0].message.content
             if content.strip():
-                logger.debug(f"Get response from {model}: {content}")
+                logger.info(f"Get response from {model}: {content}")
                 return content.strip()
             else:
                 usage = chat_response.usage
@@ -251,7 +252,7 @@ class Controller:
             logger.warning("*****************************************")
             logger.warning(f"Error response from {model}: {e}")
 
-    def worker_api_rag_chat_completion(self, params):
+    def worker_api_rag_chat(self, params):
 
         knowledge_worker_addr = self.get_worker_address(params["knowledge"])
         logger.info(f"Worker {params['knowledge']}: {knowledge_worker_addr}")
@@ -261,10 +262,29 @@ class Controller:
                 "text": server_error_msg,
                 "error_code": 2,
             }
-            yield json.dumps(ret).encode() + b"\0"
+            return ret
+
+        worker_addr = self.get_worker_address(params["model"])
+        openai_api_key = "EMPTY"  # OPENAI_API_KEY
+        openai_api_base = f"{worker_addr}/v1/"
+        client = OpenAI(
+            api_key=openai_api_key,
+            base_url=openai_api_base,
+        )
+        messages = []
+        for m in params["messages"]:
+            messages.append({
+                "role": m['role'],
+                "content": m['content'],
+            })
+        content = self.chat_completion(client, model=params['model'], messages=messages)
 
         try:
-            r = requests.post(knowledge_worker_addr + "/worker_rag_query", json=params, timeout=60)
+            r = requests.post(knowledge_worker_addr + "/worker_rag_query",
+                              json={
+                                  "user_query": content
+                              },
+                              timeout=60)
         except requests.exceptions.RequestException as e:
             logger.error(f"Get status fails: {knowledge_worker_addr}, {e}")
             return None
@@ -274,6 +294,10 @@ class Controller:
             return None
 
         knowledge_data = r.json()
+        if isinstance(knowledge_data, str):
+            knowledge_data = json.loads(knowledge_data)
+
+        logger.info(f"Get response from [knowledge]: {knowledge_data}")
 
         rewriting_prompt = ("你是一名精通心理学知识的专家。请你基于下述用户的描述，对用户描述分析后，利用下面专业心理学知识和社科类知识对原回答进行回答改写，以提高回答的专业性和知识性，并增加情感上的支持。\n"
                             "1. 以表达善意或爱意或安慰的话开头，以提供情感上的支持，回答过程中应始终保持尊重、热情、真诚、共情、积极关注的态度。\n"
@@ -282,40 +306,40 @@ class Controller:
                             "4. 请确保按照信息的先后顺序、逻辑关系和相关性组织文本，同时在回答中添加适当过渡句帮助读者更好理解内容之间的关系和转变。\n"
                             "5. 请你尽可能生成长文本,用中文返回,内容应该知识丰富完整且有深度。\n"
                             "6. 仅返回最终的回答，不要出现其他内容。\n\n"
-                            "用户的描述和原回答：{query} \n\n"
+                            "用户的描述: {history} \n\n"
+                            "原回答：{query} \n\n"
                             "专业心理学知识：{ProEK} \n\n"
                             "社科类知识：{SSEK} \n\n"
                             "最终回答是：")
         answer_form = "The generated response should be enclosed by [Response] and [End of Response]."
 
-        worker_addr = self.get_worker_address(params["model"])
-        openai_api_key = "EMPTY"  # OPENAI_API_KEY
-        openai_api_base = f"{worker_addr}/v1/"
 
-        client = OpenAI(
-            api_key=openai_api_key,
-            base_url=openai_api_base,
-        )
-
-        rag_response_pattern = re.compile(r"\[Response]([\s\S]+)\[End of Response]")
+        history = []
+        for m in params["messages"]:
+            history.append(f"{m['role']}: {m['content']}")
 
         messages = [{
             "role": "user",
             "content": rewriting_prompt.format(
-                query=knowledge_data,
-                ProEK=knowledge_data["ProEK"],
-                SSEK=knowledge_data["SSEK"],
+                history="\n".join(history),
+                query=content,
+                ProEK=knowledge_data["rag_pro_knowledge_1"],
+                SSEK=knowledge_data["rag_ss_knowledge_1"],
             ) + "\n\n" + answer_form,
         }]
 
+        rag_response_pattern = re.compile(r"\[Response]([\s\S]+)\[End of Response]")
+
         while True:
-            logger.debug(messages)
-            chat_response = self.chat_completion(client, model=params['model'], messages=messages)
-            if chat_response:
-                rr = rag_response_pattern.findall(chat_response)
+            logger.info(f"Sending messages to worker: {messages}")
+            content = self.chat_completion(client, model=params['model'], messages=messages)
+            if content:
+                rr = rag_response_pattern.findall(content)
                 if rr:
-                    yield chat_response.to_json()
-                    break
+                    logger.info(f"Returning response from worker: {rr[0]}")
+                    return {
+                        "text": rr[0]
+                    }
 
     def worker_api_generate_gists(self, params):
         worker_addr = self.get_worker_address(params["model"])
@@ -582,10 +606,9 @@ async def worker_api_chat_completion(request: Request):
 
 
 @app.post("/api/rag-chat-completion")
-async def worker_api_rag_chat_completion(request: Request):
+async def worker_api_rag_chat(request: Request):
     params = await request.json()
-    generator = controller.worker_api_rag_chat_completion(params)
-    return StreamingResponse(generator)
+    return controller.worker_api_rag_chat(params)
 
 
 @app.post("/api/audit-gists")
