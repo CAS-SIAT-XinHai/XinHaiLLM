@@ -57,6 +57,9 @@ class RAGWorker:
     def __init__(self):
         self.pro_client = chromadb.PersistentClient(path=PRO_KNOWLEDGE_DB_PATH)
         self.ss_client = chromadb.PersistentClient(path=SS_KNOWLEDGE_DB_PATH)
+        ### 因为知识库是用langchain建立的
+        self.pro_collection = self.pro_client.get_or_create_collection(name = "langchain", embedding_function=embedding_fn)
+        self.ss_collection = self.ss_client.get_or_create_collection(name = "langchain", embedding_function=embedding_fn)
         self.embedding_fn = embedding_fn
         self.reranker_model = CrossEncoder(RERANKER_MODEL_PATH, max_length=512)
 
@@ -116,12 +119,12 @@ class RAGWorker:
     def initial_retrieval(self, query):    
         pro_chunks = []
         ss_chunks = []
-        chunks_pro = self.pro_client.similarity_search_with_score(query, k=70)
-        chunks_ss = self.ss_client.similarity_search_with_score(query, k=70)
+        chunks_pro = self.pro_collection.query(query_texts=query, n_results=70)['documents'][0]
+        chunks_ss = self.ss_client.query(query_texts=query, n_results=70)['documents'][0]
         for i in range(70):
-            pro_chunks.append(chunks_pro[i][0].page_content)
+            pro_chunks.append(chunks_pro[i])
         for i in range(70):
-            ss_chunks.append(chunks_ss[i][0].page_content)
+            ss_chunks.append(chunks_ss[i])
         return pro_chunks, ss_chunks
     
     def get_sentence_pairs(self, query, chunks):
