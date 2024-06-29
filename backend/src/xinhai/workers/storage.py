@@ -20,6 +20,7 @@ from PIL import Image
 from chromadb.utils import embedding_functions
 from fastapi import FastAPI, Request
 
+
 from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL, STATIC_PATH
 from ..utils import build_logger, pretty_print_semaphore
 
