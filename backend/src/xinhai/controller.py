@@ -22,7 +22,6 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from more_itertools import sliced
 from openai import OpenAI, OpenAIError
-from starlette.responses import JSONResponse
 
 from .config import CONTROLLER_HEART_BEAT_EXPIRATION, LOG_DIR, STATIC_PATH
 from .utils import build_logger, server_error_msg
@@ -313,7 +312,6 @@ class Controller:
                             "最终回答是：")
         answer_form = "The generated response should be enclosed by [Response] and [End of Response]."
 
-
         history = []
         for m in params["messages"]:
             history.append(f"{m['role']}: {m['content']}")
@@ -340,6 +338,124 @@ class Controller:
                     return {
                         "text": rr[0]
                     }
+
+    def worker_api_rag_streaming(self, params):
+
+        knowledge_worker_addr = self.get_worker_address(params["knowledge"])
+        logger.info(f"Worker {params['knowledge']}: {knowledge_worker_addr}")
+        if not knowledge_worker_addr:
+            logger.info(f"no worker: {params['knowledge']}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            yield json.dumps(ret).encode() + b"\0"
+
+        worker_addr = self.get_worker_address(params["model"])
+        openai_api_key = "EMPTY"  # OPENAI_API_KEY
+        openai_api_base = f"{worker_addr}/v1/"
+        client = OpenAI(
+            api_key=openai_api_key,
+            base_url=openai_api_base,
+        )
+        messages = []
+        for m in params["messages"]:
+            messages.append({
+                "role": m['role'],
+                "content": m['content'],
+            })
+        # content = self.chat_completion(client, model=params['model'], messages=messages)
+        logger.info(f"Sending messages: {messages}!")
+        content = ''
+        while not content:
+            for response in client.chat.completions.create(
+                    model=params["model"],
+                    messages=messages,
+                    stream=True
+            ):
+                if isinstance(response.choices[0].delta.content, str):
+                    content += response.choices[0].delta.content
+                    d_str = response.to_json()
+                    d = json.loads(d_str)
+                    d['role'] = 'before_rag'
+                    yield json.dumps(d)
+
+        try:
+            r = requests.post(knowledge_worker_addr + "/worker_rag_query",
+                              json={
+                                  "user_query": content
+                              },
+                              timeout=60)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {knowledge_worker_addr}, {e}")
+            return None
+
+        if r.status_code != 200:
+            logger.error(f"Get status fails: {knowledge_worker_addr}, {r}")
+            return None
+
+        knowledge_data = r.json()
+
+        yield json.dumps({
+            "id": "chatcmpl-1a7b99803eed477f8187c92029807f52",
+            "choices": [
+                {
+                    "delta": {
+                        "content": knowledge_data
+                    },
+                    "finish_reason": None,
+                    "index": 0
+                }
+            ],
+            "role": params["knowledge"],
+            "model": params['model']
+        })
+
+        if isinstance(knowledge_data, str):
+            knowledge_data = json.loads(knowledge_data)
+
+        logger.info(f"Get response from [knowledge]: {knowledge_data}")
+
+        rewriting_prompt = ("你是一名精通心理学知识的专家。请你基于下述用户的描述，对用户描述分析后，利用下面专业心理学知识和社科类知识对原回答进行回答改写，以提高回答的专业性和知识性，并增加情感上的支持。\n"
+                            "1. 以表达善意或爱意或安慰的话开头，以提供情感上的支持，回答过程中应始终保持尊重、热情、真诚、共情、积极关注的态度。\n"
+                            "2. 标记出并保留专业领域词汇，如心理学专业术语，实验、包括人名、书籍名、调查数据来源、引用来源，专业心理名词，专业词语解释等，优先使用这些词汇附近的知识。\n"
+                            "3. 在补充知识过程中，确保知识和问题及描述的相关性，尽可能多地补充的相关知识，禁止出现与用户描述现象无关的内容，可适当参考原回答内容。\n"
+                            "4. 请确保按照信息的先后顺序、逻辑关系和相关性组织文本，同时在回答中添加适当过渡句帮助读者更好理解内容之间的关系和转变。\n"
+                            "5. 请你尽可能生成长文本,用中文返回,内容应该知识丰富完整且有深度。\n"
+                            "6. 仅返回最终的回答，不要出现其他内容。\n\n"
+                            "用户的描述: {history} \n\n"
+                            "原回答：{query} \n\n"
+                            "专业心理学知识：{ProEK} \n\n"
+                            "社科类知识：{SSEK} \n\n"
+                            "最终回答是：")
+        # answer_form = "The generated response should be enclosed by [Response] and [End of Response]."
+
+        history = []
+        for m in params["messages"]:
+            history.append(f"{m['role']}: {m['content']}")
+
+        messages = [{
+            "role": "user",
+            "content": rewriting_prompt.format(
+                history="\n".join(history),
+                query=content,
+                ProEK=knowledge_data["rag_pro_knowledge_1"],
+                SSEK=knowledge_data["rag_ss_knowledge_1"],
+            ),
+        }]
+
+        logger.info(f"Sending messages to worker: {messages}")
+        for response in client.chat.completions.create(
+                model=params["model"],
+                messages=messages,
+                stream=True
+        ):
+            if isinstance(response.choices[0].delta.content, str):
+                content += response.choices[0].delta.content
+                d_str = response.to_json()
+                d = json.loads(d_str)
+                d['role'] = 'assistant'
+                yield json.dumps(d)
 
     def worker_api_generate_gists(self, params):
         worker_addr = self.get_worker_address(params["model"])
@@ -609,6 +725,13 @@ async def worker_api_chat_completion(request: Request):
 async def worker_api_rag_chat(request: Request):
     params = await request.json()
     return controller.worker_api_rag_chat(params)
+
+
+@app.post("/api/rag-chat-streaming")
+async def worker_api_rag_streaming(request: Request):
+    params = await request.json()
+    generator = controller.worker_api_rag_streaming(params)
+    return StreamingResponse(generator)
 
 
 @app.post("/api/audit-gists")

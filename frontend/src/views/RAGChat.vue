@@ -7,12 +7,12 @@
     </a-col>
     <a-col :span="12">
       <a-card :bordered="true" :style="{ width: '100%' }">
-        <ProxyChat/>
+        <ChatDetails/>
       </a-card>
     </a-col>
   </a-row>
 </template>
 <script setup>
-import ProxyChat from "@/components/RAGChat/ProxyChat.vue";
+import ChatDetails from "@/components/RAGChat/ChatDetails.vue";
 import ChatUI from "@/components/RAGChat/ChatUI.vue";
 </script>
