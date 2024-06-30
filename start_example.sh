@@ -46,7 +46,7 @@ tmux new-session -d -s xinhai_controller_$PID "$start_controller_script"
 
 sleep 10
 
-start_ocr_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=0 CONTROLLER_ADDRESS=http://localhost:5000 MODEL_NAME=paddleocr WORKER_ADDRESS=http://localhost:40000 WORKER_HOST=0.0.0.0 WORKER_PORT=40000 python -m xinhai.workers.ocr"
+start_ocr_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=0 LD_LIBRARY_PATH=/home/tanminghuan/anaconda3/lib/ CONTROLLER_ADDRESS=http://localhost:5000 MODEL_NAME=paddleocr WORKER_ADDRESS=http://localhost:40000 WORKER_HOST=0.0.0.0 WORKER_PORT=40000 python -m xinhai.workers.ocr"
 echo "$start_ocr_script"
 #screen -dmS start_ocr_$PID bash -c "$start_ocr_script"
 tmux new-session -d -s xinhai_ocr_$PID "$start_ocr_script"
