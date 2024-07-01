@@ -25,7 +25,6 @@
 import {register} from 'vue-advanced-chat'
 import {ref} from "vue";
 import axios from "axios";
-import {gistsStore} from "@/components/AutoSOP/store";
 // import { register } from '../../vue-advanced-chat/dist/vue-advanced-chat.es.js'
 register()
 
