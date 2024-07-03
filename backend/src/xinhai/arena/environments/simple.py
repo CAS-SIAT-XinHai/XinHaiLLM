@@ -6,10 +6,7 @@ XinHai stands for [Sea of Minds].
 
 Authors: Vimos Tan
 """
-import asyncio
 import logging
-
-import networkx as nx
 
 from xinhai.arena.environments import register_environment
 from xinhai.arena.environments.base import BaseEnvironment
@@ -29,22 +26,31 @@ class SimpleEnvironment(BaseEnvironment):
         cnt_turn: Current turn number
     """
 
-    async def step(self):
+    def step(self):
         """Run one step of the environment"""
-        for agent in self.agents:
-            memories = [agent.step()]
-            [agent.update_memory(memories) for agent in self.agents]
+        agent_queue = [self.agents[0]]
+        while agent_queue:
+            agent = agent_queue.pop(0)
 
-        # for tail, head in nx.edge_dfs(self.topology.digraph, self.topology.nodes):
-        #     messages = self.agents[tail].messages[head]
-        #     m = self.agents[tail].chat_completion(head, messages=messages)
-        #     self.agents[tail].update_memory(head, m)
+            agent_descriptions = "\n".join(
+                [f"{n}: {self.agents[n].role_description}" for n in self.topology.digraph.neighbors(agent.agent_id)])
 
-        # All agent update memory based on current observation
-        # await asyncio.gather(*[agent.astep("") for agent in self.agents])
+            data = agent.routing(agent_descriptions)
+            logger.debug(data)
 
-        # for node in self.topology.nodes:
-        #     self.agents[node].step()
+            targets = data["target"]
+            if isinstance(data['target'], int):
+                targets = [data['target']]
+            targets = [self.agents[n] for n in targets]
+
+            agent_queue.extend(targets)
+
+            targets_descriptions = "\n".join(
+                [f"{n.agent_id}: {n.role_description}" for n in targets])
+            message = agent.step(routing=data["method"], agents=targets_descriptions)
+
+            agent.update_memory([message])
+            [a.update_memory([message]) for a in targets]
 
         self.cnt_turn += 1
 

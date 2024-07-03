@@ -13,9 +13,9 @@ import networkx as nx
 
 class BaseTopology:
 
-    def __init__(self, digraph: nx.DiGraph, nodes=None):
-        self.digraph = digraph
-        self.nodes = nodes or digraph.nodes
+    def __init__(self, graph: nx.Graph, nodes=None):
+        self.digraph = graph
+        self.nodes = nodes or graph.nodes
 
     @classmethod
     def from_config(cls, config: Any):
@@ -23,4 +23,4 @@ class BaseTopology:
         for e in config['edges']:
             tail, head = map(int, e.split("->"))
             edges.append((head, tail))
-        return cls(nx.DiGraph(edges))
+        return cls(nx.Graph(edges))

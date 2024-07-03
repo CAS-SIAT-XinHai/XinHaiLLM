@@ -27,7 +27,18 @@ class SimpleAgent(BaseAgent):
             dialogue_context.append(f"{agent_name}: {response}")
         return dialogue_context
 
-    def step(self):
+    def routing(self, agent_descriptions):
         chat_history = '\n'.join(self.get_history())
-        prompt = self.prompt_template.format(chat_history=chat_history, role_description=self.role_description)
+        routing_prompt = self.routing_prompt_template.format(agent_name=self.name,
+                                                             role_description=self.role_description,
+                                                             chat_history=chat_history,
+                                                             agent_descriptions=agent_descriptions)
+        return self.prompt_for_routing(routing_prompt)
+
+    def step(self, routing, agents):
+        chat_history = '\n'.join(self.get_history())
+        prompt = self.prompt_template.format(chat_history=chat_history,
+                                             role_description=self.role_description,
+                                             routing=routing,
+                                             agents=agents)
         return self.complete_conversation(prompt)
