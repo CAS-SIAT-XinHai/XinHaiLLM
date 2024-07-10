@@ -572,6 +572,86 @@ class Controller:
                     stream=True
             ):
                 yield response.to_json()
+                
+    def worker_api_storage_chat(self, params):
+        storage_worker_addr = self.get_worker_address(params["storage"])
+        logger.info(f"Worker {params['storage']}: {storage_worker_addr}")
+        if not storage_worker_addr:
+            logger.info(f"no worker: {params['storage']}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            return ret
+        messages = []
+        for m in params["messages"]:
+            messages.append({
+                "role": m['role'],
+                "content": m['content'],
+            })
+        user_id = params["user_id"]
+        metadatas = [{"source": m["role"]} for m in messages]
+        documents = [m["content"] for m in messages]
+        try:
+            r = requests.post(storage_worker_addr + "/worker_storage_insert",
+                              json={
+                                  "user_id": user_id,
+                                  "documents":documents,
+                                  "metadatas":metadatas
+                              },
+                              timeout=60)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {storage_worker_addr}, {e}")
+            return None
+
+        if r.status_code != 200:
+            logger.error(f"Get status fails: {storage_worker_addr}, {r}")
+            return None
+
+        information_data = r.json()
+        if isinstance(information_data, str):
+            information_data = json.loads(information_data)
+
+        logger.info(f"Get response from [storage]: {information_data}")
+
+        return
+    
+    def worker_api_search_chat(self, params):
+        storage_worker_addr = self.get_worker_address(params["storage"])
+        logger.info(f"Worker {params['storage']}: {storage_worker_addr}")
+        if not storage_worker_addr:
+            logger.info(f"no worker: {params['storage']}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            return ret
+        user_id = params["user_id"]
+        query = params["query"]
+        k = params["k"]
+        try:
+            r = requests.post(storage_worker_addr + "/worker_storage_search",
+                              json={
+                                  "user_id": user_id,
+                                  "query":query,
+                                  "k":k
+                              },
+                              timeout=60)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {storage_worker_addr}, {e}")
+            return None
+
+        if r.status_code != 200:
+            logger.error(f"Get status fails: {storage_worker_addr}, {r}")
+            return None
+
+        search_data = r.json()
+        if isinstance(search_data, str):
+            search_data = json.loads(search_data)
+
+        logger.info(f"Get response from [storage]: {search_data}")
+
+        return search_data
 
     def worker_api_ocr_image(self, params):
         worker_addr = self.get_worker_address(params["model"])
@@ -747,6 +827,15 @@ async def worker_api_audit_gists(request: Request):
     generator = controller.worker_api_audit_attachments(params)
     return StreamingResponse(generator)
 
+@app.post("/api/chat-storage")
+async def worker_api_storage_chat(request: Request):
+    params = await request.json()
+    return controller.worker_api_storage_chat(params)
+
+@app.post("/api/chat-search")
+async def worker_api_search_chat(request: Request):
+    params = await request.json()
+    return controller.worker_api_search_chat(params)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
