@@ -15,15 +15,15 @@ exec &> >(tee -a "$log_file")
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('${CONDA_HOME}/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+__conda_setup="$('${CONDA_HOME}/bin/conda' 'shell.bash' 'hook' 2>/dev/null)"
 if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
+  eval "$__conda_setup"
 else
-    if [ -f "${CONDA_HOME}/etc/profile.d/conda.sh" ]; then
-        . "${CONDA_HOME}/etc/profile.d/conda.sh"
-    else
-        export PATH="${CONDA_HOME}/bin:$PATH"
-    fi
+  if [ -f "${CONDA_HOME}/etc/profile.d/conda.sh" ]; then
+    . "${CONDA_HOME}/etc/profile.d/conda.sh"
+  else
+    export PATH="${CONDA_HOME}/bin:$PATH"
+  fi
 fi
 unset __conda_setup
 # <<< conda initialize <<<
@@ -31,8 +31,8 @@ unset __conda_setup
 conda activate $CONDA_ENV
 
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"                   # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion" # This loads nvm bash_completion
 
 start_webui_script="cd ${WORK_DIR}/frontend && npm run serve"
 echo "$start_webui_script"
@@ -64,3 +64,10 @@ start_knowledge_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=0 CON
 echo "$start_knowledge_script"
 #screen -dmS start_ocr_$PID bash -c "$start_ocr_script"
 tmux new-session -d -s xinhai_knowledge_$PID "$start_knowledge_script"
+
+DB_PATH=/data/pretrained_models/KnowDB-bge-1.5-300
+EMBEDDING_MODEL_PATH=/data/pretrained_models/bge-large-zh-v1.5
+RERANKER_MODEL_PATH=/data/pretrained_models/maidalun/bce-reranker-base_v1
+start_storage_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=0 CONTROLLER_ADDRESS=http://localhost:5000 MODEL_NAME=storage WORKER_ADDRESS=http://localhost:40003 WORKER_HOST=0.0.0.0 WORKER_PORT=40003 DB_PATH=${DB_PATH} EMBEDDING_MODEL_PATH=${EMBEDDING_MODEL_PATH} python -m xinhai.workers.storage"
+echo "$start_storage_script"
+tmux new-session -d -s xinhai_storage_$PID "$start_storage_script"
