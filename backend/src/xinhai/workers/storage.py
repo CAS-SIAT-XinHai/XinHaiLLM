@@ -1,27 +1,24 @@
 """
 A model worker executes the model.
 """
-import base64
-import io
 import json
 import os
 import threading
 import time
 import uuid
-from typing import List
 
 import chromadb
-import numpy as np
-import pandas as pd
 import requests
-import torch
 import uvicorn
-from PIL import Image
 from chromadb.utils import embedding_functions
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
-
-from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL, STATIC_PATH
+from xinhai.types.message import XinHaiChatMessage
+from xinhai.types.storage import XinHaiFetchMessagesResponse, XinHaiFetchMessagesRequest, XinHaiStoreMessagesRequest
+from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
 from ..utils import build_logger, pretty_print_semaphore
 
 GB = 1 << 30
@@ -116,10 +113,10 @@ class StorageWorker:
         user_id = params.get('user_id')
         documents = params.get('documents', [])
         metadatas = params.get('metadatas', [])
-        
+
         if user_id is None or not documents or not metadatas:
             return json.dumps({
-                "error_code":1,
+                "error_code": 1,
                 "error_message": "Missing required parameters"
             })
         collection = self.client.get_or_create_collection(
@@ -140,15 +137,15 @@ class StorageWorker:
         ### 返回第k次及之后的对话
         user_id = params.get('user_id')
         k = params.get('k', 0)
-        
+
         if user_id is None:
             return json.dumps({
                 "error_code": 1,
                 "error_message": "Missing required parameters"
             })
-                
+
         collection = self.client.get_or_create_collection(name="User_" + str(user_id),
-                                                               embedding_function=self.embedding_fn)
+                                                          embedding_function=self.embedding_fn)
         dialogues = collection.get(include=['documents'])['documents']
         sources = collection.get(include=['metadatas'])['metadatas']
         res = collection.count()
@@ -165,15 +162,15 @@ class StorageWorker:
         user_id = params.get('user_id')
         query = params.get('query')
         k = params.get('k', 4)
-        
+
         if user_id is None or query is None:
             return json.dumps({
                 "error_code": 1,
                 "error_message": "Missing required parameters"
             })
-            
+
         collection = self.client.get_or_create_collection(name="User_" + str(user_id),
-                                                               embedding_function=self.embedding_fn)
+                                                          embedding_function=self.embedding_fn)
         search = collection.query(query_texts=query, n_results=k)
         dialogues = search['documents'][0]
         sources = search['metadatas'][0]
@@ -207,6 +204,28 @@ class StorageWorker:
             "error_code": 0
         })
 
+    def fetch_messages(self, request: XinHaiFetchMessagesRequest):
+        room_id = request.room.roomId
+        collection = self.client.get_or_create_collection(name="Room_" + str(room_id),
+                                                          embedding_function=self.embedding_fn)
+        messages = collection.get(include=['metadatas'])['metadatas']
+        return XinHaiFetchMessagesResponse(messages=[XinHaiChatMessage.model_validate_json(m['message']) for m in messages])
+
+    def store_messages(self, request: XinHaiStoreMessagesRequest):
+        room_id = request.room.roomId
+        collection = self.client.get_or_create_collection(name="Room_" + str(room_id),
+                                                          embedding_function=self.embedding_fn)
+        res = collection.count()
+        ids = [message.indexId for message in request.messages]
+        documents = [message.content for message in request.messages]
+        collection.add(documents=documents, ids=ids,
+                       metadatas=[{"message": m.model_dump_json()} for m in request.messages])
+
+        logger.info(f'Room_{room_id}\'s memory_storage adds a message')
+        return json.dumps({
+            "status": 200
+        })
+
 
 app = FastAPI()
 
@@ -215,6 +234,14 @@ def release_model_semaphore(fn=None):
     model_semaphore.release()
     if fn is not None:
         fn()
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder({"detail": exc.errors(), "body": exc.body}),
+    )
 
 
 @app.post("/worker_storage_insert")
@@ -228,10 +255,12 @@ async def get_data(request: Request):
     params = await request.json()
     return worker.get_data(params)
 
+
 @app.post("/worker_storage_search")
 async def search_similar(request: Request):
     params = await request.json()
     return worker.search_similar(params)
+
 
 @app.post("/worker_storage_delete")
 async def delete(request: Request):
@@ -242,6 +271,18 @@ async def delete(request: Request):
 @app.post("/worker_get_status")
 async def get_status(request: Request):
     return worker.get_status()
+
+
+@app.post("/worker_fetch_messages")
+async def fetch_messages(request: XinHaiFetchMessagesRequest, response_model=XinHaiFetchMessagesResponse):
+    # params = await request.json()
+    return worker.fetch_messages(request)
+
+
+@app.post("/worker_store_messages")
+async def fetch_messages(request: XinHaiStoreMessagesRequest):
+    # params = await request.json()
+    return worker.store_messages(request)
 
 
 if __name__ == "__main__":

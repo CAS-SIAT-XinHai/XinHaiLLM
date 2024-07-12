@@ -16,14 +16,19 @@ import aiofiles
 import numpy as np
 import requests
 import uvicorn
-from fastapi import FastAPI, Request, UploadFile
+from fastapi import FastAPI, Request, status
+from fastapi import UploadFile
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from more_itertools import sliced
 from openai import OpenAI, OpenAIError
 
 from .config import CONTROLLER_HEART_BEAT_EXPIRATION, LOG_DIR, STATIC_PATH
+from .types.message import XinHaiChatCompletionRequest
 from .utils import build_logger, server_error_msg
 
 logger = build_logger("controller", "controller.log", LOG_DIR)
@@ -194,23 +199,18 @@ class Controller:
         for worker_name in to_delete:
             self.remove_worker(worker_name)
 
-    def worker_api_chat_completion(self, params):
-        worker_addr = self.get_worker_address(params["model"])
-        logger.info(f"Worker {params['model']}: {worker_addr}")
+    def worker_api_chat_completion(self, request: XinHaiChatCompletionRequest):
+        worker_addr = self.get_worker_address(request.model)
+        logger.info(f"Worker {request.model}: {worker_addr} , {request}")
         if not worker_addr:
-            logger.info(f"no worker: {params['model']}")
+            logger.info(f"no worker: {request.model}")
             ret = {
                 "text": server_error_msg,
                 "error_code": 2,
             }
             yield json.dumps(ret).encode() + b"\0"
 
-        messages = []
-        for m in params["messages"]:
-            messages.append({
-                "role": m['role'],
-                "content": m['content'],
-            })
+        messages = request.to_chat()
 
         openai_api_key = "EMPTY"  # OPENAI_API_KEY
         openai_api_base = f"{worker_addr}/v1/"
@@ -223,7 +223,7 @@ class Controller:
         logger.info(f"Sending messages: {messages}!")
 
         for response in client.chat.completions.create(
-                model=params["model"],
+                model=request.model,
                 messages=messages,
                 stream=True
         ):
@@ -572,7 +572,57 @@ class Controller:
                     stream=True
             ):
                 yield response.to_json()
-                
+
+    def worker_api_fetch_messages(self, worker, params):
+        storage_worker_addr = self.get_worker_address(worker)
+        logger.info(f"Worker {worker}: {storage_worker_addr}")
+        if not storage_worker_addr:
+            logger.info(f"no worker: {worker}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            return ret
+
+        try:
+            r = requests.post(storage_worker_addr + "/worker_fetch_messages",
+                              json=params,
+                              timeout=60)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {storage_worker_addr}, {e}")
+            return None
+
+        if r.status_code != 200:
+            logger.error(f"Get status fails: {storage_worker_addr}, {r}")
+            return None
+
+        return r.json()
+
+    def worker_api_store_messages(self, worker, params):
+        storage_worker_addr = self.get_worker_address(worker)
+        logger.info(f"Worker {worker}: {storage_worker_addr}")
+        if not storage_worker_addr:
+            logger.info(f"no worker: {worker}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            return ret
+
+        try:
+            r = requests.post(storage_worker_addr + "/worker_store_messages",
+                              json=params,
+                              timeout=60)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {storage_worker_addr}, {e}")
+            return None
+
+        if r.status_code != 200:
+            logger.error(f"Get status fails: {storage_worker_addr}, {r}")
+            return None
+
+        return r.json()
+
     def worker_api_storage_chat(self, params):
         storage_worker_addr = self.get_worker_address(params["storage"])
         logger.info(f"Worker {params['storage']}: {storage_worker_addr}")
@@ -596,8 +646,8 @@ class Controller:
             r = requests.post(storage_worker_addr + "/worker_storage_insert",
                               json={
                                   "user_id": user_id,
-                                  "documents":documents,
-                                  "metadatas":metadatas
+                                  "documents": documents,
+                                  "metadatas": metadatas
                               },
                               timeout=60)
         except requests.exceptions.RequestException as e:
@@ -615,7 +665,7 @@ class Controller:
         logger.info(f"Get response from [storage]: {information_data}")
 
         return
-    
+
     def worker_api_search_chat(self, params):
         storage_worker_addr = self.get_worker_address(params["storage"])
         logger.info(f"Worker {params['storage']}: {storage_worker_addr}")
@@ -633,8 +683,8 @@ class Controller:
             r = requests.post(storage_worker_addr + "/worker_storage_search",
                               json={
                                   "user_id": user_id,
-                                  "query":query,
-                                  "k":k
+                                  "query": query,
+                                  "k": k
                               },
                               timeout=60)
         except requests.exceptions.RequestException as e:
@@ -794,10 +844,18 @@ async def worker_api_generate_gists(request: Request):
     return StreamingResponse(generator)
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder({"detail": exc.errors(), "body": exc.body}),
+    )
+
+
 @app.post("/api/chat-completion")
-async def worker_api_chat_completion(request: Request):
-    params = await request.json()
-    generator = controller.worker_api_chat_completion(params)
+async def worker_api_chat_completion(request: XinHaiChatCompletionRequest):
+    # params = await request.json()
+    generator = controller.worker_api_chat_completion(request)
     return StreamingResponse(generator)
 
 
@@ -827,15 +885,30 @@ async def worker_api_audit_gists(request: Request):
     generator = controller.worker_api_audit_attachments(params)
     return StreamingResponse(generator)
 
+
 @app.post("/api/chat-storage")
 async def worker_api_storage_chat(request: Request):
     params = await request.json()
     return controller.worker_api_storage_chat(params)
 
+
 @app.post("/api/chat-search")
 async def worker_api_search_chat(request: Request):
     params = await request.json()
     return controller.worker_api_search_chat(params)
+
+
+@app.post("/api/{worker}/fetch-messages")
+async def worker_api_fetch_messages(worker:str, request: Request):
+    params = await request.json()
+    return controller.worker_api_fetch_messages(worker, params)
+
+
+@app.post("/api/{worker}/store-messages")
+async def worker_api_store_messages(worker:str, request: Request):
+    params = await request.json()
+    return controller.worker_api_store_messages(worker, params)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
