@@ -40,6 +40,7 @@ class Simulation:
         env_config["topology"] = BaseTopology.from_config(env_config["topology"])
         environment_type = env_config.pop("environment_type")
         environment = ENVIRONMENT_REGISTRY[environment_type](**env_config)
+        [setattr(agent, "environment", environment) for agent in agents]
 
         return cls(agents, environment)
 

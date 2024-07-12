@@ -11,6 +11,7 @@ import logging
 import re
 from abc import abstractmethod
 
+import requests
 from openai import OpenAI, OpenAIError
 
 logger = logging.getLogger(__name__)
@@ -27,19 +28,23 @@ class BaseAgent:
 
     prompt_template: str
 
+    environment: object = None
+
     def __init__(self, name, agent_id, role_description, llm, api_key, api_base,
                  routing_prompt_template, prompt_template, max_retries=5):
         self.name = name
         self.agent_id = agent_id
         self.role_description = role_description
+
         self.llm = llm
         self.api_key = api_key
         self.api_base = api_base
+
         self.max_retries = max_retries
         self.routing_prompt_template = routing_prompt_template
         self.prompt_template = prompt_template
 
-        self.memory = []  # memory of current agent
+        # self.memory = []  # memory of current agent
         self.messages = {}  # messages between current agent and other agents
         self.client = OpenAI(
             api_key=self.api_key,
@@ -124,34 +129,50 @@ class BaseAgent:
         return self.name, rr[0]
 
     def retrieve_memory(self):
-        # worker_addr = self.storage
-        # try:
-        #     r = requests.post(worker_addr + "/worker_storage_get", json=params, timeout=60)
-        # except requests.exceptions.RequestException as e:
-        #     logger.error(f"Get status fails: {worker_addr}, {e}")
-        #     return None
-        #
-        # if r.status_code != 200:
-        #     logger.error(f"Get status fails: {worker_addr}, {r}")
-        #     return None
-        #
-        # return r.json()
+        params = {
+            "user_id": f"Agent-{self.agent_id}",
+        }
 
-        return self.messages
+        # Get Agent's short-term chat history
+        # Get Agent's long-term chat summary/highlights
+        try:
+            r = requests.post(f"{self.environment.controller_address}/api/storage/chat-get", json=params, timeout=60)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {self.environment.controller_address}, {e}")
+            return None
+
+        if r.status_code != 200:
+            logger.error(f"Get status fails: {self.environment.controller_address}, {r}")
+            return None
+
+        data = json.loads(r.json())
+
+        logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+        logger.debug(f"Get memories of Agent {self.agent_id}: {json.dumps(data, ensure_ascii=False, indent=4)}")
+        return data
 
     def update_memory(self, memories):
-        # worker_addr = self.storage
-        # try:
-        #     r = requests.post(worker_addr + "/worker_storage_insert", json=params, timeout=60)
-        # except requests.exceptions.RequestException as e:
-        #     logger.error(f"Get status fails: {worker_addr}, {e}")
-        #     return None
-        #
-        # if r.status_code != 200:
-        #     logger.error(f"Get status fails: {worker_addr}, {r}")
-        #     return None
-        #
-        # return r.json()
+
+        params = {
+            "user_id": f"Agent-{self.agent_id}",
+            "documents": [content for _, content in memories],
+            "metadatas": [{"source": role} for role, _ in memories]
+        }
+
+        # 1. flush new memories to short-term chat history
+        # 2. if short-term chat history exceeds maximum rounds, automatically summarize earliest n rounds and flush to
+        # long-term chat summary
+
+        try:
+            r = requests.post(f"{self.environment.controller_address}/api/storage/chat-insert", json=params, timeout=60)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {self.environment.controller_address}, {e}")
+            return None
+
+        if r.status_code != 200:
+            logger.error(f"Get status fails: {self.environment.controller_address}, {r}")
+            return None
+
         logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
         logger.debug(f"Adding {memories} to Agent {self.agent_id}")
-        self.memory.extend(memories)
+        return r.json()

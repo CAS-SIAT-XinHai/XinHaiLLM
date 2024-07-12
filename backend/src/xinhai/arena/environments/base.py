@@ -32,11 +32,14 @@ class BaseEnvironment:
     max_turns: int = 10
     cnt_turn: int = 0
 
-    def __init__(self, agents: List[BaseAgent], topology, max_turns=10, cnt_turn=0):
+    controller_address: str = None
+
+    def __init__(self, agents: List[BaseAgent], topology, max_turns=10, cnt_turn=0, controller_address=None):
         self.agents = agents
         self.topology = topology
         self.max_turns = max_turns
         self.cnt_turn = cnt_turn
+        self.controller_address = controller_address
 
     @abstractmethod
     async def step(self) -> None:
