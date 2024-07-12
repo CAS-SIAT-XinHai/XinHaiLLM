@@ -280,7 +280,7 @@ async def fetch_messages(request: XinHaiFetchMessagesRequest, response_model=Xin
 
 
 @app.post("/worker_store_messages")
-async def fetch_messages(request: XinHaiStoreMessagesRequest):
+async def store_messages(request: XinHaiStoreMessagesRequest):
     # params = await request.json()
     return worker.store_messages(request)
 
