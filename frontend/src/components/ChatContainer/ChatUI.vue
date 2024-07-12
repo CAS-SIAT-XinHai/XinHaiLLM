@@ -56,9 +56,9 @@ export default {
             modelOptions.value.push({
               value: model,
               label: model,
-              disabled: model === "paddleocr"
+              disabled: model === "paddleocr" || model === "knowledge" || model === "storage"
             })
-            if (model !== "paddleocr") {
+            if (model !== "paddleocr" && model !== "knowledge" && model !== "storage") {
               modelName.value = model
             }
           }
@@ -69,37 +69,15 @@ export default {
           loading.value = true;
         });
 
-    function fetchMessages({options = {}}) {
-      // TODO: Replace this by retrieving messages from memory according to user_id
-      setTimeout(() => {
-        if (options.reset) {
-          messages.value = addMessages(true)
-        } else {
-          messages.value = [...addMessages(), ...messages.value]
-          messagesLoaded.value = true
-        }
-        // this.addNewMessage()
-      })
-    }
-
-    function addMessages(reset) {
-      return [{
-        _id: reset ? 0 : messages.value.length,
-        content: '你好！',
-        senderId: 'user',
-        username: 'User',
-        role: 'user',
-        date: '13 November',
-        timestamp: '10:20'
-      }, {
-        _id: reset ? 1 : messages.value.length + 1,
-        content: '你好！有什么问题我可以帮助你吗？',
-        senderId: modelName.value,
-        username: modelName.value,
-        role: 'assistant',
-        date: '13 November',
-        timestamp: '10:20'
-      }]
+    function fetchMessages({room}) {
+      axios.post('/api/storage/fetch-messages', {
+        room: room
+      }).then(function (response) {
+        messages.value = [...response["data"]["messages"], ...messages.value]
+        messagesLoaded.value = true
+      }).catch(function (error) {
+        console.log(error);
+      });
     }
 
     function isValidJSON(str) {
@@ -110,14 +88,31 @@ export default {
       }
     }
 
+    function getRoomFromId(room_id) {
+      for (const g of rooms) {
+        if (g.roomId === room_id) {
+          return g
+        }
+      }
+    }
+
     async function sendMessage(message) {
+      // {
+      //   "content": "你好、",
+      //   "files": null,
+      //   "replyMessage": null,
+      //   "usersTag": [],
+      //   "roomId": "1"
+      // }
       messages.value = [
         ...messages.value,
         {
           _id: messages.value.length,
+          indexId: messages.value.length.toString(),
           content: message.content,
           senderId: currentUserId,
           role: 'user',
+          username: 'user',
           timestamp: new Date().toString().substring(16, 21),
           date: new Date().toDateString()
         }
@@ -166,9 +161,11 @@ export default {
                       ...messages.value,
                       {
                         _id: messages.value.length,
+                        indexId: messages.value.length.toString(),
                         content: content,
                         senderId: modelName.value,
                         role: 'assistant',
+                        username: 'assistant',
                         timestamp: new Date().toString().substring(16, 21),
                         date: new Date().toDateString()
                       }
@@ -189,22 +186,15 @@ export default {
         // let checked = isValidJSON(gists.value)
         // if (checked) {
         // }
+        axios.post('/api/storage/store-messages', {
+          room: getRoomFromId(message.roomId),
+          messages: messages.value
+        }).then(function (response) {
+          console.log(response)
+        }).catch(function (error) {
+          console.log(error);
+        });
       }
-    }
-
-    function addNewMessage() {
-      setTimeout(() => {
-        this.messages = [
-          ...this.messages,
-          {
-            _id: this.messages.length,
-            content: 'NEW MESSAGE',
-            senderId: '1234',
-            timestamp: new Date().toString().substring(16, 21),
-            date: new Date().toDateString()
-          }
-        ]
-      }, 2000)
     }
 
     return {
@@ -216,9 +206,7 @@ export default {
       messages,
       messagesLoaded,
       fetchMessages,
-      addMessages,
       sendMessage,
-      addNewMessage
     }
   }
 }
