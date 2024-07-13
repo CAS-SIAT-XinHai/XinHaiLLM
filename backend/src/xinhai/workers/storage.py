@@ -148,13 +148,14 @@ class StorageWorker:
                                                           embedding_function=self.embedding_fn)
         dialogues = collection.get(include=['documents'])['documents']
         sources = collection.get(include=['metadatas'])['metadatas']
-        res = collection.count()
-        results = []
-        for i in range(k, res):
-            results.append(sources[i]['source:  '] + dialogues[i])
+        # res = collection.count()
+        # results = []
+        # for i in range(k, res):
+        #     results.append(sources[i]['source:  '] + dialogues[i])
         return json.dumps({
             "user_id": user_id,
-            "dialogues": results,
+            "documents": dialogues,
+            "metadatas": sources,
             "error_code": 0
         })
 

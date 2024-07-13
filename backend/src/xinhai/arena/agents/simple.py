@@ -22,9 +22,10 @@ class SimpleAgent(BaseAgent):
         pass
 
     def get_history(self):
+        memory = self.retrieve_memory()
         dialogue_context = []
-        for i, (agent_name, response) in enumerate(self.memory):
-            dialogue_context.append(f"{agent_name}: {response}")
+        for i, (agent_name, response) in enumerate(zip(memory["metadatas"], memory["documents"])):
+            dialogue_context.append(f"{agent_name['source']}: {response}")
         return dialogue_context
 
     def routing(self, agent_descriptions):
