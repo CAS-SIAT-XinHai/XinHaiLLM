@@ -689,17 +689,9 @@ class Controller:
                 "error_code": 2,
             }
             return ret
-
-        user_id = params["user_id"]
-        query = params["query"]
-        k = params["k"]
         try:
             r = requests.post(storage_worker_addr + "/worker_storage_search",
-                              json={
-                                  "user_id": user_id,
-                                  "query": query,
-                                  "k": k
-                              },
+                              json=params,
                               timeout=60)
         except requests.exceptions.RequestException as e:
             logger.error(f"Get status fails: {storage_worker_addr}, {e}")
