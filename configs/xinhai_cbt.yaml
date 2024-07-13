@@ -66,6 +66,7 @@ arena:
 
   environment:
     environment_type: simple
+    controller_address: http://localhost:5000
     topology:
       edges:
         - 0->1

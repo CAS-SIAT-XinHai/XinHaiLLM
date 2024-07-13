@@ -623,32 +623,20 @@ class Controller:
 
         return r.json()
 
-    def worker_api_storage_chat(self, params):
-        storage_worker_addr = self.get_worker_address(params["storage"])
-        logger.info(f"Worker {params['storage']}: {storage_worker_addr}")
+    def worker_api_storage_chat_insert(self, worker, params):
+        storage_worker_addr = self.get_worker_address(worker)
+        logger.info(f"Worker {worker}: {storage_worker_addr}")
         if not storage_worker_addr:
-            logger.info(f"no worker: {params['storage']}")
+            logger.info(f"no worker: {worker}")
             ret = {
                 "text": server_error_msg,
                 "error_code": 2,
             }
             return ret
-        messages = []
-        for m in params["messages"]:
-            messages.append({
-                "role": m['role'],
-                "content": m['content'],
-            })
-        user_id = params["user_id"]
-        metadatas = [{"source": m["role"]} for m in messages]
-        documents = [m["content"] for m in messages]
+
         try:
             r = requests.post(storage_worker_addr + "/worker_storage_insert",
-                              json={
-                                  "user_id": user_id,
-                                  "documents": documents,
-                                  "metadatas": metadatas
-                              },
+                              json=params,
                               timeout=60)
         except requests.exceptions.RequestException as e:
             logger.error(f"Get status fails: {storage_worker_addr}, {e}")
@@ -664,18 +652,44 @@ class Controller:
 
         logger.info(f"Get response from [storage]: {information_data}")
 
-        return
+        return information_data
 
-    def worker_api_search_chat(self, params):
-        storage_worker_addr = self.get_worker_address(params["storage"])
-        logger.info(f"Worker {params['storage']}: {storage_worker_addr}")
+    def worker_api_storage_chat_get(self, worker, params):
+        storage_worker_addr = self.get_worker_address(worker)
+        logger.info(f"Worker {worker}: {storage_worker_addr}")
         if not storage_worker_addr:
-            logger.info(f"no worker: {params['storage']}")
+            logger.info(f"no worker: {worker}")
             ret = {
                 "text": server_error_msg,
                 "error_code": 2,
             }
             return ret
+
+        try:
+            r = requests.post(storage_worker_addr + "/worker_storage_get",
+                              json=params,
+                              timeout=60)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {storage_worker_addr}, {e}")
+            return None
+
+        if r.status_code != 200:
+            logger.error(f"Get status fails: {storage_worker_addr}, {r}")
+            return None
+
+        return r.json()
+
+    def worker_api_search_chat(self, worker, params):
+        storage_worker_addr = self.get_worker_address(worker)
+        logger.info(f"Worker {worker}: {storage_worker_addr}")
+        if not storage_worker_addr:
+            logger.info(f"no worker: {worker}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            return ret
+
         user_id = params["user_id"]
         query = params["query"]
         k = params["k"]
@@ -886,26 +900,32 @@ async def worker_api_audit_gists(request: Request):
     return StreamingResponse(generator)
 
 
-@app.post("/api/chat-storage")
-async def worker_api_storage_chat(request: Request):
+@app.post("/api/{worker}/chat-insert")
+async def worker_api_storage_chat_insert(worker: str, request: Request):
     params = await request.json()
-    return controller.worker_api_storage_chat(params)
+    return controller.worker_api_storage_chat_insert(worker, params)
 
 
-@app.post("/api/chat-search")
-async def worker_api_search_chat(request: Request):
+@app.post("/api/{worker}/chat-get")
+async def worker_api_storage_chat_get(worker: str, request: Request):
     params = await request.json()
-    return controller.worker_api_search_chat(params)
+    return controller.worker_api_storage_chat_get(worker, params)
+
+
+@app.post("/api/{worker}/chat-search")
+async def worker_api_search_chat(worker: str, request: Request):
+    params = await request.json()
+    return controller.worker_api_search_chat(worker, params)
 
 
 @app.post("/api/{worker}/fetch-messages")
-async def worker_api_fetch_messages(worker:str, request: Request):
+async def worker_api_fetch_messages(worker: str, request: Request):
     params = await request.json()
     return controller.worker_api_fetch_messages(worker, params)
 
 
 @app.post("/api/{worker}/store-messages")
-async def worker_api_store_messages(worker:str, request: Request):
+async def worker_api_store_messages(worker: str, request: Request):
     params = await request.json()
     return controller.worker_api_store_messages(worker, params)
 
