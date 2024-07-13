@@ -151,20 +151,22 @@ class BaseAgent:
         logger.debug(f"Get memories of Agent {self.agent_id}: {json.dumps(data, ensure_ascii=False, indent=4)}")
         return data
 
-    def update_memory(self, memories):
+    def update_memory(self, memories, client, model, agent_id):
 
-        params = {
+        params_for_shot_term_memory = {
             "user_id": f"Agent-{self.agent_id}",
             "documents": [content for _, content in memories],
-            "metadatas": [{"source": role} for role, _ in memories]
+            "metadatas": [{"source": role} for role, _ in memories],
+            "short_memory": True
         }
 
         # 1. flush new memories to short-term chat history
         # 2. if short-term chat history exceeds maximum rounds, automatically summarize earliest n rounds and flush to
         # long-term chat summary
-
+        
+        ## 先存储短期记忆
         try:
-            r = requests.post(f"{self.environment.controller_address}/api/storage/chat-insert", json=params, timeout=60)
+            r = requests.post(f"{self.environment.controller_address}/api/storage/chat-insert", json=params_for_shot_term_memory, timeout=60)
         except requests.exceptions.RequestException as e:
             logger.error(f"Get status fails: {self.environment.controller_address}, {e}")
             return None
@@ -175,4 +177,54 @@ class BaseAgent:
 
         logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
         logger.debug(f"Adding {memories} to Agent {self.agent_id}")
+        
+        ## 再存储长期记忆
+        new_dialogues_length = len(params_for_shot_term_memory["documents"])
+        summary = self.dialogue_summary(client, model, agent_id, new_dialogues_length)
+        params_for_long_term_memory = {
+            "user_id": f"Agent-{self.agent_id}",
+            "documents": [summary],
+            "metadatas": [{"source": client}],
+            "short_memory":False
+        }
+        try:
+            r = requests.post(f"{self.environment.controller_address}/api/storage/chat-insert", json=params_for_long_term_memory, timeout=60)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {self.environment.controller_address}, {e}")
+            return None
+
+        if r.status_code != 200:
+            logger.error(f"Get status fails: {self.environment.controller_address}, {r}")
+            return None
+
+        logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+        logger.debug(f"Adding {summary} to Agent {self.agent_id}")
+        
         return r.json()
+    
+    def dialogue_summary(self, client, model, agent_id, new_dialogue_length):
+        ### 暂时使用递归总结的办法，即上一轮的内容总结 + 本轮的对话 = 本轮的内容总结。
+        r = self.retrieve_memory()
+        short_term_documents = r.get("short_term_dialogues")
+        short_term_metadatas = r.get("short_term_sources")
+        summary_dialogues = r.get("summary_dialogues")
+        pre_dialogue_summary = summary_dialogues[-1]
+        short_term_dialogue = [f'{meta}["source"]: {doc}' for meta, doc in zip(short_term_metadatas, short_term_documents)]
+        prompt = f"""请根据之前的对话摘要和新的对话内容，给出新的对话摘要。
+                新的对话摘要应当包含之前摘要的内容。
+                摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。
+                 ####
+                 以前的对话摘要：{pre_dialogue_summary}
+                 
+                 ####
+                 新的对话内容：{short_term_dialogue[-new_dialogue_length: ]}
+                 
+                 ###Attention###
+                 仅返回新的对话摘要内容，不要返回分析过程！
+                """
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt}
+        ]
+        response = self.chat_completion(client, model, agent_id, messages)
+        return response
