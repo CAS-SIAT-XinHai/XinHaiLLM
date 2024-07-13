@@ -194,9 +194,9 @@ class StorageWorker:
         })
 
     def get_data(self, params):
-        ### 返回第k次及之后的对话,以及第k-1次的摘要
+        ### 返回倒数第k次及之后的对话,以及倒数第k-1次的摘要
         user_id = params.get('user_id')
-        k = params.get('k', 0)
+        k = params.get('k', 1)
         
         if user_id is None:
             return json.dumps({
@@ -212,9 +212,10 @@ class StorageWorker:
         summary_dialogues = collection_summary.get(include=['documents'])['documents']
         sources = collection.get(include=['metadatas'])['metadatas']
         res = collection.count()
+        total_summaries = collection_summary.count()
         results = []
-        results.append("Previous dialogues' summaries: " + summary_dialogues[k-1])
-        for i in range(k, res):
+        results.append("Previous dialogues' summaries: " + summary_dialogues[total_summaries - k - 1])
+        for i in range(res - k, res):
             results.append(sources[i]['source'] + ": "+ dialogues[i])
         return json.dumps({
             "user_id": user_id,
