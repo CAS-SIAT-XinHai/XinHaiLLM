@@ -56,11 +56,16 @@ echo "$start_llm_script"
 #screen -dmS start_llm_$PID bash -c "$start_llm_script"
 tmux new-session -d -s xinhai_llm_$PID "$start_llm_script"
 
-PRO_KNOWLEDGE_DB_PATH=/data/pretrained_models/RAGREK/ProDB-bge-1.5-300
-SS_KNOWLEDGE_DB_PATH=/data/pretrained_models/RAGREK/KnowDB-bge-1.5-300
+PRO_KNOWLEDGE_DB_PATH=/data/pretrained_models/ProDB-bge-1.5-300
+SS_KNOWLEDGE_DB_PATH=/data/pretrained_models/KnowDB-bge-1.5-300
 EMBEDDING_MODEL_PATH=/data/pretrained_models/bge-large-zh-v1.5
 RERANKER_MODEL_PATH=/data/pretrained_models/maidalun/bce-reranker-base_v1
 start_knowledge_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=0 CONTROLLER_ADDRESS=http://localhost:5000 MODEL_NAME=knowledge WORKER_ADDRESS=http://localhost:40002 WORKER_HOST=0.0.0.0 WORKER_PORT=40002 PRO_KNOWLEDGE_DB_PATH=${PRO_KNOWLEDGE_DB_PATH} SS_KNOWLEDGE_DB_PATH=${SS_KNOWLEDGE_DB_PATH} EMBEDDING_MODEL_PATH=${EMBEDDING_MODEL_PATH} RERANKER_MODEL_PATH=${RERANKER_MODEL_PATH} python -m xinhai.workers.knowledge"
 echo "$start_knowledge_script"
-#screen -dmS start_ocr_$PID bash -c "$start_ocr_script"
 tmux new-session -d -s xinhai_knowledge_$PID "$start_knowledge_script"
+
+USER_DB_PATH = /data/pretrained_models/UserDatabase-Test
+SUMMARY_MODEL_PATH =/data/pretrained_models/Qwen1.5-7B-Chat
+start_storage_script = "cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=0 CONTROLLER_ADDRESS=http://localhost:5000 MODEL_NAME=storage WORKER_ADDRESS=http://localhost:40003 WORKER_HOST=0.0.0.0 WORKER_PORT=40003 DB_PATH=${USER_DB_PATH} EMBEDDING_MODEL_PATH=${EMBEDDING_MODEL_PATH} SUMMARY_MODEL_PATH=${SUMMARY_MODEL_PATH} python -m xinhai.workers.storage"
+echo "start_storage_script"
+tmux new-session -d -s xinhai_storage_$PID "$start_storage_script"
