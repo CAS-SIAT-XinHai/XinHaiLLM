@@ -240,7 +240,7 @@ class StorageWorker:
         sources = search['metadatas'][0]
         results = []
         for i in range(k):
-            results.append(sources[i]['source:  '] + dialogues[i])
+            results.append(sources[i]['source'] + ": " + dialogues[i])
         return json.dumps({
             "user_id": user_id,
             "query": query,
