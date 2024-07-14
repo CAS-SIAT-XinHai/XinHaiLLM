@@ -113,16 +113,23 @@ class StorageWorker:
         user_id = params.get('user_id')
         documents = params.get('documents', [])
         metadatas = params.get('metadatas', [])
+        short_memory = params.get("short_memory")
 
         if user_id is None or not documents or not metadatas:
             return json.dumps({
                 "error_code": 1,
                 "error_message": "Missing required parameters"
             })
-        collection = self.client.get_or_create_collection(
-            name="User_" + str(user_id),
-            embedding_function=self.embedding_fn
-        )
+        if short_memory:
+            collection = self.client.get_or_create_collection(
+                name="User_" + str(user_id),
+                embedding_function=self.embedding_fn
+            )
+        else:
+            collection = self.client.get_or_create_collection(
+                name="User_" + str(user_id) + "_summary",
+                embedding_function=self.embedding_fn
+            )
         res = collection.count()
         ids = [f'{user_id}_{i + res}' for i in range(len(documents))]
         collection.add(documents=documents, ids=ids, metadatas=metadatas)
@@ -136,7 +143,6 @@ class StorageWorker:
     def get_data(self, params):
         ### 返回第k次及之后的对话
         user_id = params.get('user_id')
-        k = params.get('k', 0)
 
         if user_id is None:
             return json.dumps({
@@ -144,18 +150,24 @@ class StorageWorker:
                 "error_message": "Missing required parameters"
             })
 
-        collection = self.client.get_or_create_collection(name="User_" + str(user_id),
+        short_term_collection = self.client.get_or_create_collection(name="User_" + str(user_id),
                                                           embedding_function=self.embedding_fn)
-        dialogues = collection.get(include=['documents'])['documents']
-        sources = collection.get(include=['metadatas'])['metadatas']
+        summary_collection = self.client.get_or_create_collection(name="User_" + str(user_id) + "_summary",
+                                                          embedding_function=self.embedding_fn)
+        short_term_dialogues = short_term_collection.get(include=['documents'])['documents']
+        short_term_sources = short_term_collection.get(include=['metadatas'])['metadatas']
+        summary_dialogues = summary_collection.get(include=['documents'])['documents']
+        summary_sources = summary_collection.get(include=['metadatas'])['metadatas']
         # res = collection.count()
         # results = []
         # for i in range(k, res):
         #     results.append(sources[i]['source:  '] + dialogues[i])
         return json.dumps({
             "user_id": user_id,
-            "documents": dialogues,
-            "metadatas": sources,
+            "short_term_documents": short_term_dialogues,
+            "short_term_metadatas": short_term_sources,
+            "summary_dialogues": summary_dialogues,
+            "summary_sources": summary_sources,
             "error_code": 0
         })
 
@@ -177,7 +189,7 @@ class StorageWorker:
         sources = search['metadatas'][0]
         results = []
         for i in range(k):
-            results.append(sources[i]['source:  '] + dialogues[i])
+            results.append(sources[i]['source'] +  ":" + dialogues[i])
         return json.dumps({
             "user_id": user_id,
             "query": query,
