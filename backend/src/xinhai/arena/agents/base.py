@@ -151,7 +151,7 @@ class BaseAgent:
         logger.debug(f"Get memories of Agent {self.agent_id}: {json.dumps(data, ensure_ascii=False, indent=4)}")
         return data
 
-    def update_memory(self, memories, client, model, agent_id):
+    def update_memory(self, memories):
 
         params_for_shot_term_memory = {
             "user_id": f"Agent-{self.agent_id}",
@@ -180,11 +180,11 @@ class BaseAgent:
         
         ## 再存储长期记忆
         new_dialogues_length = len(params_for_shot_term_memory["documents"])
-        summary = self.dialogue_summary(client, model, agent_id, new_dialogues_length)
+        summary = self.dialogue_summary(new_dialogues_length)
         params_for_long_term_memory = {
             "user_id": f"Agent-{self.agent_id}",
             "documents": [summary],
-            "metadatas": [{"source": client}],
+            "metadatas": [{"source": self.client}],
             "short_memory":False
         }
         try:
@@ -202,7 +202,7 @@ class BaseAgent:
         
         return r.json()
     
-    def dialogue_summary(self, client, model, agent_id, new_dialogue_length):
+    def dialogue_summary(self, new_dialogue_length):
         ### 暂时使用递归总结的办法，即上一轮的内容总结 + 本轮的对话 = 本轮的内容总结。
         r = self.retrieve_memory()
         short_term_documents = r.get("short_term_dialogues")
@@ -226,5 +226,5 @@ class BaseAgent:
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": prompt}
         ]
-        response = self.chat_completion(client, model, agent_id, messages)
+        response = self.chat_completion(client=self.client, model=self.llm, agent_id=self.agent_id, messages=messages)
         return response
