@@ -56,6 +56,11 @@ echo "$start_llm_script"
 #screen -dmS start_llm_$PID bash -c "$start_llm_script"
 tmux new-session -d -s xinhai_llm_$PID "$start_llm_script"
 
+start_mllm_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=0 CONTROLLER_ADDRESS=http://localhost:5000 MODEL_NAME=MiniCPMV WORKER_ADDRESS=http://localhost:40004 WORKER_HOST=0.0.0.0 WORKER_PORT=40004 python -m xinhai.workers.mllm --model_name_or_path /data/xuancheng/MiniCPM-V-2 --template minicpmv --infer_backend vllm --vllm_enforce_eager --infer_dtype float16"
+echo "$start_mllm_script"
+#screen -dmS start_mllm_$PID bash -c "$start_mllm_script"
+tmux new-session -d -s xinhai_mllm_$PID "$start_mllm_script"
+
 PRO_KNOWLEDGE_DB_PATH=/data/pretrained_models/ProDB-bge-1.5-300
 SS_KNOWLEDGE_DB_PATH=/data/pretrained_models/KnowDB-bge-1.5-300
 EMBEDDING_MODEL_PATH=/data/pretrained_models/bge-large-zh-v1.5
