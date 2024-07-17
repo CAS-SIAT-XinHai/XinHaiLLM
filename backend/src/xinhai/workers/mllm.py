@@ -28,8 +28,8 @@ from llamafactory.extras.misc import torch_gc
 from llamafactory.hparams import get_infer_args
 from sse_starlette import EventSourceResponse
 
-from backend.src.xinhai.utils import build_logger, pretty_print_semaphore
-from backend.src.xinhai.config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL, STATIC_PATH
+from ..utils import build_logger, pretty_print_semaphore
+from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL, STATIC_PATH
 
 GB = 1 << 30
 worker_id = str(uuid.uuid4())[:6]
@@ -240,13 +240,13 @@ class MLLMWorker:
 
     # 调用测试函数
     # def test_call_method():
-    #     url = "http://localhost:7861/worker_mllm_chat"  # 你的FastAPI服务器地址
+    #     url = "http://127.0.0.1:5000/api/mllm-chat"  # 你的FastAPI服务器地址
     #     file = open("./example.png", "rb").read()
     #     base64_data = base64.b64encode(file)
     #     base64_str = str(base64_data, 'utf-8')
     #
     #     datas = {
-    #         "model": "minicpmv",
+    #         "model": "MiniCPMV",
     #         "temperature": 0,
     #         "messages": [{"role": "user", "content": "请解释一下图片内容"}],
     #         "images": [base64_str],
