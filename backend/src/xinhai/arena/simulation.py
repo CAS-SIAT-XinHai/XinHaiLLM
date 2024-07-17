@@ -11,6 +11,7 @@ from xinhai.arena.agents import AGENT_REGISTRY
 from xinhai.arena.agents.base import BaseAgent
 from xinhai.arena.environments import ENVIRONMENT_REGISTRY, BaseEnvironment
 from xinhai.arena.topology.base import BaseTopology
+from xinhai.arena.topology import TOPOLOGY_REGISTRY
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +38,11 @@ class Simulation:
         # Build the environment
         env_config = arena_config["environment"]
         env_config["agents"] = agents
-        env_config["topology"] = BaseTopology.from_config(env_config["topology"])
+        # env_config["topology"] = BaseTopology.from_config(env_config["topology"])
         environment_type = env_config.pop("environment_type")
+        env_config["topology"] = TOPOLOGY_REGISTRY[environment_type].from_config(env_config["topology"])
         environment = ENVIRONMENT_REGISTRY[environment_type](**env_config)
         [setattr(agent, "environment", environment) for agent in agents]
-
         return cls(agents, environment)
 
     def run(self):
