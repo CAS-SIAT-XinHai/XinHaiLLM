@@ -757,6 +757,19 @@ class Controller:
             "queue_length": queue_length,
         }
 
+    def worker_api_mllm_chat(self, params):
+        worker_addr = self.get_worker_address(params["model"])
+        try:
+            r = requests.post(worker_addr + "/worker_mllm_chat", json=params, timeout=60)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {worker_addr}, {e}")
+            return None
+
+        if r.status_code != 200:
+            logger.error(f"Get status fails: {worker_addr}, {r}")
+            return None
+
+        return r.json()
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
@@ -816,6 +829,10 @@ async def worker_api_ocr_image(request: Request):
     params = await request.json()
     return controller.worker_api_ocr_image(params)
 
+@app.post("/api/mllm-chat")
+async def worker_api_mllm_chat(request: Request):
+    params = await request.json()
+    return controller.worker_api_mllm_chat(params)
 
 @app.post("/api/upload-image")
 @app.post("/api/upload-file")
