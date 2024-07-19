@@ -1,5 +1,5 @@
 controller:
-  controller_address: http://localhost:5000
+  controller_address: http://localhost:5001
 
 workers:
   - worker_type: llm
@@ -66,7 +66,7 @@ arena:
 
   environment:
     environment_type: simple
-    controller_address: http://localhost:5000
+    controller_address: http://localhost:5001
     topology:
       edges:
         - 0->1

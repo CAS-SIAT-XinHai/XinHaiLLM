@@ -1,3 +1,10 @@
+'''
+Descripttion: 
+version: 1.0.0
+Author: yangdi
+Date: 2024-07-19 17:22:57
+LastEditTime: 2024-07-19 17:28:20
+'''
 """
 Copyright (c) CAS-SIAT-XinHai.
 Licensed under the CC0-1.0 license.
@@ -24,8 +31,10 @@ class SimpleAgent(BaseAgent):
     def get_history(self):
         memory = self.retrieve_memory()
         dialogue_context = []
-        for i, (agent_name, response) in enumerate(zip(memory["metadatas"], memory["documents"])):
+        for i, (agent_name, response) in enumerate(zip(memory["short_term_metadatas"], memory["short_term_documents"])):
             dialogue_context.append(f"{agent_name['source']}: {response}")
+        if len(dialogue_context) > 10:
+            dialogue_context = memory["summary_dialogues"][-1] + dialogue_context[-10:]
         return dialogue_context
 
     def routing(self, agent_descriptions):
