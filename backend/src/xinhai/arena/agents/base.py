@@ -184,11 +184,13 @@ class BaseAgent:
         params_for_long_term_memory = {
             "user_id": f"Agent-{self.agent_id}",
             "documents": [summary],
-            "metadatas": [{"source": self.client}],
+            "metadatas": [{"source": self.llm}],
             "short_memory":False
         }
+        logger.debug("=====================================")
+        logger.debug(params_for_long_term_memory)
         try:
-            r = requests.post(f"{self.environment.controller_address}/api/storage/chat-insert", json=params_for_long_term_memory, timeout=60)
+            r = requests.post(f"{self.environment.controller_address}/api/storage/chat-insert", json=params_for_long_term_memory)
         except requests.exceptions.RequestException as e:
             logger.error(f"Get status fails: {self.environment.controller_address}, {e}")
             return None
@@ -205,10 +207,14 @@ class BaseAgent:
     def dialogue_summary(self, new_dialogue_length):
         ### 暂时使用递归总结的办法，即上一轮的内容总结 + 本轮的对话 = 本轮的内容总结。
         r = self.retrieve_memory()
-        short_term_documents = r.get("short_term_dialogues")
-        short_term_metadatas = r.get("short_term_sources")
+        logger.debug("=======================================")
+        logger.debug(type(r))
+        short_term_documents = r.get("short_term_documents")
+        logger.debug("=======================================")
+        logger.debug(short_term_documents)
+        short_term_metadatas = r.get("short_term_metadatas")
         summary_dialogues = r.get("summary_dialogues")
-        pre_dialogue_summary = summary_dialogues[-1]
+        pre_dialogue_summary = summary_dialogues[-1] if len(summary_dialogues) > 0 else " "
         short_term_dialogue = [f'{meta}["source"]: {doc}' for meta, doc in zip(short_term_metadatas, short_term_documents)]
         prompt = f"""请根据之前的对话摘要和新的对话内容，给出新的对话摘要。
                 新的对话摘要应当包含之前摘要的内容。
