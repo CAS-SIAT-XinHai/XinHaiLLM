@@ -185,6 +185,7 @@ class BaseAgent:
             "user_id": f"Agent-{self.agent_id}",
             "documents": [summary],
             "metadatas": [{"source": self.llm}],
+            
             "short_memory":False
         }
         logger.debug("=====================================")
