@@ -41,6 +41,18 @@ arena:
       {{"method": "[Multicast]", "target": [1]}}
       
       现在，基于以上信息，你的Routing策略是什么？
+    summary_prompt: &summary_prompt |-
+      请根据之前的对话摘要和新的对话内容，给出新的对话摘要。
+      新的对话摘要应当包含之前摘要的内容。
+      摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。
+      ####
+      以前的对话摘要：{chat_summary}
+      
+      ####
+      新的对话内容：{chat_history}
+      
+      ###Attention###
+      仅返回新的对话摘要内容，不要返回分析过程！
     consultant_prompt: &consultant_prompt |-
       角色描述：
           {role_description}
@@ -96,6 +108,7 @@ arena:
       name: 咨询者
       role_description: 咨询者，面临以下心理问题：“察觉到一种模式，我总喜欢自己检讨、批评自己？”，具体如下：“我和我妈妈讲话会陷入一种很恶心的模式。我只要说遇到的烦恼她是无动于衷的，但是我一旦开始批评自我检讨，她就面露喜色。我觉得我已经不好办了，回想发现见人就自我检讨，觉得自己不是这里不足就是那里不足，再假假的夸两句别人，已经成为我的一种模式了，但这不正常的，苦恼”
       routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
       prompt_template: *consultant_prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
@@ -105,6 +118,7 @@ arena:
       name: 咨询师
       role_description: 咨询师，直接和咨询者进行对话，并希望实践认知行为疗法，习惯向心理督导师求助，以使得咨询过程符合行为认知疗法的准则。
       routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
@@ -114,6 +128,7 @@ arena:
       name: 督导师1
       role_description: 督导师1，专注于验证和共情，能够对患者的情感或问题表示理解和同情，创建安全感。
       routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
@@ -123,6 +138,7 @@ arena:
       name: 督导师2
       role_description: 督导师2，擅长识别关键思维或信念，能够通过问题描述，找出可能的认知扭曲或核⼼信仰。
       routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
@@ -132,6 +148,7 @@ arena:
       name: 督导师3
       role_description: 督导师3，善于提出挑战或反思，通过提出开放性问题，⿎励患者重新考虑或反思其初始思维或信仰。
       routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
@@ -141,6 +158,7 @@ arena:
       name: 督导师4
       role_description: 督导师4，善于提供策略或⻅解，通过提供实⽤策略或⻅解，以帮助他们处理当前情况。
       routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
@@ -150,6 +168,7 @@ arena:
       name: 督导师5
       role_description: 督导师5，负责⿎励与前瞻，⿎励患者使⽤策略，强调这只是开始，并可能需要进⼀步的⽀持。
       routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
