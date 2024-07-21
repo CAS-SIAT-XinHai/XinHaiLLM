@@ -34,7 +34,7 @@ class BaseAgent:
     prompt_template: str
 
     def __init__(self, name, agent_id, role_description, llm, api_key, api_base,
-                 routing_prompt_template, prompt_template,
+                 routing_prompt_template, summary_prompt_template, prompt_template,
                  environment_id, controller_address,
                  max_retries=5):
         self.name = name
@@ -47,6 +47,7 @@ class BaseAgent:
 
         self.max_retries = max_retries
         self.routing_prompt_template = routing_prompt_template
+        self.summary_prompt_template = summary_prompt_template
         self.prompt_template = prompt_template
 
         # self.memory = []  # memory of current agent
@@ -228,21 +229,10 @@ class BaseAgent:
     def dialogue_summary(self) -> XinHaiChatSummary:
         chat_summary = self.get_summary()
         chat_history = '\n'.join(self.get_history())
-        prompt = f"""请根据之前的对话摘要和新的对话内容，给出新的对话摘要。
-                新的对话摘要应当包含之前摘要的内容。
-                摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。
-                 ####
-                 以前的对话摘要：{chat_summary}
-                 
-                 ####
-                 新的对话内容：{chat_history}
-                 
-                 ###Attention###
-                 仅返回新的对话摘要内容，不要返回分析过程！
-                """
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
+            {"role": "user",
+             "content": self.summary_prompt_template.format(chat_summary=chat_summary, chat_history=chat_history)},
         ]
         response = self.chat_completion(client=self.client, model=self.llm, agent_id=self.agent_id, messages=messages)
         return XinHaiChatSummary(
