@@ -4,9 +4,9 @@ controller:
 workers:
   - worker_type: llm
     worker_name: Qwen1.5-7B-Chat
-    worker_address: http://localhost:40001
+    worker_address: http://localhost:40009
     worker_host: 0.0.0.0
-    worker_port: 40001
+    worker_port: 40009
     no_register: false
     limit_model_concurrency: 5
     device: cuda
@@ -86,7 +86,7 @@ arena:
       prompt_template: *consultant_prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
-      api_base: http://localhost:40001/v1
+      api_base: http://localhost:40009/v1
     - agent_type: simple
       agent_id: 1
       name: 咨询师
@@ -95,7 +95,7 @@ arena:
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
-      api_base: http://localhost:40001/v1
+      api_base: http://localhost:40009/v1
     - agent_type: simple
       agent_id: 2
       name: 督导师1
@@ -104,7 +104,7 @@ arena:
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
-      api_base: http://localhost:40001/v1
+      api_base: http://localhost:40009/v1
     - agent_type: simple
       agent_id: 3
       name: 督导师2
@@ -113,7 +113,7 @@ arena:
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
-      api_base: http://localhost:40001/v1
+      api_base: http://localhost:40009/v1
     - agent_type: simple
       agent_id: 4
       name: 督导师3
@@ -122,7 +122,7 @@ arena:
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
-      api_base: http://localhost:40001/v1
+      api_base: http://localhost:40009/v1
     - agent_type: simple
       agent_id: 5
       name: 督导师4
@@ -131,7 +131,7 @@ arena:
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
-      api_base: http://localhost:40001/v1
+      api_base: http://localhost:40009/v1
     - agent_type: simple
       agent_id: 6
       name: 督导师5
@@ -140,4 +140,4 @@ arena:
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
-      api_base: http://localhost:40001/v1
+      api_base: http://localhost:40009/v1
