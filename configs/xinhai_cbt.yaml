@@ -20,11 +20,17 @@ arena:
       现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：
       （1）角色描述：
           {role_description}
-      （2）对话历史：
+      
+      （2）对话历史摘要：
+          {chat_summary}
+      
+      （3）最新对话历史：
           {chat_history}
-      （3）可以进行交互的智能体列表：
+      
+      （4）可以进行交互的智能体列表：
           {agent_descriptions}
-      （4）可以采用的通讯方式有：
+      
+      （5）可以采用的通讯方式有：
           - [SingleCast] 单播，只发给特定智能体
           - [Multicast] 组播，发给若干智能体
           - [Broadcast] 广播，发给所有可通讯智能体
@@ -39,7 +45,10 @@ arena:
       角色描述：
           {role_description}
       
-      对话历史：
+      对话历史摘要：
+          {chat_summary}
+      
+      最新对话历史：
           {chat_history}
       
       现在，你选择了以{routing}方式与以下智能体通信:
@@ -57,7 +66,10 @@ arena:
       
       角色描述：{role_description}
       
-      对话历史：
+      对话历史摘要：
+          {chat_summary}
+      
+      最新对话历史：
           {chat_history}
       
       现在，你选择了以{routing}方式与{agents}通信，请问你想发出的消息内容是什么？
@@ -66,7 +78,8 @@ arena:
 
   environment:
     environment_type: simple
-    controller_address: http://localhost:5001
+    environment_id: xinhai_cbt_simulation_0
+    controller_address: http://localhost:5000
     topology:
       edges:
         - 0->1
@@ -86,7 +99,7 @@ arena:
       prompt_template: *consultant_prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
-      api_base: http://localhost:40009/v1
+      api_base: http://localhost:40001/v1
     - agent_type: simple
       agent_id: 1
       name: 咨询师
@@ -95,7 +108,7 @@ arena:
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
-      api_base: http://localhost:40009/v1
+      api_base: http://localhost:40001/v1
     - agent_type: simple
       agent_id: 2
       name: 督导师1
@@ -104,7 +117,7 @@ arena:
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
-      api_base: http://localhost:40009/v1
+      api_base: http://localhost:40001/v1
     - agent_type: simple
       agent_id: 3
       name: 督导师2
@@ -113,7 +126,7 @@ arena:
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
-      api_base: http://localhost:40009/v1
+      api_base: http://localhost:40001/v1
     - agent_type: simple
       agent_id: 4
       name: 督导师3
@@ -122,7 +135,7 @@ arena:
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
-      api_base: http://localhost:40009/v1
+      api_base: http://localhost:40001/v1
     - agent_type: simple
       agent_id: 5
       name: 督导师4
@@ -131,7 +144,7 @@ arena:
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
-      api_base: http://localhost:40009/v1
+      api_base: http://localhost:40001/v1
     - agent_type: simple
       agent_id: 6
       name: 督导师5
@@ -140,4 +153,4 @@ arena:
       prompt_template: *prompt
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
-      api_base: http://localhost:40009/v1
+      api_base: http://localhost:40001/v1

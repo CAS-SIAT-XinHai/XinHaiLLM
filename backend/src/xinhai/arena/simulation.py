@@ -26,17 +26,19 @@ class Simulation:
         config = yaml.safe_load(open(config_path))
 
         arena_config = config['arena']
+        env_config = arena_config["environment"]
 
         # Build the agents
         agents = []
         for agent_configs in arena_config["agents"]:
             agent_type = agent_configs.pop("agent_type")
 
-            agent = AGENT_REGISTRY[agent_type](**agent_configs)
+            agent = AGENT_REGISTRY[agent_type](**agent_configs,
+                                               controller_address=env_config['controller_address'],
+                                               environment_id=env_config["environment_id"])
             agents.append(agent)
 
         # Build the environment
-        env_config = arena_config["environment"]
         env_config["agents"] = agents
         # env_config["topology"] = BaseTopology.from_config(env_config["topology"])
         environment_type = env_config.pop("environment_type")
