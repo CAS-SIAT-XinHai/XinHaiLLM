@@ -16,7 +16,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiMemoryType
+from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiMemoryType, \
+    XinHaiChatSummary
 from xinhai.types.message import XinHaiChatMessage
 from xinhai.types.storage import XinHaiFetchMessagesResponse, XinHaiFetchMessagesRequest, XinHaiStoreMessagesRequest, \
     XinHaiFetchMemoryRequest, XinHaiFetchMemoryResponse, XinHaiStoreMemoryRequest, XinHaiStoreMemoryResponse, \
@@ -167,7 +168,7 @@ class StorageWorker:
         summary_collection = self.client.get_or_create_collection(name=f"{request.storage_key}_summary",
                                                                   embedding_function=self.embedding_fn)
         summaries = summary_collection.get(include=['metadatas'])['metadatas']
-        summaries = [XinHaiChatMessage.model_validate_json(s['summary']) for s in summaries]
+        summaries = [XinHaiChatSummary.model_validate_json(s['summary']) for s in summaries]
 
         return XinHaiFetchMemoryResponse(
             memory=XinHaiMemory(
