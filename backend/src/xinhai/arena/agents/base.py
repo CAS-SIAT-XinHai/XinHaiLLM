@@ -172,13 +172,10 @@ class BaseAgent:
         try:
             r = requests.post(f"{self.controller_address}/api/storage/fetch-memory",
                               json=fetch_request.model_dump(), timeout=60)
+            if r.status_code != 200:
+                logger.error(f"Get status fails: {self.controller_address}, {r}")
         except requests.exceptions.RequestException as e:
             logger.error(f"Get status fails: {self.controller_address}, {e}")
-            return None
-
-        if r.status_code != 200:
-            logger.error(f"Get status fails: {self.controller_address}, {r}")
-            return None
 
         logger.debug(r.json())
         memory_response = XinHaiFetchMemoryResponse.model_validate(r.json())
