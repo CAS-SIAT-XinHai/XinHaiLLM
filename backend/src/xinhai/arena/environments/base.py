@@ -25,7 +25,7 @@ class BaseEnvironment:
         max_turns: Maximum number of turns
         cnt_turn: Current turn number
     """
-
+    environment_id: str
     agents: List[BaseAgent]
     topology: BaseTopology
 
@@ -34,7 +34,9 @@ class BaseEnvironment:
 
     controller_address: str = None
 
-    def __init__(self, agents: List[BaseAgent], topology, max_turns=10, cnt_turn=0, controller_address=None):
+    def __init__(self, environment_id, agents: List[BaseAgent], topology, max_turns=10, cnt_turn=0,
+                 controller_address=None):
+        self.environment_id = environment_id
         self.agents = agents
         self.topology = topology
         self.max_turns = max_turns
