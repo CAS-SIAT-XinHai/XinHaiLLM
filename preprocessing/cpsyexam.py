@@ -1,65 +1,83 @@
 import os
 import sys
 import json
-from zipfile import ZipFile
+import zipfile
 from langchain.vectorstores import Chroma
-from langchain.embeddings import SentenceTransformerEmbeddings
+from langchain.embeddings import HuggingFaceBgeEmbeddings
+from typing import Literal
 
-
-def unzip_files(zip_path, extract_to):
-    with ZipFile(zip_path, 'r') as zip_ref:
+def extract_zip(zip_path: str, extract_to: str):
+    with zipfile.ZipFile(zip_path, "r") as zip_ref:
         zip_ref.extractall(extract_to)
 
+def detect_device() -> Literal["cuda", "mps", "cpu"]:
+    try:
+        import torch
+        if torch.cuda.is_available():
+            return "cuda"
+        elif torch.backends.mps.is_available():
+            return "mps"
+    except:
+        pass
+    return "cpu"
 
-def get_files(zip_path):
-    unzip_files(zip_path, "cpsyexam")
-    base_path = "cpsyexam"
-    for split in ['train', 'dev', 'test']:
-        folder_path = os.path.join(base_path, split)
-        for filename in os.listdir(folder_path):
-            if filename.startswith('CA-') or filename.startswith('KG-'):
-                yield os.path.join(folder_path, filename), f"{'CA' if filename.startswith('CA-') else 'KG'}_{split}"
+def concatenate_document(item):
+    subject = item["subject_name"]
+    question = item["question"]
+    options = " ".join(f"{k}: {v}" for k, v in item["options"].items() if v)
+    explanation = item["explanation"]
+    return f"{subject} {question} {options} {explanation}"
 
+class Document:
+    def __init__(self, text, metadata=None):
+        self.page_content = text
+        self.metadata = metadata if metadata else {}
 
-def concatenate_fields(doc):
-    # Combine subject_name, question, options, and explanation into one string
-    options_str = " ".join(f"{key}: {value}" for key, value in doc["options"].items() if value.strip())
-    combined_str = f"{doc['subject_name']} {doc['Question']} {options_str} {doc['explanation']}"
-    return combined_str
+def process_files(files, folder_path, model_path, chroma_path, db_name):
+    embeddings = HuggingFaceBgeEmbeddings(
+        model_name=model_path, model_kwargs={"device": detect_device()}
+    )
+    db_path = os.path.join(chroma_path, db_name)
+    if not os.path.exists(db_path):
+        os.makedirs(db_path)
+    db = Chroma(persist_directory=db_path, embedding_function=embeddings)
 
+    for file_name in files:
+        file_path = os.path.join(folder_path, file_name)
+        with open(file_path, "r", encoding="utf-8") as file:
+            data = json.load(file)
+            documents = [Document(concatenate_document(item)) for item in data]
+            for document in documents:
+                db.add_documents(documents=[document])
+        print(f"Processing {db_name} with file {file_path}")
+    print(f"Processed {db_name}")
 
-def process_files(zip_path, chroma_path, model_path):
-    # Initialize embeddings with the specified model
-    embeddings = SentenceTransformerEmbeddings(model_name=model_path)
-
-    for file_path, collection_name in get_files(zip_path):
-        print(f"Processing file: {file_path} for collection: {collection_name}")
-
-        # Load the JSON documents
-        with open(file_path, 'r', encoding='utf-8') as f:
-            documents = json.load(f)
-
-        # Extract, concatenate fields, and embed explanations
-        explanations = [(doc['id'], embeddings.embed(concatenate_fields(doc))) for doc in documents]
-
-        # Define the path for Chroma database
-        db_path = os.path.join(chroma_path, collection_name)
-
-        # Check if the Chroma DB for this collection already exists
-        if not os.path.exists(db_path):
-            os.makedirs(db_path, exist_ok=True)
-            db = Chroma.from_documents([(doc[0], doc[1]) for doc in explanations], persist_directory=db_path)
-        else:
-            # Load the existing Chroma DB
-            db = Chroma(persist_directory=db_path)
-            db.add_documents([(doc[0], doc[1]) for doc in explanations])
-
-        print(f"Finished processing for collection: {collection_name}")
-
+def process_folder(folder_path: str, model_path: str, chroma_path: str):
+    files = os.listdir(folder_path)
+    # Sort files into CA and KG groups
+    ca_files = [f for f in files if f.startswith("CA")]
+    kg_files = [f for f in files if f.startswith("KG")]
+    # Process each group into the appropriate database
+    if ca_files:
+        db_name = f"CA_{os.path.basename(folder_path)}"
+        process_files(ca_files, folder_path, model_path, chroma_path, db_name)
+    if kg_files:
+        db_name = f"KG_{os.path.basename(folder_path)}"
+        process_files(kg_files, folder_path, model_path, chroma_path, db_name)
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
-        print("Usage: python script.py <ZIP_PATH> <MODEL_PATH> <CHROMA_PATH> ")
-    else:
-        zip_path, model_path, chroma_path = sys.argv[1:]
-        process_files(zip_path, chroma_path, model_path)
+    if len(sys.argv) != 5:
+        print(
+            "Usage: python cpsyexam.py <zipfile_path> <model_path> <chroma_path> <unzip_path>"
+        )
+        sys.exit(1)
+
+    zip_file_path = sys.argv[1]
+    model_path = sys.argv[2]
+    chroma_path = sys.argv[3]
+    unzip_path = sys.argv[4]
+
+    extract_zip(zip_file_path, unzip_path)
+    for split in ["train", "dev", "test"]:
+        folder_path = os.path.join(unzip_path, split)
+        process_folder(folder_path, model_path, chroma_path)
