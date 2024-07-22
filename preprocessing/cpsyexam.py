@@ -3,8 +3,9 @@ import sys
 import json
 from zipfile import ZipFile
 from langchain.vectorstores import Chroma
-
-
+'''
+python script.py cpsyexam.zip chroma_path
+'''
 def unzip_files(zip_path, extract_to):
     with ZipFile(zip_path, 'r') as zip_ref:
         zip_ref.extractall(extract_to)
