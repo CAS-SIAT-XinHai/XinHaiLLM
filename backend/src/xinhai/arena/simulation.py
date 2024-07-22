@@ -53,7 +53,7 @@ class Simulation:
         while not self.environment.is_done():
             asyncio.run(self.environment.step())
         # self.environment.report_metrics()
-        print(json.dumps(self.agents[0].memory, indent=2))
+        print(json.dumps(self.agents[0].memory.model_dump_json(), indent=2))
 
     def reset(self):
         self.environment.reset()
