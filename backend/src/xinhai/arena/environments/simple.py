@@ -26,7 +26,7 @@ class SimpleEnvironment(BaseEnvironment):
         cnt_turn: Current turn number
     """
 
-    def step(self):
+    async def step(self):
         """Run one step of the environment"""
         agent_queue = [self.agents[0]]
         while agent_queue:
