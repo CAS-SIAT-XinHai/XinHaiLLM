@@ -50,7 +50,7 @@ class SimpleAgent(BaseAgent):
         t = datetime.now()
 
         return XinHaiChatMessage(
-            indexId=str(self.generate_message_id()),
+            indexId='-1',
             content=content,
             senderId=self.name,
             username=self.name,

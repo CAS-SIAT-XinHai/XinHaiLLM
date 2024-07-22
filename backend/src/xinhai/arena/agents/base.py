@@ -192,12 +192,14 @@ class BaseAgent:
         # 1. flush new memories to short-term chat history
         # 2. if short-term chat history exceeds maximum rounds, automatically summarize earliest n rounds and flush to
         # long-term chat summary
-        message_next_id = self.generate_message_id()
-        if message_next_id % self.summary_chunk_size == 0:
+        if self.generate_message_id() % self.summary_chunk_size == 0:
             summary = self.dialogue_summary()
             summaries = [summary]
         else:
             summaries = []
+
+        for m in messages:
+            m.indexId = str(self.generate_message_id())
 
         memory_request = XinHaiStoreMemoryRequest(
             storage_key=self.storage_key,
