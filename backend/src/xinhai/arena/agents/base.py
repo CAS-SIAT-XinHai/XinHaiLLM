@@ -10,9 +10,14 @@ import json
 import logging
 import re
 from abc import abstractmethod
+from typing import List
 
 import requests
 from openai import OpenAI, OpenAIError
+
+from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiChatSummary
+from xinhai.types.message import XinHaiChatMessage
+from xinhai.types.storage import XinHaiFetchMemoryResponse, XinHaiStoreMemoryRequest, XinHaiFetchMemoryRequest
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +33,10 @@ class BaseAgent:
 
     prompt_template: str
 
-    environment: object = None
-
     def __init__(self, name, agent_id, role_description, llm, api_key, api_base,
-                 routing_prompt_template, prompt_template, max_retries=5):
+                 routing_prompt_template, summary_prompt_template, prompt_template,
+                 environment_id, controller_address,
+                 max_retries=5):
         self.name = name
         self.agent_id = agent_id
         self.role_description = role_description
@@ -42,15 +47,47 @@ class BaseAgent:
 
         self.max_retries = max_retries
         self.routing_prompt_template = routing_prompt_template
+        self.summary_prompt_template = summary_prompt_template
         self.prompt_template = prompt_template
 
         # self.memory = []  # memory of current agent
-        self.messages = {}  # messages between current agent and other agents
+        # self.messages = {}  # messages between current agent and other agents
         self.client = OpenAI(
             api_key=self.api_key,
             base_url=self.api_base,
         )
         self.response_pattern = re.compile(r"\[Response]([\s\S]+)\[End of Response]")
+        self.summary_chunk_size = 5
+
+        self.controller_address = controller_address
+        self.environment_id = environment_id
+
+        self.memory = self.retrieve_memory()
+
+    def generate_message_id(self):
+        messages = self.memory.short_term_memory.messages
+        index_id = 0 if len(messages) == 0 else int(messages[-1].indexId)
+        return index_id + 1
+
+    def generate_summary_id(self):
+        summaries = self.memory.long_term_memory.summaries
+        index_id = 0 if len(summaries) == 0 else int(summaries[-1].indexId)
+        return index_id + 1
+
+    def get_summary(self):
+        summaries = self.memory.long_term_memory.summaries
+        chat_summary = "" if len(summaries) == 0 else summaries[-1].content
+        return chat_summary
+
+    def get_history(self):
+        dialogue_context = []
+        for i, message in enumerate(self.memory.short_term_memory.messages[-self.summary_chunk_size:]):
+            dialogue_context.append(f"{message.senderId}: {message.content}")
+        return dialogue_context
+
+    @property
+    def storage_key(self):
+        return f"{self.environment_id}-{self.agent_id}"
 
     @abstractmethod
     def routing(self, agent_descriptions):
@@ -128,110 +165,80 @@ class BaseAgent:
 
         return self.name, rr[0]
 
-    def retrieve_memory(self):
-        params = {
-            "user_id": f"Agent-{self.agent_id}",
-        }
+    def retrieve_memory(self) -> XinHaiMemory:
+        fetch_request = XinHaiFetchMemoryRequest(storage_key=self.storage_key)
 
         # Get Agent's short-term chat history
         # Get Agent's long-term chat summary/highlights
         try:
-            r = requests.post(f"{self.environment.controller_address}/api/storage/chat-get", json=params, timeout=60)
+            r = requests.post(f"{self.controller_address}/api/storage/fetch-memory",
+                              json=fetch_request.model_dump(), timeout=60)
+            if r.status_code != 200:
+                logger.error(f"Get status fails: {self.controller_address}, {r}")
         except requests.exceptions.RequestException as e:
-            logger.error(f"Get status fails: {self.environment.controller_address}, {e}")
-            return None
+            logger.error(f"Get status fails: {self.controller_address}, {e}")
 
-        if r.status_code != 200:
-            logger.error(f"Get status fails: {self.environment.controller_address}, {r}")
-            return None
-
-        data = json.loads(r.json())
+        logger.debug(r.json())
+        memory_response = XinHaiFetchMemoryResponse.model_validate(r.json())
 
         logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        logger.debug(f"Get memories of Agent {self.agent_id}: {json.dumps(data, ensure_ascii=False, indent=4)}")
-        return data
+        logger.debug(
+            f"Get memories of Agent {self.agent_id}: {json.dumps(memory_response.model_dump_json(), ensure_ascii=False, indent=4)}")
 
-    def update_memory(self, memories):
+        return memory_response.memory
 
-        params_for_shot_term_memory = {
-            "user_id": f"Agent-{self.agent_id}",
-            "documents": [content for _, content in memories],
-            "metadatas": [{"source": role} for role, _ in memories],
-            "short_memory": True
-        }
-
+    def update_memory(self, messages: List[XinHaiChatMessage]):
+        self.memory = self.retrieve_memory()
         # 1. flush new memories to short-term chat history
         # 2. if short-term chat history exceeds maximum rounds, automatically summarize earliest n rounds and flush to
         # long-term chat summary
-        
-        ## 先存储短期记忆
+        if self.generate_message_id() % self.summary_chunk_size == 0:
+            summary = self.dialogue_summary()
+            summaries = [summary]
+        else:
+            summaries = []
+
+        for m in messages:
+            m.indexId = str(self.generate_message_id())
+
+        memory_request = XinHaiStoreMemoryRequest(
+            storage_key=self.storage_key,
+            memory=XinHaiMemory(
+                storage_key=self.storage_key,
+                short_term_memory=XinHaiShortTermMemory(messages=messages),
+                long_term_memory=XinHaiLongTermMemory(summaries=summaries),
+            )
+        )
+
         try:
-            r = requests.post(f"{self.environment.controller_address}/api/storage/chat-insert", json=params_for_shot_term_memory, timeout=60)
+            r = requests.post(f"{self.controller_address}/api/storage/store-memory",
+                              json=memory_request.model_dump(), timeout=60)
         except requests.exceptions.RequestException as e:
-            logger.error(f"Get status fails: {self.environment.controller_address}, {e}")
+            logger.error(f"Get status fails: {self.controller_address}, {e}")
             return None
 
         if r.status_code != 200:
-            logger.error(f"Get status fails: {self.environment.controller_address}, {r}")
+            logger.error(f"Get status fails: {self.controller_address}, {r}")
             return None
 
         logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        logger.debug(f"Adding {memories} to Agent {self.agent_id}")
-        
-        ## 再存储长期记忆
-        new_dialogues_length = len(params_for_shot_term_memory["documents"])
-        summary = self.dialogue_summary(new_dialogues_length)
-        params_for_long_term_memory = {
-            "user_id": f"Agent-{self.agent_id}",
-            "documents": [summary],
-            "metadatas": [{"source": self.llm}],
-            
-            "short_memory":False
-        }
-        logger.debug("=====================================")
-        logger.debug(params_for_long_term_memory)
-        try:
-            r = requests.post(f"{self.environment.controller_address}/api/storage/chat-insert", json=params_for_long_term_memory)
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Get status fails: {self.environment.controller_address}, {e}")
-            return None
-
-        if r.status_code != 200:
-            logger.error(f"Get status fails: {self.environment.controller_address}, {r}")
-            return None
-
+        logger.debug(f"Adding {messages} to Agent {self.agent_id}")
         logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        logger.debug(f"Adding {summary} to Agent {self.agent_id}")
-        
+        logger.debug(f"Adding {summaries} to Agent {self.agent_id}")
+
         return r.json()
-    
-    def dialogue_summary(self, new_dialogue_length):
-        ### 暂时使用递归总结的办法，即上一轮的内容总结 + 本轮的对话 = 本轮的内容总结。
-        r = self.retrieve_memory()
-        logger.debug("=======================================")
-        logger.debug(type(r))
-        short_term_documents = r.get("short_term_documents")
-        logger.debug("=======================================")
-        logger.debug(short_term_documents)
-        short_term_metadatas = r.get("short_term_metadatas")
-        summary_dialogues = r.get("summary_dialogues")
-        pre_dialogue_summary = summary_dialogues[-1] if len(summary_dialogues) > 0 else " "
-        short_term_dialogue = [f'{meta}["source"]: {doc}' for meta, doc in zip(short_term_metadatas, short_term_documents)]
-        prompt = f"""请根据之前的对话摘要和新的对话内容，给出新的对话摘要。
-                新的对话摘要应当包含之前摘要的内容。
-                摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。
-                 ####
-                 以前的对话摘要：{pre_dialogue_summary}
-                 
-                 ####
-                 新的对话内容：{short_term_dialogue[-new_dialogue_length: ]}
-                 
-                 ###Attention###
-                 仅返回新的对话摘要内容，不要返回分析过程！
-                """
+
+    def dialogue_summary(self) -> XinHaiChatSummary:
+        chat_summary = self.get_summary()
+        chat_history = '\n'.join(self.get_history())
         messages = [
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
+            {"role": "user",
+             "content": self.summary_prompt_template.format(chat_summary=chat_summary, chat_history=chat_history)},
         ]
         response = self.chat_completion(client=self.client, model=self.llm, agent_id=self.agent_id, messages=messages)
-        return response
+        return XinHaiChatSummary(
+            indexId=str(self.generate_summary_id()),
+            content=response,
+            messages=self.memory.short_term_memory.messages[-self.summary_chunk_size:]
+        )
