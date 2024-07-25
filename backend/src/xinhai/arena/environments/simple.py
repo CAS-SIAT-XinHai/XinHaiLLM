@@ -26,7 +26,7 @@ class SimpleEnvironment(BaseEnvironment):
         cnt_turn: Current turn number
     """
 
-    def step(self):
+    async def step(self):
         """Run one step of the environment"""
         agent_queue = [self.agents[0]]
         while agent_queue:
@@ -41,16 +41,18 @@ class SimpleEnvironment(BaseEnvironment):
             targets = data["target"]
             if isinstance(data['target'], int):
                 targets = [data['target']]
-            targets = [self.agents[n] for n in targets]
+            targets = [self.agents[n] for n in targets if self.topology.digraph.has_edge(n, agent.agent_id)]
 
-            agent_queue.extend(targets)
+            if targets:
+                agent_queue.extend(targets)
 
-            targets_descriptions = "\n".join(
-                [f"{n.agent_id}: {n.role_description}" for n in targets])
-            message = agent.step(routing=data["method"], agents=targets_descriptions)
+                targets_descriptions = "\n".join(
+                    [f"{n.agent_id}: {n.role_description}" for n in targets])
+                message = agent.step(routing=data["method"], agents=targets_descriptions)
+                agent.update_memory([message])
 
-            agent.update_memory([message])
-            [a.update_memory([message]) for a in targets]
+                for a in targets:
+                    a.update_memory([message])
 
         self.cnt_turn += 1
 

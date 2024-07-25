@@ -16,8 +16,12 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiMemoryType, \
+    XinHaiChatSummary
 from xinhai.types.message import XinHaiChatMessage
-from xinhai.types.storage import XinHaiFetchMessagesResponse, XinHaiFetchMessagesRequest, XinHaiStoreMessagesRequest
+from xinhai.types.storage import XinHaiFetchMessagesResponse, XinHaiFetchMessagesRequest, XinHaiStoreMessagesRequest, \
+    XinHaiFetchMemoryRequest, XinHaiFetchMemoryResponse, XinHaiStoreMemoryRequest, XinHaiStoreMemoryResponse, \
+    XinHaiStorageErrorCode
 from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
 from ..utils import build_logger, pretty_print_semaphore
 
@@ -107,69 +111,73 @@ class StorageWorker:
             "queue_length": self.get_queue_length(),
         }
 
-    def insert_data(self, params):
-        ### metadatas的格式：[{"source": "Human"}, {"source": "AI"}]
-        ### documents格式: ['one', 'tow']
-        user_id = params.get('user_id')
-        documents = params.get('documents', [])
-        metadatas = params.get('metadatas', [])
-        short_memory = params.get("short_memory")
-
-        if user_id is None or not documents or not metadatas:
+    def store_memory(self, request: XinHaiStoreMemoryRequest):
+        if request.storage_key is None:
             return json.dumps({
                 "error_code": 1,
                 "error_message": "Missing required parameters"
             })
-        if short_memory:
-            collection = self.client.get_or_create_collection(
-                name="User_" + str(user_id),
-                embedding_function=self.embedding_fn
-            )
-        else:
-            collection = self.client.get_or_create_collection(
-                name="User_" + str(user_id) + "_summary",
-                embedding_function=self.embedding_fn
-            )
-        res = collection.count()
-        ids = [f'{user_id}_{i + res}' for i in range(len(documents))]
-        collection.add(documents=documents, ids=ids, metadatas=metadatas)
-        logger.info(f'User_{user_id}\'s memory_storage adds a message')
-        return json.dumps({
-            "user_id": user_id,
-            "new_document_count": len(documents),
-            "error_code": 0
-        })
 
-    def get_data(self, params):
+        messages = request.memory.short_term_memory.messages
+        summaries = request.memory.long_term_memory.summaries
+
+        if len(messages) > 0:
+            collection = self.client.get_or_create_collection(
+                name=request.storage_key,
+                embedding_function=self.embedding_fn
+            )
+
+            ids = [message.indexId for message in messages]
+            documents = [message.content for message in messages]
+            metadatas = [{"message": m.model_dump_json()} for m in messages]
+            collection.add(documents=documents, ids=ids, metadatas=metadatas)
+            logger.info(f'{request.storage_key}\'s memory_storage adds {len(messages)} messages.')
+
+        if len(summaries) > 0:
+            collection = self.client.get_or_create_collection(
+                name=f"{request.storage_key}_summary",
+                embedding_function=self.embedding_fn
+            )
+            ids = [summary.indexId for summary in summaries]
+            documents = [summary.content for summary in summaries]
+            metadatas = [{"summary": s.model_dump_json()} for s in summaries]
+            collection.add(documents=documents, ids=ids, metadatas=metadatas)
+            logger.info(f'{request.storage_key}\'s memory_storage adds {len(summaries)} summaries.')
+
+        return XinHaiStoreMemoryResponse(
+            storage_key=request.storage_key,
+            messages_count=len(messages),
+            summaries_count=len(summaries),
+            error_code=XinHaiStorageErrorCode.OK
+        )
+
+    def fetch_memory(self, request: XinHaiFetchMemoryRequest):
         ### 返回第k次及之后的对话
-        user_id = params.get('user_id')
-
-        if user_id is None:
+        if request.storage_key is None:
             return json.dumps({
                 "error_code": 1,
                 "error_message": "Missing required parameters"
             })
 
-        short_term_collection = self.client.get_or_create_collection(name="User_" + str(user_id),
-                                                          embedding_function=self.embedding_fn)
-        summary_collection = self.client.get_or_create_collection(name="User_" + str(user_id) + "_summary",
-                                                          embedding_function=self.embedding_fn)
-        short_term_dialogues = short_term_collection.get(include=['documents'])['documents']
-        short_term_sources = short_term_collection.get(include=['metadatas'])['metadatas']
-        summary_dialogues = summary_collection.get(include=['documents'])['documents']
-        summary_sources = summary_collection.get(include=['metadatas'])['metadatas']
-        # res = collection.count()
-        # results = []
-        # for i in range(k, res):
-        #     results.append(sources[i]['source:  '] + dialogues[i])
-        return json.dumps({
-            "user_id": user_id,
-            "short_term_documents": short_term_dialogues,
-            "short_term_metadatas": short_term_sources,
-            "summary_dialogues": summary_dialogues,
-            "summary_sources": summary_sources,
-            "error_code": 0
-        })
+        short_term_collection = self.client.get_or_create_collection(name=request.storage_key,
+                                                                     embedding_function=self.embedding_fn)
+        # messages_count = short_term_collection.count()
+        messages = short_term_collection.get(include=['metadatas'])['metadatas']
+        messages = [XinHaiChatMessage.model_validate_json(m['message']) for m in messages]
+
+        summary_collection = self.client.get_or_create_collection(name=f"{request.storage_key}_summary",
+                                                                  embedding_function=self.embedding_fn)
+        summaries = summary_collection.get(include=['metadatas'])['metadatas']
+        summaries = [XinHaiChatSummary.model_validate_json(s['summary']) for s in summaries]
+
+        return XinHaiFetchMemoryResponse(
+            memory=XinHaiMemory(
+                storage_key=request.storage_key,
+                short_term_memory=XinHaiShortTermMemory(messages=messages),
+                long_term_memory=XinHaiLongTermMemory(summaries=summaries),
+            ),
+            error_code=XinHaiStorageErrorCode.OK
+        )
 
     def search_similar(self, params):
         user_id = params.get('user_id')
@@ -189,7 +197,7 @@ class StorageWorker:
         sources = search['metadatas'][0]
         results = []
         for i in range(k):
-            results.append(sources[i]['source'] +  ":" + dialogues[i])
+            results.append(sources[i]['source'] + ":" + dialogues[i])
         return json.dumps({
             "user_id": user_id,
             "query": query,
@@ -222,7 +230,8 @@ class StorageWorker:
         collection = self.client.get_or_create_collection(name="Room_" + str(room_id),
                                                           embedding_function=self.embedding_fn)
         messages = collection.get(include=['metadatas'])['metadatas']
-        return XinHaiFetchMessagesResponse(messages=[XinHaiChatMessage.model_validate_json(m['message']) for m in messages])
+        return XinHaiFetchMessagesResponse(
+            messages=[XinHaiChatMessage.model_validate_json(m['message']) for m in messages])
 
     def store_messages(self, request: XinHaiStoreMessagesRequest):
         room_id = request.room.roomId
@@ -257,16 +266,16 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
-@app.post("/worker_storage_insert")
-async def insert_data(request: Request):
-    params = await request.json()
-    return worker.insert_data(params)
+@app.post("/worker_fetch_memory")
+async def fetch_memory(request: XinHaiFetchMemoryRequest, response_model=XinHaiFetchMemoryResponse):
+    # params = await request.json()
+    return worker.fetch_memory(request)
 
 
-@app.post("/worker_storage_get")
-async def get_data(request: Request):
-    params = await request.json()
-    return worker.get_data(params)
+@app.post("/worker_store_memory")
+async def store_memory(request: XinHaiStoreMemoryRequest, response_model=XinHaiStoreMemoryResponse):
+    # params = await request.json()
+    return worker.store_memory(request)
 
 
 @app.post("/worker_storage_search")

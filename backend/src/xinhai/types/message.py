@@ -1,4 +1,13 @@
-from typing import List, Dict, Optional
+"""
+Copyright (c) CAS-SIAT-XinHai.
+Licensed under the CC0-1.0 license.
+
+XinHai stands for [Sea of Minds].
+
+Authors: Vimos Tan
+"""
+
+from typing import List
 
 from pydantic import BaseModel
 
@@ -33,13 +42,21 @@ class XinHaiChatMessage(BaseModel):
     # disableActions: Optional[bool]
     # disableReactions: Optional[bool]
     files: List[XinHaiChatFile] = []
+
     # reactions: Optional[Dict]
     # replyMessage: Optional['XinHaiChatMessage']
+
+    def to_chat(self):
+        return {
+            "role": self.role,
+            "content": self.content,
+        }
 
 
 class XinHaiChatCompletionRequest(BaseModel):
     model: str
     messages: List[XinHaiChatMessage]
+
     # tools: Optional[List[FunctionAvailable]] = None
     # do_sample: bool = True
     # temperature: Optional[float] = None
@@ -52,8 +69,5 @@ class XinHaiChatCompletionRequest(BaseModel):
     def to_chat(self):
         messages = []
         for m in self.messages:
-            messages.append({
-                "role": m.role,
-                "content": m.content,
-            })
+            messages.append(m.to_chat())
         return messages

@@ -623,7 +623,7 @@ class Controller:
 
         return r.json()
 
-    def worker_api_storage_chat_insert(self, worker, params):
+    def worker_api_storage_store_memory(self, worker, params):
         storage_worker_addr = self.get_worker_address(worker)
         logger.info(f"Worker {worker}: {storage_worker_addr}")
         if not storage_worker_addr:
@@ -635,7 +635,7 @@ class Controller:
             return ret
 
         try:
-            r = requests.post(storage_worker_addr + "/worker_storage_insert",
+            r = requests.post(storage_worker_addr + "/worker_store_memory",
                               json=params,
                               timeout=60)
         except requests.exceptions.RequestException as e:
@@ -654,7 +654,7 @@ class Controller:
 
         return information_data
 
-    def worker_api_storage_chat_get(self, worker, params):
+    def worker_api_storage_fetch_memory(self, worker, params):
         storage_worker_addr = self.get_worker_address(worker)
         logger.info(f"Worker {worker}: {storage_worker_addr}")
         if not storage_worker_addr:
@@ -666,16 +666,13 @@ class Controller:
             return ret
 
         try:
-            r = requests.post(storage_worker_addr + "/worker_storage_get",
+            r = requests.post(storage_worker_addr + "/worker_fetch_memory",
                               json=params,
                               timeout=60)
+            if r.status_code != 200:
+                logger.error(f"Get status fails: {storage_worker_addr}, {r}")
         except requests.exceptions.RequestException as e:
             logger.error(f"Get status fails: {storage_worker_addr}, {e}")
-            return None
-
-        if r.status_code != 200:
-            logger.error(f"Get status fails: {storage_worker_addr}, {r}")
-            return None
 
         return r.json()
 
@@ -771,6 +768,7 @@ class Controller:
 
         return r.json()
 
+
 app = FastAPI()
 app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 app.add_middleware(
@@ -780,6 +778,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder({"detail": exc.errors(), "body": exc.body}),
+    )
 
 
 @app.post("/register_worker")
@@ -829,10 +835,12 @@ async def worker_api_ocr_image(request: Request):
     params = await request.json()
     return controller.worker_api_ocr_image(params)
 
+
 @app.post("/api/mllm-chat")
 async def worker_api_mllm_chat(request: Request):
     params = await request.json()
     return controller.worker_api_mllm_chat(params)
+
 
 @app.post("/api/upload-image")
 @app.post("/api/upload-file")
@@ -909,16 +917,16 @@ async def worker_api_audit_gists(request: Request):
     return StreamingResponse(generator)
 
 
-@app.post("/api/{worker}/chat-insert")
-async def worker_api_storage_chat_insert(worker: str, request: Request):
+@app.post("/api/{worker}/store-memory")
+async def worker_api_storage_store_memory(worker: str, request: Request):
     params = await request.json()
-    return controller.worker_api_storage_chat_insert(worker, params)
+    return controller.worker_api_storage_store_memory(worker, params)
 
 
-@app.post("/api/{worker}/chat-get")
-async def worker_api_storage_chat_get(worker: str, request: Request):
+@app.post("/api/{worker}/fetch-memory")
+async def worker_api_storage_fetch_memory(worker: str, request: Request):
     params = await request.json()
-    return controller.worker_api_storage_chat_get(worker, params)
+    return controller.worker_api_storage_fetch_memory(worker, params)
 
 
 @app.post("/api/{worker}/chat-search")
