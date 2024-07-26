@@ -75,13 +75,15 @@ class BaseAgent:
         return index_id + 1
 
     def get_summary(self):
-        summaries = self.memory.long_term_memory.summaries
+        cur_memory = self.retrieve_memory()
+        summaries = cur_memory.long_term_memory.summaries
         chat_summary = "" if len(summaries) == 0 else summaries[-1].content
         return chat_summary
 
     def get_history(self):
+        cur_memory = self.retrieve_memory()
         dialogue_context = []
-        for i, message in enumerate(self.memory.short_term_memory.messages[-self.summary_chunk_size:]):
+        for i, message in enumerate(cur_memory.short_term_memory.messages[-self.summary_chunk_size:]):
             dialogue_context.append(f"{message.senderId}: {message.content}")
         return dialogue_context
 
@@ -224,7 +226,7 @@ class BaseAgent:
         logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
         logger.debug(f"Adding {messages} to Agent {self.agent_id}")
         logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        logger.debug(f"Adding {summaries} to Agent {self.agent_id}")
+        logger.debug(f"Adding summaries: {summaries} to Agent {self.agent_id}")
 
         return r.json()
 
