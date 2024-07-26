@@ -27,7 +27,6 @@ fastapi-cli==0.0.4
 filelock==3.15.4
 flatbuffers==24.3.25
 frozenlist==1.4.1
-fsspec==2024.6.1
 google-auth==2.32.0
 googleapis-common-protos==1.63.2
 grpcio==1.65.1
