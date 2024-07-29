@@ -223,8 +223,10 @@ class BaseAgent:
 
         logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
         logger.debug(f"Adding {messages} to Agent {self.agent_id}")
+        self.memory.short_term_memory.messages.extend(messages)
         logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        logger.debug(f"Adding {summaries} to Agent {self.agent_id}")
+        logger.debug(f"Adding summaries: {summaries} to Agent {self.agent_id}")
+        self.memory.long_term_memory.summaries.extend(summaries)
 
         return r.json()
 
