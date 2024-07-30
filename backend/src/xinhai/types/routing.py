@@ -1,17 +1,10 @@
-'''
-Descripttion: 
-version: 1.0.0
-Author: yangdi
-Date: 2024-07-30 10:04:32
-LastEditTime: 2024-07-30 10:25:26
-'''
 """
 Copyright (c) CAS-SIAT-XinHai.
 Licensed under the CC0-1.0 license.
 
 XinHai stands for [Sea of Minds].
 
-Authors: Vimos Tan
+Authors: Vimos Tan  Di Yang
 """
 from dataclasses import dataclass
 from enum import Enum
