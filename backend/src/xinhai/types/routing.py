@@ -1,3 +1,10 @@
+'''
+Descripttion: 
+version: 1.0.0
+Author: yangdi
+Date: 2024-07-30 10:04:32
+LastEditTime: 2024-07-30 10:25:26
+'''
 """
 Copyright (c) CAS-SIAT-XinHai.
 Licensed under the CC0-1.0 license.
@@ -44,3 +51,24 @@ class XinHaiRoutingType(XinHaiRoutingTypeMixin, Enum):
     def to_description(cls, locale: XinHaiI18NLocales) -> str:
         return "\n".join(
             f"{member.routing_name}: {member.description[locale]}" for name, member in cls.__members__.items())
+
+
+@dataclass
+class XinHaiRoutingErrorTypeMixin:
+    error_name: str
+    description: Dict[XinHaiI18NLocales, str]
+
+class XinHaiRoutingErrorType(XinHaiRoutingErrorTypeMixin, Enum):
+    TIMEOUT = "[Timeout]", {
+        XinHaiI18NLocales.CHINESE: "超时，通信操作超时"
+    }
+    
+    SELF_ROUTING = "[SelfRouting]", {
+        XinHaiI18NLocales.CHINESE: "自我路由，路由到了自身"
+    }
+    
+
+    @classmethod
+    def to_description(cls, locale: XinHaiI18NLocales) -> str:
+        return "\n".join(
+            f"{member.error_name}: {member.description[locale]}" for name, member in cls.__members__.items())
