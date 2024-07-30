@@ -1,10 +1,3 @@
-'''
-Descripttion: 
-version: 1.0.0
-Author: yangdi
-Date: 2024-07-24 10:04:36
-LastEditTime: 2024-07-29 14:30:17
-'''
 """
 Copyright (c) CAS-SIAT-XinHai.
 Licensed under the CC0-1.0 license.
@@ -41,17 +34,15 @@ class SimpleEnvironment(BaseEnvironment):
 
             agent_descriptions = "\n".join(
                 [f"{n}: {self.agents[n].role_description}" for n in self.topology.digraph.neighbors(agent.agent_id)])
-            while True:
-                data = agent.routing(agent_descriptions)
-                logger.debug(data)
+           
+            data = agent.routing(agent_descriptions)
+            logger.debug(data)
 
-                targets = data["target"]
-                if isinstance(data['target'], int):
-                    targets = [data['target']]
-                targets = [self.agents[n] for n in targets if self.topology.digraph.has_edge(n, agent.agent_id) and n != agent.agent_id]
+            targets = data["target"]
+            if isinstance(data['target'], int):
+                targets = [data['target']]
+            targets = [self.agents[n] for n in targets if self.topology.digraph.has_edge(n, agent.agent_id)]
                 
-                if targets:
-                    break
 
             if targets:
                 agent_queue.extend(targets)
