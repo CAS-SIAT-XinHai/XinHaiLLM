@@ -34,7 +34,7 @@ class SimpleEnvironment(BaseEnvironment):
 
             agent_descriptions = "\n".join(
                 [f"{n}: {self.agents[n].role_description}" for n in self.topology.digraph.neighbors(agent.agent_id)])
-
+           
             data = agent.routing(agent_descriptions)
             logger.debug(data)
 
@@ -42,6 +42,7 @@ class SimpleEnvironment(BaseEnvironment):
             if isinstance(data['target'], int):
                 targets = [data['target']]
             targets = [self.agents[n] for n in targets if self.topology.digraph.has_edge(n, agent.agent_id)]
+                
 
             if targets:
                 agent_queue.extend(targets)
