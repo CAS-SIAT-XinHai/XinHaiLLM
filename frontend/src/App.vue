@@ -31,6 +31,12 @@
             Chat
           </a-menu-item>
         </RouterLink>
+        <RouterLink to="/simulation">
+          <a-menu-item key="0_2">
+            <IconCalendar/>
+            Simulation
+          </a-menu-item>
+        </RouterLink>
         <RouterLink to="/ragchat">
           <a-menu-item key="0_3">
             <IconCaretLeft/>
