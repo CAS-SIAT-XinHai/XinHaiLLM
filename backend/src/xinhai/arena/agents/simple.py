@@ -1,10 +1,3 @@
-'''
-Descripttion: 
-version: 1.0.0
-Author: yangdi
-Date: 2024-07-24 10:04:36
-LastEditTime: 2024-07-30 10:46:36
-'''
 """
 Copyright (c) CAS-SIAT-XinHai.
 Licensed under the CC0-1.0 license.
