@@ -4,7 +4,7 @@ Licensed under the CC0-1.0 license.
 
 XinHai stands for [Sea of Minds].
 
-Authors: Vimos Tan
+Authors: Vimos Tan  Di Yang
 """
 from dataclasses import dataclass
 from enum import Enum
@@ -44,3 +44,24 @@ class XinHaiRoutingType(XinHaiRoutingTypeMixin, Enum):
     def to_description(cls, locale: XinHaiI18NLocales) -> str:
         return "\n".join(
             f"{member.routing_name}: {member.description[locale]}" for name, member in cls.__members__.items())
+
+
+@dataclass
+class XinHaiRoutingErrorTypeMixin:
+    error_name: str
+    description: Dict[XinHaiI18NLocales, str]
+
+class XinHaiRoutingErrorType(XinHaiRoutingErrorTypeMixin, Enum):
+    TIMEOUT = "[Timeout]", {
+        XinHaiI18NLocales.CHINESE: "超时，通信操作超时"
+    }
+    
+    SELF_ROUTING = "[SelfRouting]", {
+        XinHaiI18NLocales.CHINESE: "自我路由，路由到了自身"
+    }
+    
+
+    @classmethod
+    def to_description(cls, locale: XinHaiI18NLocales) -> str:
+        return "\n".join(
+            f"{member.error_name}: {member.description[locale]}" for name, member in cls.__members__.items())
