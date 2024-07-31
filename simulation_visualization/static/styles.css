@@ -1,0 +1,156 @@
+/* 基本布局和颜色设置 */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f4f4f4;
+    color: #333;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.container {
+    width: 90%;
+    height: 90%;
+    background-color: #fff;
+    padding: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* 配置选择部分的样式 */
+.config-section {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.config-section label {
+    margin-right: 10px;
+    font-weight: bold;
+}
+
+.config-section select, .config-section button {
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background-color: #f8f8f8;
+}
+
+.config-section button {
+    cursor: pointer;
+    background-color: #007bff;
+    color: white;
+    border: none;
+}
+
+.config-section button:hover {
+    background-color: #0056b3;
+}
+
+/* 智能体详细信息显示 */
+.agent-details {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    justify-content: center;
+}
+
+.agent {
+    margin: 10px;
+    text-align: center;
+}
+
+.agent img {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 2px solid #007bff;
+}
+
+.agent .name {
+    margin-top: 5px;
+    font-weight: bold;
+}
+
+/* 对话历史区域 */
+.chat-section {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-section h2 {
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+#chat-history {
+    flex-grow: 1;
+    border: 1px solid #ccc;
+    padding: 10px;
+    background-color: #fafafa;
+    overflow-y: scroll; /* 添加滚动条 */
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-message {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.chat-message img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.message-content {
+    background-color: #e3f2fd;
+    padding: 10px;
+    border-radius: 4px;
+    border-left: 5px solid #007bff;
+    max-width: 70%;
+}
+
+.message-content h5 {
+    margin-top: 0;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.message-content p {
+    margin: 0;
+    line-height: 1.5;
+    word-wrap: break-word;
+}
+
+/* 背景设置 */
+body {
+    background: linear-gradient(to right, #4facfe, #00f2fe);
+}
+#chat-history {
+    flex-grow: 1;
+    border: 1px solid #ccc;
+    padding: 10px;
+    background-color: #fafafa;
+    height: 300px; /* 固定高度 */
+    overflow-y: scroll; /* 添加滚动条 */
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+}

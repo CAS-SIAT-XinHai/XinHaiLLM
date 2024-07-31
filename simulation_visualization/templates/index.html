@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>Agents 对话模拟器</title>
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Agents 对话模拟器</h1>
+        </header>
+        <section class="config-section">
+            <label for="config-select">选择配置文件：</label>
+            <select id="config-select">
+                <!-- 配置文件选项将在这里动态填充 -->
+            </select>
+            <button id="start-simulation">开始模拟</button>
+        </section>
+        <section id="agent-details" class="agent-details">
+            <!-- 智能体的详细信息将在这里显示 -->
+        </section>
+        <section class="chat-section">
+            <h2>对话历史</h2>
+            <div id="chat-history">
+                <!-- 对话历史将在这里动态显示 -->
+            </div>
+        </section>
+    </div>
+    <script src="static/script.js"></script>
+</body>
+</html>
