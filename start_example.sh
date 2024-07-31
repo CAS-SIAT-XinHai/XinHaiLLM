@@ -76,3 +76,8 @@ RERANKER_MODEL_PATH=/data/pretrained_models/maidalun/bce-reranker-base_v1
 start_storage_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=0 CONTROLLER_ADDRESS=http://localhost:5000 MODEL_NAME=storage WORKER_ADDRESS=http://localhost:40003 WORKER_HOST=0.0.0.0 WORKER_PORT=40003 DB_PATH=${DB_PATH} EMBEDDING_MODEL_PATH=${EMBEDDING_MODEL_PATH} python -m xinhai.workers.storage"
 echo "$start_storage_script"
 tmux new-session -d -s xinhai_storage_$PID "$start_storage_script"
+
+AGENCY_CONFIG_PATH=${WORK_DIR}/configs/xinhai_cbt_agency.yaml
+start_agency_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=0 PYTHONPATH=${WORK_DIR}/related_repos/LLaMA-Factory/src CONTROLLER_ADDRESS=http://localhost:5000 MODEL_NAME=${AGENCY_CONFIG_PATH} WORKER_ADDRESS=http://localhost:40004 WORKER_HOST=0.0.0.0 WORKER_PORT=40004 AGENCY_CONFIG_PATH=${AGENCY_CONFIG_PATH} python -m xinhai.workers.agency"
+echo "$start_agency_script"
+tmux new-session -d -s xinhai_agency_$PID "$start_agency_script"
