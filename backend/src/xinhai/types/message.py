@@ -6,7 +6,7 @@ XinHai stands for [Sea of Minds].
 
 Authors: Vimos Tan
 """
-
+from datetime import datetime
 from typing import List
 
 from pydantic import BaseModel
@@ -51,6 +51,19 @@ class XinHaiChatMessage(BaseModel):
             "role": self.role,
             "content": self.content,
         }
+
+    @classmethod
+    def from_chat(cls, messages, role_mapping):
+        t = datetime.now()
+        return [cls(
+            indexId=f'{i}',
+            content=m['content'],
+            senderId=role_mapping[m['role']],
+            username=role_mapping[m['role']],
+            role="user",
+            date=t.strftime("%a %b %d %Y"),
+            timestamp=t.strftime("%H:%M"),
+        ) for i, m in enumerate(messages)]
 
 
 class XinHaiChatCompletionRequest(BaseModel):
