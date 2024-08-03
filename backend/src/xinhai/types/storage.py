@@ -11,7 +11,7 @@ from typing import List
 
 from pydantic import BaseModel
 
-from xinhai.types.memory import XinHaiMemory, XinHaiMemoryType
+from xinhai.types.memory import XinHaiMemory, XinHaiMemoryType, XinHaiChatSummary
 from xinhai.types.message import XinHaiChatMessage
 from xinhai.types.room import XinHaiChatRoom
 
@@ -50,6 +50,28 @@ class XinHaiStoreMemoryRequest(BaseModel):
 
 class XinHaiStoreMemoryResponse(BaseModel):
     storage_key: str
-    messages_count: int
-    summaries_count: int
+    short_term_messages_count: int
+    long_term_summaries_count: int
+    error_code: XinHaiStorageErrorCode
+
+
+class XinHaiRecallMemoryRequest(BaseModel):
+    storage_key: str
+    query: str
+    top_k: int
+    threshold: int
+
+
+class XinHaiRecallMemoryResponse(BaseModel):
+    recalled_memory: List[XinHaiChatSummary] = []
+    error_code: XinHaiStorageErrorCode
+
+
+class XinHaiDeleteMemoryRequest(BaseModel):
+    storage_key: str
+    memory_type: str = "short"
+
+
+class XinHaiDeleteMemoryResponse(BaseModel):
+    num_delete: int
     error_code: XinHaiStorageErrorCode

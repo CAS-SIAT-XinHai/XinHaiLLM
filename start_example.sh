@@ -49,6 +49,7 @@ MLLM_WORKER_PORT=40002
 KNOWLEDGE_WORKER_PORT=40003
 STORAGE_WORKER_PORT=40004
 AGENCY_WORKER_PORT=40005
+FEEDBACK_WORKER_PORT=40005
 
 OCR_DEVICE=0
 LLM_DEVICE=0
@@ -107,3 +108,10 @@ AGENCY_NAME=xinhai_cbt_agency
 start_agency_script="cd ${WORK_DIR}/backend/src && PYTHONPATH=${WORK_DIR}/related_repos/LLaMA-Factory/src CONTROLLER_ADDRESS=${CONTROLLER_ADDRESS} MODEL_NAME=${AGENCY_NAME} WORKER_ADDRESS=http://localhost:${AGENCY_WORKER_PORT} WORKER_HOST=0.0.0.0 WORKER_PORT=${AGENCY_WORKER_PORT} AGENCY_CONFIG_PATH=${AGENCY_CONFIG_PATH} python -m xinhai.workers.agency"
 echo "$start_agency_script"
 tmux new-session -d -s xinhai_agency_$PID "$start_agency_script"
+
+QA_BANK_DB_PATH=/data/pretrained_models/CPsyExamDB
+EMBEDDING_MODEL_PATH=default
+RERANKER_MODEL_PATH=/data/pretrained_models/maidalun/bce-reranker-base_v1
+start_feedback_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=0 CONTROLLER_ADDRESS=${CONTROLLER_ADDRESS} MODEL_NAME=feedback WORKER_ADDRESS=http://localhost:${FEEDBACK_WORKER_PORT} WORKER_HOST=0.0.0.0 WORKER_PORT=${FEEDBACK_WORKER_PORT} QA_BANK_DB_PATH=${QA_BANK_DB_PATH} EMBEDDING_MODEL_PATH=${EMBEDDING_MODEL_PATH} python -m xinhai.workers.feedback"
+echo "$start_feedback_script"
+tmux new-session -d -s xinhai_feedback_$PID "$start_feedback_script"
