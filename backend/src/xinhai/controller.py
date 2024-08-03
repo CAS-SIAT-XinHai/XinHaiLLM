@@ -210,7 +210,7 @@ class Controller:
             }
             yield json.dumps(ret).encode() + b"\0"
 
-        messages = request.to_chat()
+        messages = request.to_chat(STATIC_PATH)
 
         openai_api_key = "EMPTY"  # OPENAI_API_KEY
         openai_api_base = f"{worker_addr}/v1/"
@@ -919,27 +919,18 @@ async def worker_api_mllm_chat(request: Request):
 @app.post("/api/upload-image")
 @app.post("/api/upload-file")
 async def worker_api_upload_file(file: UploadFile):
-    out_file_path = os.path.join(STATIC_PATH, file.filename)
+    out_file_path = os.path.join(STATIC_PATH, file.filename.split(os.path.sep)[-1])
     async with aiofiles.open(out_file_path, 'wb') as out_file:
         while content := await file.read(1024):  # async read chunk
             await out_file.write(content)  # async write chunk
 
-    return {"Result": "OK"}
+    return {"Result": out_file_path}
 
 
 @app.post("/api/parse-file")
 async def worker_api_parse_file(request: Request):
     params = await request.json()
     return controller.worker_api_parse_file(params)
-
-
-@app.post("/api/upload-file")
-async def worker_api_upload_file(file: UploadFile):
-    out_file_path = os.path.join(STATIC_PATH, file.filename)
-    async with aiofiles.open(out_file_path, 'wb') as out_file:
-        while content := await file.read(1024):  # async read chunk
-            await out_file.write(content)  # async write chunk
-    return {"Result": "OK"}
 
 
 @app.post("/api/generate-gists")

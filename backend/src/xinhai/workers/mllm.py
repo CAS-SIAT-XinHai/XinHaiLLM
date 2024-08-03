@@ -1,6 +1,7 @@
 import asyncio
-import json, base64, io
-from PIL import Image
+import base64
+import io
+import json
 import os
 import threading
 import time
@@ -8,14 +9,18 @@ import uuid
 from contextlib import asynccontextmanager
 from threading import Thread
 from typing import Sequence, Dict, Optional, List, Generator, AsyncGenerator, Any, Annotated, Tuple
-from argparse import ArgumentParser
+
 import requests
 import uvicorn
+from PIL import Image
 from fastapi import FastAPI, HTTPException, status, Depends
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from llamafactory.api.protocol import Role, ModelList, ModelCard, ChatCompletionResponse, ChatCompletionRequest, Function, \
+from sse_starlette import EventSourceResponse
+
+from llamafactory.api.protocol import Role, ModelList, ModelCard, ChatCompletionResponse, ChatCompletionRequest, \
+    Function, \
     ChatCompletionMessage, FunctionCall, Finish, ChatCompletionResponseChoice, ChatCompletionResponseUsage, \
     ChatCompletionStreamResponse, ScoreEvaluationResponse, ScoreEvaluationRequest, ChatCompletionStreamResponseChoice
 from llamafactory.chat.hf_engine import HuggingfaceEngine
@@ -23,10 +28,8 @@ from llamafactory.chat.vllm_engine import VllmEngine
 from llamafactory.data import Role as DataRole
 from llamafactory.extras.misc import torch_gc
 from llamafactory.hparams import get_infer_args
-from sse_starlette import EventSourceResponse
-
+from xinhai.config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
 from xinhai.utils import build_logger, pretty_print_semaphore
-from xinhai.config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL, STATIC_PATH
 
 GB = 1 << 30
 worker_id = str(uuid.uuid4())[:6]
@@ -102,9 +105,10 @@ class MLLMWorker:
             messages: Sequence[Dict[str, str]],
             system: Optional[str] = None,
             tools: Optional[str] = None,
+            image: Optional["NDArray"] = None,
             **input_kwargs,
     ) -> List["Response"]:
-        task = asyncio.run_coroutine_threadsafe(self.achat(messages, system, tools, **input_kwargs), self._loop)
+        task = asyncio.run_coroutine_threadsafe(self.achat(messages, system, tools, image, **input_kwargs), self._loop)
         return task.result()
 
     async def achat(
@@ -112,18 +116,20 @@ class MLLMWorker:
             messages: Sequence[Dict[str, str]],
             system: Optional[str] = None,
             tools: Optional[str] = None,
+            image: Optional["NDArray"] = None,
             **input_kwargs,
     ) -> List["Response"]:
-        return await self.engine.chat(messages, system, tools, **input_kwargs)
+        return await self.engine.chat(messages, system, tools, image, **input_kwargs)
 
     def stream_chat(
             self,
             messages: Sequence[Dict[str, str]],
             system: Optional[str] = None,
             tools: Optional[str] = None,
+            image: Optional["NDArray"] = None,
             **input_kwargs,
     ) -> Generator[str, None, None]:
-        generator = self.astream_chat(messages, system, tools, **input_kwargs)
+        generator = self.astream_chat(messages, system, tools, image, **input_kwargs)
         while True:
             try:
                 task = asyncio.run_coroutine_threadsafe(generator.__anext__(), self._loop)
@@ -136,9 +142,10 @@ class MLLMWorker:
             messages: Sequence[Dict[str, str]],
             system: Optional[str] = None,
             tools: Optional[str] = None,
+            image: Optional["NDArray"] = None,
             **input_kwargs,
     ) -> AsyncGenerator[str, None]:
-        async for new_token in self.engine.stream_chat(messages, system, tools, **input_kwargs):
+        async for new_token in self.engine.stream_chat(messages, system, tools, image, **input_kwargs):
             yield new_token
 
     def get_scores(
@@ -236,7 +243,7 @@ ROLE_MAPPING = {
 
 
 def _process_request(
-    request: "ChatCompletionRequest",
+        request: "ChatCompletionRequest",
 ) -> Tuple[List[Dict[str, str]], Optional[str], Optional[str], Optional["NDArray"]]:
     logger.info("==== request ====\n{}".format(json.dumps(dictify(request), indent=2, ensure_ascii=False)))
 
@@ -271,8 +278,16 @@ def _process_request(
                 if input_item.type == "text":
                     input_messages.append({"role": ROLE_MAPPING[message.role], "content": input_item.text})
                 else:
-                    image_url = input_item.image_url.url  # base64 image
-                    image = Image.open(io.BytesIO(base64.b64decode(image_url))).convert('RGB')
+                    image_url = input_item.image_url.url
+                    if image_url.startswith("data:image"):  # base64 image
+                        image_data = base64.b64decode(image_url.split(",", maxsplit=1)[1])
+                        image_path = io.BytesIO(image_data)
+                    elif os.path.isfile(image_url):  # local file
+                        image_path = open(image_url, "rb")
+                    else:  # web uri
+                        image_path = requests.get(image_url, stream=True).raw
+
+                    image = Image.open(image_path).convert("RGB")
         else:
             input_messages.append({"role": ROLE_MAPPING[message.role], "content": message.content})
 
@@ -309,26 +324,30 @@ async def create_chat_completion_response(
         input_messages,
         system,
         tools,
+        image,
         do_sample=request.do_sample,
         temperature=request.temperature,
         top_p=request.top_p,
         max_new_tokens=request.max_tokens,
         num_return_sequences=request.n,
+        stop=request.stop,
     )
 
     prompt_length, response_length = 0, 0
     choices = []
     for i, response in enumerate(responses):
         if tools:
-            result = chat_model.engine.template.format_tools.extract(response.response_text)
+            result = chat_model.engine.template.extract_tool(response.response_text)
         else:
             result = response.response_text
 
-        if isinstance(result, tuple):
-            name, arguments = result
-            function = Function(name=name, arguments=arguments)
-            tool_call = FunctionCall(id="call_{}".format(uuid.uuid4().hex), function=function)
-            response_message = ChatCompletionMessage(role=Role.ASSISTANT, tool_calls=[tool_call])
+        if isinstance(result, list):
+            tool_calls = []
+            for tool in result:
+                function = Function(name=tool[0], arguments=tool[1])
+                tool_calls.append(FunctionCall(id="call_{}".format(uuid.uuid4().hex), function=function))
+
+            response_message = ChatCompletionMessage(role=Role.ASSISTANT, tool_calls=tool_calls)
             finish_reason = Finish.TOOL
         else:
             response_message = ChatCompletionMessage(role=Role.ASSISTANT, content=result)
@@ -351,9 +370,12 @@ async def create_stream_chat_completion_response(
         request: "ChatCompletionRequest", chat_model: "ChatModel"
 ) -> AsyncGenerator[str, None]:
     completion_id = "chatcmpl-{}".format(uuid.uuid4().hex)
-    input_messages, system, tools = _process_request(request)
+    input_messages, system, tools, image = _process_request(request)
     if tools:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot stream function calls.")
+
+    if request.n > 1:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot stream multiple responses.")
 
     yield _create_stream_chat_completion_chunk(
         completion_id=completion_id, model=request.model, delta=ChatCompletionMessage(role=Role.ASSISTANT, content="")
@@ -362,10 +384,12 @@ async def create_stream_chat_completion_response(
             input_messages,
             system,
             tools,
+            image,
             do_sample=request.do_sample,
             temperature=request.temperature,
             top_p=request.top_p,
             max_new_tokens=request.max_tokens,
+            stop=request.stop,
     ):
         if len(new_token) != 0:
             yield _create_stream_chat_completion_chunk(

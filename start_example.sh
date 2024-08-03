@@ -65,7 +65,7 @@ MLLM_MODEL_PATH=/data/pretrained_models/MiniCPM-V-2
 MLLM_MODEL_NAME=MiniCPM-V-2
 MLLM_MODEL_TEMPLATE=cpm
 
-start_controller_script="cd ${WORK_DIR}/backend/src && python -m xinhai.controller --host ${CONTROLLER_HOST} --port ${CONTROLLER_PORT}"
+start_controller_script="cd ${WORK_DIR}/backend/src && PYTHONPATH=${WORK_DIR}/related_repos/LLaMA-Factory/src python -m xinhai.controller --host ${CONTROLLER_HOST} --port ${CONTROLLER_PORT}"
 echo "$start_controller_script"
 #screen -dmS start_webui_$PID bash -c "$start_webui_script"
 tmux new-session -d -s xinhai_controller_$PID "$start_controller_script"
