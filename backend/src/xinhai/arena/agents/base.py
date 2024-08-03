@@ -15,6 +15,7 @@ from typing import List
 import requests
 from openai import OpenAI, OpenAIError
 
+from xinhai.types.arena import XinHaiArenaAgentTypes
 from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiChatSummary
 from xinhai.types.message import XinHaiChatMessage
 from xinhai.types.storage import XinHaiFetchMemoryResponse, XinHaiStoreMemoryRequest, XinHaiFetchMemoryRequest
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 class BaseAgent:
     name: str
     agent_id: int
+    agent_type: XinHaiArenaAgentTypes
     role_description: str
 
     llm: str

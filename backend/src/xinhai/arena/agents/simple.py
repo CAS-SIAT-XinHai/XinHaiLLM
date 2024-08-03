@@ -9,21 +9,20 @@ Authors: Vimos Tan
 Date: 2024-07-19 17:22:57
 LastEditTime: 2024-07-19 17:28:20
 """
-from datetime import datetime
-
-from xinhai.types.message import XinHaiChatMessage
-
 import logging
+from datetime import datetime
 
 from xinhai.arena.agents import register_agent
 from xinhai.arena.agents.base import BaseAgent
-from xinhai.types.routing import XinHaiRoutingErrorType
+from xinhai.types.arena import XinHaiArenaAgentTypes
+from xinhai.types.message import XinHaiChatMessage
 
 logger = logging.getLogger(__name__)
 
 
-@register_agent("simple")
+@register_agent(XinHaiArenaAgentTypes.SIMPLE)
 class SimpleAgent(BaseAgent):
+    agent_type = XinHaiArenaAgentTypes.SIMPLE
 
     def reset(self) -> None:
         pass
@@ -45,10 +44,10 @@ class SimpleAgent(BaseAgent):
             targets = data["target"]
             if isinstance(data['target'], int):
                 targets = [data['target']]
-                
+
             if self.agent_id not in targets:
                 break
-        
+
         return data
 
     def step(self, routing, agents):

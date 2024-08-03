@@ -44,7 +44,7 @@ class BaseEnvironment:
         self.controller_address = controller_address
 
     @abstractmethod
-    async def step(self) -> None:
+    async def step(self, *args, **kwargs) -> None:
         """Run one step of the environment"""
         pass
 
