@@ -7,7 +7,7 @@ XinHai stands for [Sea of Minds].
 Authors: Renhao Li
 """
 from typing import Any, List
-
+import re
 import networkx as nx
 from xinhai.arena.topology import register_topology
 from xinhai.arena.topology.base import BaseTopology
@@ -40,10 +40,14 @@ class StageTopology(BaseTopology):
             ref_info = {}
             if 'ref_info' in value:
                 for r in value['ref_info']:
-                    ref_target, ref_method, ref_source = r.split('->')
+                    ref_target, ref_method, ref_source, ref_query = r.split('->')
+                    ref_worker = re.findall(r'\[(.*?)\]', ref_source)[0]
+                    ref_source = ref_source.split(ref_worker)[0].strip('[').strip(']')
                     ref_info[int(ref_target)] = {
                         "ref_method": ref_method,
-                        "ref_source": ref_source
+                        "ref_worker": ref_worker,
+                        "ref_source": ref_source,
+                        "ref_query": ref_query
                     }
             iter_num = value['iter_num'] if 'iter_num' in value else 1
             config_in_each_stage.append((stage_name, status, nx.Graph(edges), start, budget, ref_info, iter_num))

@@ -733,7 +733,7 @@ class Controller:
             return None
 
         return r.json()
-
+    
     # Let the controller act as a worker to achieve hierarchical
     # management. This can be used to connect isolated sub networks.
     def worker_api_get_status(self):
@@ -755,19 +755,93 @@ class Controller:
         }
 
     def worker_api_mllm_chat(self, params):
-        worker_addr = self.get_worker_address(params["model"])
-        try:
-            r = requests.post(worker_addr + "/worker_mllm_chat", json=params, timeout=60)
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Get status fails: {worker_addr}, {e}")
-            return None
+            worker_addr = self.get_worker_address(params["model"])
+            try:
+                r = requests.post(worker_addr + "/worker_mllm_chat", json=params, timeout=60)
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Get status fails: {worker_addr}, {e}")
+                return None
 
-        if r.status_code != 200:
-            logger.error(f"Get status fails: {worker_addr}, {r}")
-            return None
+            if r.status_code != 200:
+                logger.error(f"Get status fails: {worker_addr}, {r}")
+                return None
+
+            return r.json()
+
+    def worker_api_query_search(self, worker, params):
+            worker_addr = self.get_worker_address(worker)
+            logger.info(f"Worker {worker}: {worker_addr}")
+            if not worker_addr:
+                logger.info(f"no worker: {worker}")
+                ret = {
+                    "text": server_error_msg,
+                    "error_code": 2,
+                }
+                return ret
+
+            try:
+                r = requests.post(worker_addr + "/worker_rag_query",
+                                json=params,
+                                timeout=60)        
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Get status fails: {worker_addr}, {e}")
+                return None
+
+            if r.status_code != 200:
+                logger.error(f"Get status fails: {worker_addr}, {r}")
+                return None
+
+            knowledge_data = r.json()
+            if isinstance(knowledge_data, str):
+                knowledge_data = json.loads(knowledge_data)
+
+            logger.info(f"Get response from [knowledge]: {knowledge_data}")
+            return knowledge_data
+
+    def worker_api_storage_recall_memory(self, worker, params):
+        storage_worker_addr = self.get_worker_address(worker)
+        logger.info(f"Worker {worker}: {storage_worker_addr}")
+        if not storage_worker_addr:
+            logger.info(f"no worker: {worker}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            return ret
+
+        try:
+            r = requests.post(storage_worker_addr + "/worker_recall_memory",
+                              json=params,
+                              timeout=60)
+            if r.status_code != 200:
+                logger.error(f"Get status fails: {storage_worker_addr}, {r}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {storage_worker_addr}, {e}")
 
         return r.json()
 
+    def worker_api_storage_delete_memory(self, worker, params):
+        storage_worker_addr = self.get_worker_address(worker)
+        logger.info(f"Worker {worker}: {storage_worker_addr}")
+        if not storage_worker_addr:
+            logger.info(f"no worker: {worker}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            return ret
+
+        try:
+            r = requests.post(storage_worker_addr + "/worker_delete_memory",
+                              json=params,
+                              timeout=60)
+            if r.status_code != 200:
+                logger.error(f"Get status fails: {storage_worker_addr}, {r}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {storage_worker_addr}, {e}")
+
+        logger.error(r.text)
+        return r.json()
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
@@ -929,10 +1003,22 @@ async def worker_api_storage_fetch_memory(worker: str, request: Request):
     return controller.worker_api_storage_fetch_memory(worker, params)
 
 
-@app.post("/api/{worker}/chat-search")
-async def worker_api_search_chat(worker: str, request: Request):
+@app.post("/api/{worker}/recall-memory")
+async def worker_api_storage_recall_memory(worker: str, request: Request):
     params = await request.json()
-    return controller.worker_api_search_chat(worker, params)
+    return controller.worker_api_storage_recall_memory(worker, params)
+
+
+@app.post("/api/{worker}/delete-memory")
+async def worker_api_storage_delete_memory(worker: str, request: Request):
+    params = await request.json()
+    return controller.worker_api_storage_delete_memory(worker, params)
+
+
+@app.post("/api/{worker}/store-messages")
+async def worker_api_store_messages(worker: str, request: Request):
+    params = await request.json()
+    return controller.worker_api_store_messages(worker, params)
 
 
 @app.post("/api/{worker}/fetch-messages")
@@ -941,10 +1027,16 @@ async def worker_api_fetch_messages(worker: str, request: Request):
     return controller.worker_api_fetch_messages(worker, params)
 
 
-@app.post("/api/{worker}/store-messages")
-async def worker_api_store_messages(worker: str, request: Request):
+@app.post("/api/{worker}/query-search")
+async def worker_api_query_search(worker: str, request: Request):
     params = await request.json()
-    return controller.worker_api_store_messages(worker, params)
+    return controller.worker_api_query_search(worker, params)
+
+
+@app.post("/api/{worker}/chat-search")
+async def worker_api_search_chat(worker: str, request: Request):
+    params = await request.json()
+    return controller.worker_api_search_chat(worker, params)
 
 
 if __name__ == "__main__":
