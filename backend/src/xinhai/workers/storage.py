@@ -21,6 +21,8 @@ from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongT
 from xinhai.types.message import XinHaiChatMessage
 from xinhai.types.storage import XinHaiFetchMessagesResponse, XinHaiFetchMessagesRequest, XinHaiStoreMessagesRequest, \
     XinHaiFetchMemoryRequest, XinHaiFetchMemoryResponse, XinHaiStoreMemoryRequest, XinHaiStoreMemoryResponse, \
+    XinHaiRecallMemoryRequest, XinHaiRecallMemoryResponse, \
+    XinHaiDeleteMemoryRequest, XinHaiDeleteMemoryResponse, \
     XinHaiStorageErrorCode
 from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
 from ..utils import build_logger, pretty_print_semaphore
@@ -118,36 +120,36 @@ class StorageWorker:
                 "error_message": "Missing required parameters"
             })
 
-        messages = request.memory.short_term_memory.messages
-        summaries = request.memory.long_term_memory.summaries
+        short_term_messages = request.memory.short_term_memory.messages
+        long_term_summaries = request.memory.long_term_memory.summaries
 
-        if len(messages) > 0:
+        if len(short_term_messages) > 0:
             collection = self.client.get_or_create_collection(
                 name=request.storage_key,
                 embedding_function=self.embedding_fn
             )
 
-            ids = [message.indexId for message in messages]
-            documents = [message.content for message in messages]
-            metadatas = [{"message": m.model_dump_json()} for m in messages]
+            ids = [message.indexId for message in short_term_messages]
+            documents = [message.content for message in short_term_messages]
+            metadatas = [{"message": m.model_dump_json()} for m in short_term_messages]
             collection.add(documents=documents, ids=ids, metadatas=metadatas)
-            logger.info(f'{request.storage_key}\'s memory_storage adds {len(messages)} messages.')
+            logger.info(f'{request.storage_key}\'s short-term-memory_storage adds {len(short_term_messages)} messages.')
 
-        if len(summaries) > 0:
+        if len(long_term_summaries) > 0:
             collection = self.client.get_or_create_collection(
                 name=f"{request.storage_key}_summary",
                 embedding_function=self.embedding_fn
             )
-            ids = [summary.indexId for summary in summaries]
-            documents = [summary.content for summary in summaries]
-            metadatas = [{"summary": s.model_dump_json()} for s in summaries]
+            ids = [summary.indexId for summary in long_term_summaries]
+            documents = [summary.content for summary in long_term_summaries]
+            metadatas = [{"summary": s.model_dump_json()} for s in long_term_summaries]
             collection.add(documents=documents, ids=ids, metadatas=metadatas)
-            logger.info(f'{request.storage_key}\'s memory_storage adds {len(summaries)} summaries.')
+            logger.info(f'{request.storage_key}\'s long-term-memory_storage adds {len(long_term_summaries)} summaries.')
 
         return XinHaiStoreMemoryResponse(
             storage_key=request.storage_key,
-            messages_count=len(messages),
-            summaries_count=len(summaries),
+            short_term_messages_count=len(short_term_messages),
+            long_term_summaries_count=len(long_term_summaries),
             error_code=XinHaiStorageErrorCode.OK
         )
 
@@ -179,51 +181,59 @@ class StorageWorker:
             error_code=XinHaiStorageErrorCode.OK
         )
 
-    def search_similar(self, params):
-        user_id = params.get('user_id')
-        query = params.get('query')
-        k = params.get('k', 4)
-
-        if user_id is None or query is None:
+    def recall_memory(self, request: XinHaiRecallMemoryRequest):
+        if not request.storage_key:
             return json.dumps({
                 "error_code": 1,
                 "error_message": "Missing required parameters"
             })
 
-        collection = self.client.get_or_create_collection(name="User_" + str(user_id),
-                                                          embedding_function=self.embedding_fn)
-        search = collection.query(query_texts=query, n_results=k)
-        dialogues = search['documents'][0]
-        sources = search['metadatas'][0]
-        results = []
-        for i in range(k):
-            results.append(sources[i]['source'] + ":" + dialogues[i])
-        return json.dumps({
-            "user_id": user_id,
-            "query": query,
-            "results": results,
-            "error_code": 0
-        })
+        collection = self.client.get_or_create_collection(name=f"{request.storage_key}_summary",
+                                                        embedding_function=self.embedding_fn)
+        if collection.count() < request.threshold:
+            summaries = []
+        else:
+            summaries = collection.query(query_texts=request.query, n_results=request.top_k, include=['metadatas'])['metadatas']
+            summaries = [XinHaiChatSummary.model_validate_json(s['summary']) for s in summaries]
 
-    def delete(self, params):
-        ## 删除用户的对话存储库
-        user_id = params.get("user_id")
+            # documents = search_res['documents'][0]
+            # metadatas = search_res['metadatas'][0]
+            # recall_memories = []
+            # for i in range(request.top_k):
+            #     results.append(sources[i]['source'] +  ":" + dialogues[i])
+                
+        
+        return XinHaiRecallMemoryResponse(
+            memory=XinHaiMemory(
+                storage_key=request.storage_key,
+                short_term_memory=XinHaiShortTermMemory(messages=[]),
+                long_term_memory=XinHaiLongTermMemory(summaries=summaries),
+            ),
+            error_code=XinHaiStorageErrorCode.OK
+        )
 
-        if user_id is None:
-            return json.dumps({
-                "error_code": 1,
-                "error_message": "Missing required parameters"
-            })
+    def delete_memory(self, request: XinHaiDeleteMemoryRequest):
+        if not request.storage_key:
+            return XinHaiDeleteMemoryResponse(
+                num_delete=0,
+                error_code=XinHaiStorageErrorCode.ERROR
+        )
+        
+        if request.memory_type == "short":
+            collection = self.client.get_or_create_collection(name=f"{request.storage_key}",
+                                                    embedding_function=self.embedding_fn)
+        elif request.memory_type == "long":
+            collection = self.client.get_or_create_collection(name=f"{request.storage_key}_summary",
+                                                    embedding_function=self.embedding_fn)
 
-        collection_name = "User_" + str(user_id)
-        self.client.delete_collection(name=collection_name)
-        logger.info(f"User_{user_id}'s memory_storage has been deleted!")
+        num_delete = collection.count()
+        self.client.delete_collection(name=request.storage_key)
+        logger.info(f"{num_delete} {request.memory_type}-term-memories in Agent {request.storage_key} has been deleted!")
 
-        return json.dumps({
-            "user_id": user_id,
-            "message": f" User_{user_id}'s memory storage has been deleted",
-            "error_code": 0
-        })
+        return XinHaiDeleteMemoryResponse(
+            num_delete=num_delete,
+            error_code=XinHaiStorageErrorCode.OK
+        )
 
     def fetch_messages(self, request: XinHaiFetchMessagesRequest):
         room_id = request.room.roomId
@@ -271,6 +281,10 @@ async def fetch_memory(request: XinHaiFetchMemoryRequest, response_model=XinHaiF
     # params = await request.json()
     return worker.fetch_memory(request)
 
+@app.post("/worker_recall_memory")
+async def recall_memory(request: XinHaiRecallMemoryRequest, response_model=XinHaiRecallMemoryResponse):
+    return worker.recall_memory(request)
+
 
 @app.post("/worker_store_memory")
 async def store_memory(request: XinHaiStoreMemoryRequest, response_model=XinHaiStoreMemoryResponse):
@@ -284,10 +298,9 @@ async def search_similar(request: Request):
     return worker.search_similar(params)
 
 
-@app.post("/worker_storage_delete")
-async def delete(request: Request):
-    params = await request.json()
-    return worker.delete(params)
+@app.post("/worker_delete_memory")
+async def delete_memory(request: XinHaiDeleteMemoryRequest, response_model=XinHaiDeleteMemoryResponse):
+    return worker.delete_memory(request)
 
 
 @app.post("/worker_get_status")

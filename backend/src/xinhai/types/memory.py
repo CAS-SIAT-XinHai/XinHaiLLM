@@ -27,6 +27,7 @@ class XinHaiChatSummary(BaseModel):
 
 class XinHaiLongTermMemory(BaseModel):
     summaries: List[XinHaiChatSummary] = []
+    # messages: List[XinHaiChatMessage] = []
 
 
 class XinHaiShortTermMemory(BaseModel):
