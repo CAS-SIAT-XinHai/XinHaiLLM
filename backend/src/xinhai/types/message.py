@@ -6,21 +6,25 @@ XinHai stands for [Sea of Minds].
 
 Authors: Vimos Tan
 """
+import os
 from datetime import datetime
 from typing import List
 
 from pydantic import BaseModel
+
+from llamafactory.api.protocol import MultimodalInputItem, ImageURL
 
 
 class XinHaiChatFile(BaseModel):
     name: str
     size: int
     type: str
-    audio: bool
-    duration: int
-    url: str
-    preview: str
-    progress: int
+    audio: bool = False
+    duration: int = 0
+    url: str = ''
+    preview: str = ''
+    progress: int = 0
+    extension: str = ""
 
 
 class XinHaiChatMessage(BaseModel):
@@ -46,10 +50,18 @@ class XinHaiChatMessage(BaseModel):
     # reactions: Optional[Dict]
     # replyMessage: Optional['XinHaiChatMessage']
 
-    def to_chat(self):
+    def to_chat(self, static_path):
+        if self.files:
+            content = [MultimodalInputItem(
+                type="image_url",
+                text=self.content,
+                image_url=ImageURL(url=os.path.join(static_path,
+                                                    f"{f.url.split(os.path.sep)[-1]}.{f.extension}"))) for f in self.files]
+        else:
+            content = self.content
         return {
             "role": self.role,
-            "content": self.content,
+            "content": content,
         }
 
     @classmethod
@@ -79,8 +91,8 @@ class XinHaiChatCompletionRequest(BaseModel):
     # stop: Optional[Union[str, List[str]]] = None
     # stream: bool = False
 
-    def to_chat(self):
+    def to_chat(self, static_path):
         messages = []
         for m in self.messages:
-            messages.append(m.to_chat())
+            messages.append(m.to_chat(static_path))
         return messages
