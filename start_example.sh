@@ -76,3 +76,10 @@ RERANKER_MODEL_PATH=/data/pretrained_models/maidalun/bce-reranker-base_v1
 start_storage_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=0 CONTROLLER_ADDRESS=http://localhost:5000 MODEL_NAME=storage WORKER_ADDRESS=http://localhost:40003 WORKER_HOST=0.0.0.0 WORKER_PORT=40003 DB_PATH=${DB_PATH} EMBEDDING_MODEL_PATH=${EMBEDDING_MODEL_PATH} python -m xinhai.workers.storage"
 echo "$start_storage_script"
 tmux new-session -d -s xinhai_storage_$PID "$start_storage_script"
+
+QA_BANK_DB_PATH=/data/pretrained_models/CPsyExamDB
+EMBEDDING_MODEL_PATH=default
+RERANKER_MODEL_PATH=/data/pretrained_models/maidalun/bce-reranker-base_v1
+start_feedback_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=0 CONTROLLER_ADDRESS=http://localhost:5000 MODEL_NAME=feedback WORKER_ADDRESS=http://localhost:40004 WORKER_HOST=0.0.0.0 WORKER_PORT=40004 QA_BANK_DB_PATH=${QA_BANK_DB_PATH} EMBEDDING_MODEL_PATH=${EMBEDDING_MODEL_PATH} python -m xinhai.workers.feedback"
+echo "$start_feedback_script"
+tmux new-session -d -s xinhai_feedback_$PID "$start_feedback_script"
