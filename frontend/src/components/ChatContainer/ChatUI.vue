@@ -15,6 +15,7 @@
         :rooms-loaded="true"
         :messages="JSON.stringify(messages)"
         :messages-loaded="messagesLoaded"
+        @open-file="openFile($event.detail[0])"
         @send-message="sendMessage($event.detail[0])"
         @fetch-messages="fetchMessages($event.detail[0])"
     />
@@ -25,7 +26,7 @@
 import {register} from 'vue-advanced-chat'
 import {ref} from "vue";
 import axios from "axios";
-// import { register } from '../../vue-advanced-chat/dist/vue-advanced-chat.es.js'
+
 register()
 
 export default {
@@ -96,7 +97,101 @@ export default {
       }
     }
 
-    async function sendMessage(message) {
+    function blobToBase64(blob) {
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      return new Promise(resolve => {
+        reader.onloadend = () => {
+          resolve(reader.result);
+        };
+      });
+    };
+
+    function updateFileProgress(messageId, fileUrl, progress) {
+      const message = messages.value.find(message => message._id === messageId)
+
+      if (!message || !message.files) return
+
+      message.files.find(file => file.url === fileUrl).progress = progress
+      messages.value = [...messages.value]
+    }
+
+    function formattedFiles(files) {
+      const formattedFiles = []
+
+      files.forEach(file => {
+        const messageFile = {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          extension: file.extension || file.type,
+          url: file.url || file.localUrl
+        }
+
+        if (file.audio) {
+          messageFile.audio = true
+          messageFile.duration = file.duration
+        }
+
+        formattedFiles.push(messageFile)
+      })
+
+      return formattedFiles
+    }
+
+    function openFile({file}) {
+      window.open(file.file.url, '_blank')
+    }
+
+    async function uploadFile({file, messageId, roomId}) {
+      return new Promise(resolve => {
+        let type = file.extension || file.type
+        if (type === 'svg' || type === 'pdf') {
+          type = file.type
+        }
+
+        const xhr = new XMLHttpRequest();
+        if (xhr.upload) {
+          xhr.upload.onprogress = function (event) {
+            let percent;
+            if (event.total > 0) {
+              // 0 ~ 1
+              percent = event.loaded / event.total;
+            }
+            // onProgress(percent, event);
+            updateFileProgress(messageId, file.localUrl, Math.round(percent * 100));
+          };
+        }
+        xhr.onerror = function error(e) {
+          resolve(false)
+        };
+        xhr.onload = function onload() {
+          // if (xhr.status < 200 || xhr.status >= 300) {
+          //   return onError(xhr.responseText);
+          // }
+          // onSuccess(xhr.response);
+        };
+        xhr.onloadend = function onloadend() {
+          resolve(true)
+        }
+
+        console.log(file)
+
+        const filename = (file.url || file.localUrl) + "." + (file.extension || file.type)
+
+        const formData = new FormData();
+        formData.append('file', file.blob, filename);
+        xhr.open('post', '/api/upload-file', true);
+        xhr.send(formData);
+        // return {
+        //   abort() {
+        //     xhr.abort()
+        //   }
+        // }
+      })
+    }
+
+    async function sendMessage({content, roomId, files, replyMessage}) {
       // {
       //   "content": "你好、",
       //   "files": null,
@@ -104,19 +199,34 @@ export default {
       //   "usersTag": [],
       //   "roomId": "1"
       // }
+
+      console.log(files);
+
+      const message = {
+        _id: messages.value.length,
+        indexId: messages.value.length.toString(),
+        content: content,
+        senderId: currentUserId,
+        role: 'user',
+        username: 'user',
+        timestamp: new Date().toString().substring(16, 21),
+        date: new Date().toDateString()
+      }
+
+      if (files) {
+        message.files = formattedFiles(files);
+      }
+
       messages.value = [
         ...messages.value,
-        {
-          _id: messages.value.length,
-          indexId: messages.value.length.toString(),
-          content: message.content,
-          senderId: currentUserId,
-          role: 'user',
-          username: 'user',
-          timestamp: new Date().toString().substring(16, 21),
-          date: new Date().toDateString()
-        }
+        message
       ]
+
+      if (files) {
+        for (let index = 0; index < files.length; index++) {
+          await uploadFile({file: files[index], messageId: message._id, roomId})
+        }
+      }
 
       try {
         const response = await fetch('/api/chat-completion', {
@@ -187,7 +297,7 @@ export default {
         // if (checked) {
         // }
         axios.post('/api/storage/store-messages', {
-          room: getRoomFromId(message.roomId),
+          room: getRoomFromId(roomId),
           messages: messages.value
         }).then(function (response) {
           console.log(response)
@@ -205,6 +315,7 @@ export default {
       rooms,
       messages,
       messagesLoaded,
+      openFile,
       fetchMessages,
       sendMessage,
     }
