@@ -52,11 +52,19 @@ class XinHaiChatMessage(BaseModel):
 
     def to_chat(self, static_path):
         if self.files:
-            content = [MultimodalInputItem(
-                type="image_url",
-                text=self.content,
-                image_url=ImageURL(url=os.path.join(static_path,
-                                                    f"{f.url.split(os.path.sep)[-1]}.{f.extension}"))) for f in self.files]
+            content = [
+                          MultimodalInputItem(
+                              type="text",
+                              text=self.content)
+                      ] + [
+                          MultimodalInputItem(
+                              type="image_url",
+                              text="",
+                              image_url=ImageURL(
+                                  url=os.path.join(static_path,
+                                                   f"{f.url.split(os.path.sep)[-1]}.{f.extension}"))) for
+                          f in self.files
+                      ]
         else:
             content = self.content
         return {
