@@ -43,10 +43,12 @@ class SimpleEnvironment(BaseEnvironment):
                        self.topology.digraph.has_edge(agent.agent_id, n)]
             if targets:
                 agent_queue.extend(targets)
-                routing_description = routing_message.routing_type.routing_name
                 targets_descriptions = "\n".join(
                     [f"{n.agent_id}: {n.role_description}" for n in targets])
-                message = agent.step(routing=routing_description, agents=targets_descriptions)
+                message = agent.step(
+                    routing=routing_message.routing_type.routing_name,
+                    agents=targets_descriptions
+                )
                 agent.update_memory([message])
 
                 for a in targets:
