@@ -15,10 +15,10 @@ workers:
   - worker_type: storage
 
 arena:
-  allowed_routing_types: &allowed_routing_types |-
-    - [Unicast]
-    - [Multicast]
-    - [Broadcast]
+  allowed_routing_types: &allowed_routing_types
+    - "[Unicast]"
+    - "[Multicast]"
+    - "[Broadcast]"
   prompts:
     routing_prompt: &routing_prompt |-
       现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：

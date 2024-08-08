@@ -74,7 +74,7 @@ class BaseAgent:
         self.controller_address = controller_address
         self.environment_id = environment_id
         self.locale = XinHaiI18NLocales(locale)
-        self.allowed_routing_types = allowed_routing_types
+        self.allowed_routing_types = [XinHaiRoutingType.from_str(t) for t in allowed_routing_types]
 
         self.memory = self.retrieve_memory()
 
