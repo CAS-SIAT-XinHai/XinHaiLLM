@@ -12,6 +12,7 @@ from typing import List
 from xinhai.arena.agents.base import BaseAgent
 from xinhai.arena.environments import register_environment
 from xinhai.arena.environments.base import BaseEnvironment
+from xinhai.types.routing import XinHaiRoutingType
 
 logger = logging.getLogger(__name__)
 
@@ -27,28 +28,30 @@ class StageEnvironment(BaseEnvironment):
         cnt_turn: Current turn number
         stages: List of stage names
     """
-    def __init__(self, environment_id, agents: List[BaseAgent], topology, routing_method="static", max_turns=10, cnt_turn=0, controller_address=None):
+
+    def __init__(self, environment_id, agents: List[BaseAgent], topology, routing_method="static", max_turns=10,
+                 cnt_turn=0, controller_address=None):
         super().__init__(environment_id, agents, topology, max_turns, cnt_turn, controller_address)
         self.stages = topology.stages
         self.routing_method = routing_method
         self.envolve_agents = list(set().union(*[set(nodes) for nodes in topology.nodes]))
         self.cross_turn_info = "认知行为疗法"
         self.message_cache = []
-    
+
     async def step(self):
         """Run one step of the environment"""
         for stage_indx in range(0, len(self.stages)):
             logger.debug(f"************Current Stage: [{self.stages[stage_indx]}]************")
             self.__step_in_one_stage(stage_indx)
-        
+
         for agent in self.agents:
             agent.update_long_term_memory()
             agent.clear_short_term_memory()
-        
+
         self.cnt_turn += 1
         self.cross_turn_info = self.message_cache[-1].content
         self.message_cache = []
-        
+
     def reset(self) -> None:
         """Reset the environment"""
         self.cnt_turn = 0
@@ -79,23 +82,13 @@ class StageEnvironment(BaseEnvironment):
             while agent_queue:
                 agent = agent_queue.pop(0)
 
-                candidate_agent_ids = list(diagraph.neighbors(agent.agent_id))
-                candidate_agent_roles = "\n".join(
-                    [f"{n}: {self.agents[n].env_role}" for n in candidate_agent_ids])
-                if self.routing_method == "dynamic":
-                    data = agent.dynamic_routing(candidate_agent_roles, env_status)
-                elif self.routing_method == "static":
-                    data = agent.static_routing(candidate_agent_ids)
-                logger.debug(data)
-
-                if data["method"] == "[Endcast]":
+                candidate_agents = [self.agents[n] for n in diagraph.neighbors(agent.agent_id)]
+                routing_message = agent.routing(candidate_agents, env_status=env_status)
+                if routing_message.routing_type == XinHaiRoutingType.END_CAST:
                     # [a.store_long_term_memory() for a in diagraph.nodes]
                     break
-                
-                targets = data["target"]
-                if isinstance(data['target'], int):
-                    targets = [data['target']]
-                targets = [self.agents[n] for n in targets if diagraph.has_edge(n, agent.agent_id)]
+
+                targets = [self.agents[n] for n in routing_message.targets if diagraph.has_edge(n, agent.agent_id)]
 
                 if targets:
                     agent_queue.extend(targets)
@@ -104,10 +97,15 @@ class StageEnvironment(BaseEnvironment):
                         ref_info = agent.get_ref_info(ref_info_config[agent.agent_id])
                     else:
                         ref_info = ""
-                    
+
                     targets_agents = "\n".join(
                         [f"{n.agent_id}: {n.env_role}" for n in targets])
-                    message = agent.step(routing=data["method"], agents=targets_agents, env_status=env_status, ref_info=ref_info)
+                    message = agent.step(
+                        routing=routing_message.routing_type.routing_name,
+                        agents=targets_agents,
+                        env_status=env_status,
+                        ref_info=ref_info
+                    )
 
                     agent.update_short_term_memory([message])
                     [a.update_short_term_memory([message]) for a in targets]
@@ -117,6 +115,6 @@ class StageEnvironment(BaseEnvironment):
                     if stage_conv_num >= stage_conv_budget:
                         [agent.pop_ref_info_cache() for agent in self.agents]
                         break
-            
+
             self.cnt_iter += 1
             self.reset_iter()
