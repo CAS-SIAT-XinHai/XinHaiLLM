@@ -15,5 +15,5 @@ from xinhai.arena.topology.base import BaseTopology
 
 @register_topology("simple")
 class SimpleTopology(BaseTopology):
-    def __init__(self, graph: nx.Graph, nodes=None):
+    def __init__(self, graph: nx.DiGraph, nodes=None):
         super().__init__(graph, nodes)
