@@ -1,0 +1,258 @@
+controller:
+  controller_address: http://localhost:5001
+
+workers:
+  - worker_type: llm
+    worker_name: Qwen1.5-7B-Chat
+    worker_address: http://localhost:40007
+    worker_host: 0.0.0.0
+    worker_port: 40007
+    no_register: false
+    limit_model_concurrency: 5
+    device: cuda
+    api_key: EMPTY
+  - worker_type: ocr
+  - worker_type: storage
+
+arena:
+  prompts:
+    routing_prompt: &routing_prompt |-
+      现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：
+      ###角色描述：
+      {role_description}
+      
+      ###对话历史摘要：
+      {chat_summary}
+      
+      ###最新对话历史：
+      {chat_history}
+      
+      ###可以进行交互的智能体列表：
+      {agent_descriptions}
+      
+      ###可以采用的通讯方式有：
+          - [SingleCast] 单播，只发给特定智能体
+      
+      基于当前情况，选择合适的通讯方式和通讯目标的ID值。
+      
+      ###样例：
+      {{"method": "[SingleCast]", "target": [1], "description": 任务描述}}
+      target是通讯目标ID。
+
+      
+      现在，基于以上信息，你的Routing策略是什么？
+
+    counselor_routing_prompt: &counselor_routing_prompt |-
+      现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：
+      ###角色描述：
+      {role_description}
+      
+      ###对话历史摘要：
+      {chat_summary}
+      
+      ###最新对话历史：
+      {chat_history}
+
+      ###任务描述：
+      1. 你是一名熟悉CBT治疗的专家，你应该首先与咨询者多沟通，掌握咨询者基本情况。
+      2. 接着在与咨询者的对话中找出咨询者可能存在的认知扭曲。
+      3. 当找到认知扭曲时，先判断该认知扭曲属于哪一类型，并向熟悉该认知扭曲的智能体描述患者的认知和你的判断。
+      4. 若处理该认知扭曲的智能体认为你的判断是正确的，你才可以向患者说明他的认知错误。若智能体认为你的判断是错误的，你需要重新判断患者的认知扭曲类型并向对应智能体验证。
+      
+      ###可以进行交互的智能体列表：
+      {agent_descriptions}
+      
+      ###可以采用的通讯方式有：
+          - [SingleCast] 单播，只发给特定智能体
+      
+      ###Attention:
+      
+      ###样例：
+      {{"method": "[SingleCast]", "target": [1], "description": }}
+      target是通讯目标ID
+      
+      现在请深呼吸并一步一步地思考，基于你的任务描述，你的Routing策略是什么？
+    summary_prompt: &summary_prompt |-
+      ###Task：
+      请根据之前的对话摘要和新的对话内容，给出新的对话摘要。
+      新的对话摘要应当包含之前摘要的内容。
+      摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。
+      
+      ###以前的对话摘要：
+      {chat_summary}
+      
+      ###新的对话内容：
+      {chat_history}
+      
+      ###Attention：
+      摘要应该重点摘要咨询者的认知内容和咨询师对患者认知的判断和治疗。
+      仅返回新的对话摘要内容，不要返回分析过程！
+    consultant_prompt: &consultant_prompt |-
+      ###角色描述:
+      {role_description}
+      
+      ###对话历史摘要:
+      {chat_summary}
+      
+      ###最新对话历史:
+      {chat_history}
+      
+      ###通信智能体：
+      现在，你选择了以{routing}方式与以下智能体通信:
+      {agents}
+
+      ###Attention:
+      你是一名患者，应当配合咨询师治疗。
+      对话长度不应过长，应根据情境和对话历史决定对话长度。
+      对话内容应该具备连贯性
+
+      根据你的角色描述和通信智能体，请问你想发出的消息内容是什么？
+
+      ###返回格式：
+    counselor_prompt: &counselor_prompt |-
+      ###任务描述：
+      1. 你是一名熟悉CBT治疗的专家，你应该首先与咨询者多沟通，掌握咨询者基本情况。
+      2. 在与咨询者的对话中找出咨询者可能存在的认知扭曲。
+      3. 当找到认知扭曲时，先判断该认知扭曲属于哪一类型，并向熟悉该认知扭曲的认知智能体描述患者的认知和你的判断。
+      4. 若处理该认知扭曲的智能体认为你的判断是正确的，你才可以向患者说明他的认知错误。若智能体认为你的判断是错误的，你需要重新判断患者的认知扭曲类型并向对应智能体验证。
+      
+      ###角色描述:
+      {role_description}
+      
+      ###对话历史摘要：
+      {chat_summary}
+      
+      ###最新对话历史：
+      {chat_history}
+      
+      ###Attention:
+
+
+      ###
+      现在，你选择了以{routing}方式与{agents}通信，根据你的任务描述请问你想发出的消息内容是什么？
+
+      ###返回格式：
+
+    prompt: &prompt |-        
+        ###角色描述：
+        {role_description}
+
+        ###任务描述：
+        1. 根据咨询师对咨询者的描述，评价咨询师对咨询者的认知扭曲判断是否正确。
+        2. 若判断错误，则只返回“判断错误”。
+        3. 若判断正确，返回“判断正确”，并给出治疗该认知扭曲的方法。
+ 
+        ###对话历史摘要：
+        {chat_summary}
+        
+        ###最新对话历史：
+        {chat_history}
+        
+        现在，你选择了以{routing}方式与{agents}通信，根据你的任务描述，请问你想发出的消息内容是什么？
+
+  name: XinHai CBT
+
+  environment:
+    environment_type: simple
+    environment_id: xinhai_cbt_simulation_5
+    controller_address: http://localhost:5001
+    topology:
+      edges:
+        - 0->1
+        - 1->0
+        - 1->2
+        - 1->3
+        - 1->4
+        - 1->5
+        - 1->6
+        - 1->7
+        - 2->1
+        - 3->1
+        - 4->1
+        - 5->1
+        - 6->1
+        - 7->1
+
+    max_turns: 10
+
+  agents:
+    - agent_type: simple
+      agent_id: 0
+      name: 咨询者
+      role_description: 咨询者，面临以下心理问题：“察觉到一种模式，我总喜欢自己检讨、批评自己？”，具体如下：“我和我妈妈讲话会陷入一种很恶心的模式。我只要说遇到的烦恼她是无动于衷的，但是我一旦开始批评自我检讨，她就面露喜色。我觉得我已经不好办了，回想发现见人就自我检讨，觉得自己不是这里不足就是那里不足，再假假的夸两句别人，已经成为我的一种模式了，但这不正常的，苦恼”
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *consultant_prompt
+      llm: Qwen1.5-7B-Chat
+      api_key: EMPTY
+      api_base: http://localhost:40007/v1
+    - agent_type: simple
+      agent_id: 1
+      name: 咨询师
+      role_description: 咨询师，你是一名经验丰富的咨询专家，帮助咨询者解决心理问题。
+      routing_prompt_template: *counselor_routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *counselor_prompt
+      llm: Qwen1.5-7B-Chat
+      api_key: EMPTY
+      api_base: http://localhost:40007/v1
+    - agent_type: simple
+      agent_id: 2
+      name: 认知专家A
+      role_description: 认知专家A，你十分熟悉非黑即白这种认知扭曲，即患者将经验分为黑白两类(对和错)。并能很好地识别该认知扭曲的临床表现和治疗方法。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      llm: Qwen1.5-7B-Chat
+      api_key: EMPTY
+      api_base: http://localhost:40007/v1
+    - agent_type: simple
+      agent_id: 3
+      name: 认知专家B
+      role_description: 认知专家B，你十分熟悉以偏概全这种认知扭曲，即患者根据有限部分对整体做出快速判断。并能很好地识别该认知扭曲的临床表现和治疗方法。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      llm: Qwen1.5-7B-Chat
+      api_key: EMPTY
+      api_base: http://localhost:40007/v1
+    - agent_type: simple
+      agent_id: 4
+      name: 认知专家C
+      role_description: 认知专家C，你十分熟悉心里过滤这种认知扭曲，即患者容易过滤掉积极的因素并过度关注情况的消息方面。并能很好地识别该认知扭曲的临床表现和治疗方法。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      llm: Qwen1.5-7B-Chat
+      api_key: EMPTY
+      api_base: http://localhost:40007/v1
+    - agent_type: simple
+      agent_id: 5
+      name: 认知专家D
+      role_description: 认知专家D，你十分熟悉个性化这种认知扭曲，即患者将外部事件归因于自己，即使没有依据将这些事件与自己联系起来。并能很好地识别该认知扭曲的临床表现和治疗方法。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      llm: Qwen1.5-7B-Chat
+      api_key: EMPTY
+      api_base: http://localhost:40007/v1
+    - agent_type: simple
+      agent_id: 6
+      name: 认知专家E
+      role_description: 认知专家E，你十分熟悉错误标签这种认知扭曲，即用极其负面的语言来描述自己或他人。并能很好地识别该认知扭曲的临床表现和治疗方法。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      llm: Qwen1.5-7B-Chat
+      api_key: EMPTY
+      api_base: http://localhost:40007/v1
+    - agent_type: simple
+      agent_id: 7
+      name: 认知专家F
+      role_description: 认知专家F，你十分熟悉读心术这种认知扭曲，即患者根据自己的感知或解释，对他人的想法、感受或意图做出假设。并能很好地识别该认知扭曲的临床表现和治疗方法。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      llm: Qwen1.5-7B-Chat
+      api_key: EMPTY
+      api_base: http://localhost:40007/v1
