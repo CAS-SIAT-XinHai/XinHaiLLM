@@ -1,12 +1,12 @@
 controller:
-  controller_address: http://localhost:5001
+  controller_address: http://localhost:5000
 
 workers:
   - worker_type: llm
     worker_name: Qwen1.5-7B-Chat
-    worker_address: http://localhost:40009
+    worker_address: http://localhost:40001
     worker_host: 0.0.0.0
-    worker_port: 40009
+    worker_port: 40001
     no_register: false
     limit_model_concurrency: 5
     device: cuda
@@ -95,11 +95,17 @@ arena:
     topology:
       edges:
         - 0->1
+        - 1->0
         - 1->2
         - 1->3
         - 1->4
         - 1->5
         - 1->6
+        - 2->1
+        - 3->1
+        - 4->1
+        - 5->1
+        - 6->1
     max_turns: 10
 
   agents:

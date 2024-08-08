@@ -34,7 +34,7 @@ class SimpleEnvironment(BaseEnvironment):
             agent = agent_queue.pop(0)
 
             agent_descriptions = "\n".join(
-                [f"{n}: {self.agents[n].role_description}" for n in self.topology.digraph.neighbors(agent.agent_id)])
+                [f"ID为{n}: {self.agents[n].role_description}" for n in self.topology.digraph.neighbors(agent.agent_id)])
 
             data = agent.routing(agent_descriptions)
             logger.debug(data)
