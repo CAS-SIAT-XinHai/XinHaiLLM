@@ -16,8 +16,10 @@ import requests
 from openai import OpenAI, OpenAIError
 
 from xinhai.types.arena import XinHaiArenaAgentTypes
+from xinhai.types.i18n import XinHaiI18NLocales
 from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiChatSummary
 from xinhai.types.message import XinHaiChatMessage
+from xinhai.types.routing import XinHaiRoutingMessage
 from xinhai.types.storage import XinHaiFetchMemoryResponse, XinHaiStoreMemoryRequest, XinHaiFetchMemoryRequest
 
 logger = logging.getLogger(__name__)
@@ -37,7 +39,7 @@ class BaseAgent:
 
     def __init__(self, name, agent_id, role_description, llm, api_key, api_base,
                  routing_prompt_template, summary_prompt_template, prompt_template,
-                 environment_id, controller_address,
+                 environment_id, controller_address, locale,
                  max_retries=5):
         self.name = name
         self.agent_id = agent_id
@@ -63,6 +65,7 @@ class BaseAgent:
 
         self.controller_address = controller_address
         self.environment_id = environment_id
+        self.locale = XinHaiI18NLocales(locale)
 
         self.memory = self.retrieve_memory()
 
@@ -92,7 +95,7 @@ class BaseAgent:
         return f"{self.environment_id}-{self.agent_id}"
 
     @abstractmethod
-    def routing(self, agent_descriptions):
+    def routing(self, agent_descriptions) -> XinHaiRoutingMessage:
         """Routing logic for agent"""
         pass
 
