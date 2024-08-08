@@ -96,10 +96,10 @@ echo "$start_knowledge_script"
 #screen -dmS start_ocr_$PID bash -c "$start_ocr_script"
 tmux new-session -d -s xinhai_knowledge_$PID "$start_knowledge_script"
 
-DB_PATH=/data/pretrained_models/KnowDB-bge-1.5-300
+STORAGE_DB_PATH=/data/pretrained_models/StorageDB-bge-1.5-300
 EMBEDDING_MODEL_PATH=/data/pretrained_models/bge-large-zh-v1.5
 RERANKER_MODEL_PATH=/data/pretrained_models/maidalun/bce-reranker-base_v1
-start_storage_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=${STORAGE_DEVICE} CONTROLLER_ADDRESS=${CONTROLLER_ADDRESS} MODEL_NAME=storage WORKER_ADDRESS=http://localhost:${STORAGE_WORKER_PORT} WORKER_HOST=0.0.0.0 WORKER_PORT=${STORAGE_WORKER_PORT} DB_PATH=${DB_PATH} EMBEDDING_MODEL_PATH=${EMBEDDING_MODEL_PATH} python -m xinhai.workers.storage"
+start_storage_script="cd ${WORK_DIR}/backend/src && CUDA_VISIBLE_DEVICES=${STORAGE_DEVICE} PYTHONPATH=${WORK_DIR}/related_repos/LLaMA-Factory/src  CONTROLLER_ADDRESS=${CONTROLLER_ADDRESS} MODEL_NAME=storage WORKER_ADDRESS=http://localhost:${STORAGE_WORKER_PORT} WORKER_HOST=0.0.0.0 WORKER_PORT=${STORAGE_WORKER_PORT} DB_PATH=${STORAGE_DB_PATH} EMBEDDING_MODEL_PATH=${EMBEDDING_MODEL_PATH} python -m xinhai.workers.storage"
 echo "$start_storage_script"
 tmux new-session -d -s xinhai_storage_$PID "$start_storage_script"
 

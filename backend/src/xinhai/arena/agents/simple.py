@@ -16,6 +16,7 @@ from xinhai.arena.agents import register_agent
 from xinhai.arena.agents.base import BaseAgent
 from xinhai.types.arena import XinHaiArenaAgentTypes
 from xinhai.types.message import XinHaiChatMessage
+from xinhai.types.routing import XinHaiRoutingMessage, XinHaiRoutingType
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ class SimpleAgent(BaseAgent):
     def reset(self) -> None:
         pass
 
-    def routing(self, agent_descriptions):
+    def routing(self, agent_descriptions) -> XinHaiRoutingMessage:
         chat_summary = self.get_summary()
         chat_history = '\n'.join(self.get_history())
         # logger.debug("~~~~~~~~~~~~~~~~~~~~~~~~chat_history~~~~~~~~~~~~~~~~~~~~~~~~~~")
@@ -37,7 +38,10 @@ class SimpleAgent(BaseAgent):
                                                              role_description=self.role_description,
                                                              chat_summary=chat_summary,
                                                              chat_history=chat_history,
-                                                             agent_descriptions=agent_descriptions)
+                                                             agent_descriptions=agent_descriptions,
+                                                             routing_descriptions=XinHaiRoutingType.to_description(
+                                                                 locale=self.locale
+                                                             ))
         while True:
             data = self.prompt_for_routing(routing_prompt)
             logger.debug(data)
@@ -48,7 +52,12 @@ class SimpleAgent(BaseAgent):
             if self.agent_id not in targets:
                 break
 
-        return data
+        return XinHaiRoutingMessage(
+            agent_id=self.agent_id,
+            routing_type=XinHaiRoutingType.from_str(data['method']),
+            targets=targets,
+            routing_prompt=routing_prompt
+        )
 
     def step(self, routing, agents):
         chat_summary = self.get_summary()
