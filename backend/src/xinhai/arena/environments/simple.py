@@ -32,13 +32,9 @@ class SimpleEnvironment(BaseEnvironment):
         agent_queue = [self.agents[0]]
         while agent_queue:
             agent = agent_queue.pop(0)
-
-            agent_descriptions = "\n".join(
-                [f"ID为{n}: {self.agents[n].role_description}" for n in self.topology.digraph.neighbors(agent.agent_id)])
-
-            routing_message = agent.routing(agent_descriptions)
+            candidate_agents = [self.agents[n] for n in self.topology.digraph.neighbors(agent.agent_id)]
+            routing_message = agent.routing(candidate_agents)
             logger.debug(routing_message)
-
             targets = [self.agents[n] for n in routing_message.targets if
                        self.topology.digraph.has_edge(agent.agent_id, n)]
             if targets:

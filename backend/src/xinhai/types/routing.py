@@ -63,9 +63,10 @@ class XinHaiRoutingType(XinHaiRoutingTypeMixin, Enum):
             raise NotImplementedError
 
     @classmethod
-    def to_description(cls, locale: XinHaiI18NLocales) -> str:
+    def to_description(cls, locale: XinHaiI18NLocales, allowed_routing_types: List[str]) -> str:
         return "\n".join(
-            f"{member.routing_name}: {member.description[locale]}" for name, member in cls.__members__.items())
+            f" - {member.routing_name}: {member.description[locale]}" for name, member in cls.__members__.items() if
+            member.routing_name in allowed_routing_types)
 
 
 @dataclass
