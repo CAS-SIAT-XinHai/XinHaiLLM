@@ -42,7 +42,7 @@ class SimpleEnvironment(BaseEnvironment):
             targets = data["target"]
             if isinstance(data['target'], int):
                 targets = [data['target']]
-            targets = [self.agents[n] for n in targets if self.topology.digraph.has_edge(n, agent.agent_id)]
+            targets = [self.agents[n] for n in targets if self.topology.digraph.has_edge(agent.agent_id, n)]
 
             if targets:
                 agent_queue.extend(targets)
