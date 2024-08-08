@@ -49,15 +49,15 @@ class XinHaiRoutingType(XinHaiRoutingTypeMixin, Enum):
 
     @classmethod
     def from_str(cls, label):
-        if label in ('[LOOPBACK]', 'LOOPBACK'):
+        if label.lower() in '[loopback]':
             return cls.LOOPBACK
-        elif label in ('[SingleCast]', 'SingleCast', '[Unicast]', 'Unicast'):
+        elif label.lower() in '[singlecast]' or label.lower() in '[unicast]':
             return cls.UNICAST
-        elif label in ('[MultiCast]', 'MultiCast'):
+        elif label.lower() in '[multicast]':
             return cls.MULTICAST
-        elif label in ('[Broadcast]', 'Broadcast'):
+        elif label.lower() in '[broadcast]':
             return cls.BROADCAST
-        elif label in ('[EndCast]', 'EndCast'):
+        elif label.lower() in '[endcast]':
             return cls.END_CAST
         else:
             raise NotImplementedError
