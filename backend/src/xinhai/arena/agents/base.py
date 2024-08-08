@@ -112,16 +112,16 @@ class BaseAgent:
     @staticmethod
     def chat_completion(client, model, agent_id, messages):
         try:
-            logger.debug(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-            logger.debug(f"Sending messages to Agent-{agent_id}: {messages}")
+            logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+            logger.info(f"Sending messages to Agent-{agent_id}: {messages}")
             chat_response = client.chat.completions.create(
                 model=model,
                 messages=messages
             )
-            logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
             content = chat_response.choices[0].message.content
             if content.strip():
-                logger.debug(f"Get response from Agent-{agent_id}: {content}")
+                logger.info(f"Get response from Agent-{agent_id}: {content}")
                 return content.strip()
             else:
                 usage = chat_response.usage
