@@ -15,8 +15,8 @@ workers:
   - worker_type: storage
 
 arena:
-  allowed_routing_types: &allowed_routing_types |-
-    - [Unicast]
+  allowed_routing_types: &allowed_routing_types
+    - "[Unicast]"
   routing_strategy: static
   prompts:
     routing_prompt: &routing_prompt |-

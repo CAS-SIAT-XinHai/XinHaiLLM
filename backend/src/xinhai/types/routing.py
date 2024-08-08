@@ -6,6 +6,9 @@ XinHai stands for [Sea of Minds].
 
 Authors: Vimos Tan  Di Yang
 """
+from __future__ import annotations
+
+import sys
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List
@@ -13,6 +16,11 @@ from typing import Dict, List
 from pydantic import BaseModel
 
 from xinhai.types.i18n import XinHaiI18NLocales
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 
 @dataclass
@@ -63,10 +71,10 @@ class XinHaiRoutingType(XinHaiRoutingTypeMixin, Enum):
             raise NotImplementedError
 
     @classmethod
-    def to_description(cls, locale: XinHaiI18NLocales, allowed_routing_types: List[str]) -> str:
+    def to_description(cls, locale: XinHaiI18NLocales, allowed_routing_types: List[Self]) -> str:
         return "\n".join(
-            f" - {member.routing_name}: {member.description[locale]}" for name, member in cls.__members__.items() if
-            member.routing_name in allowed_routing_types)
+            f" - {member.value.routing_name}: {member.value.description[locale]}" for member in cls if
+            member in allowed_routing_types)
 
 
 @dataclass
