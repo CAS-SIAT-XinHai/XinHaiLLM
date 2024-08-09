@@ -1,0 +1,216 @@
+controller:
+  controller_address: http://localhost:21001
+
+workers:
+  - worker_type: llm
+    worker_name: Qwen1.5-7B-Chat
+    worker_address: http://localhost:40001
+    worker_host: 0.0.0.0
+    worker_port: 40001
+    no_register: false
+    limit_model_concurrency: 5
+    device: cuda
+    api_key: EMPTY
+  - worker_type: ocr
+  - worker_type: storage
+
+arena:
+  prompts:
+    routing_prompt: &routing_prompt |-
+      现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：
+      （1）角色描述：
+          {role_description}
+      
+      （2）对话历史摘要：
+          {chat_summary}
+      
+      （3）最新对话历史：
+          {chat_history}
+      
+      （4）可以进行交互的智能体列表：
+          {agent_descriptions}
+      
+      （5）可以采用的通讯方式有：
+          - [SingleCast] 单播，只发给特定智能体
+          - [Multicast] 组播，发给若干智能体
+          - [Broadcast] 广播，发给所有可通讯智能体
+      
+      基于当前情况，选择合适的通讯目标和通讯方式。
+      
+      [样例]
+      {{"method": "[Multicast]", "target": [1]}}
+      
+      现在，基于以上信息，你的Routing策略是什么？
+    summary_prompt: &summary_prompt |-
+      请根据之前的对话摘要和新的对话内容，给出新的对话摘要。
+      新的对话摘要应当包含之前摘要的内容。
+      摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。
+      ####
+      以前的对话摘要：{chat_summary}
+      
+      ####
+      新的对话内容：{chat_history}
+      
+      ###Attention###
+      仅返回新的对话摘要内容，不要返回分析过程！
+    consultant_prompt: &consultant_prompt |-
+      你是一名希望寻求心理咨询和帮助的咨询者，以下是你作为一位咨询者的角色的相关描述：
+          {role_description}
+      
+      以下是你作为咨询者，与那些自身咨询师们的对话历史摘要：
+          {chat_summary}
+      
+      以下是你作为咨询者，与那些自身咨询师们的最新对话历史：
+          {chat_history}
+      
+      现在，你选择了以{routing}方式与以下智能体通信:
+          {agents}
+      
+      你现在作为一位深受上面内容苦恼的咨询者，现在需要请求咨询师的帮助。在没有历史摘要的首次对话情况下，你需要按照你的角色描述，详细地向医生描述你的困境和苦恼。在有历史摘要和对话历史的非首次对话情况下，你需要结合所有的历史，同时配合咨询师的询问，提供所需信息。
+      请问现在你想发出的消息内容是什么？
+    prompt: &prompt |-
+      请你基于咨询者的信息，从13种策略中选择一种对咨询最有用的策略，作为你接下来回复咨询者的依据：
+      ["信息收集", "设定议程", "状态回顾", "治疗目标", "心理教育", "自动化思维", "增强动机", "核心信念", "行为技巧", "防止复发", "家庭作业布置", "请求反馈", "总结"]
+      
+      然后请你基于咨询者的信息和已选择的策略，给出⼀条专业的，富有同情⼼和具有助益性的回复。确保你的回复在保持以下认知⾏为疗法回答结构的基础上，尤其是识别关键思维或信念部分，流畅地将各部分内容相互连接：
+      1. 验证和共情：对咨询者的情感或问题表示理解和同情，创建安全感。
+      2. 识别关键思维或信念：通过问题描述，找出可能的认知扭曲或核⼼信仰。
+      3. 提出挑战或反思：提出开放性问题，⿎励咨询者重新考虑或反思其初始思维或信仰。
+      4. 提供策略或⻅解：提供实⽤策略或⻅解，以帮助他们处理当前情况。
+      5. ⿎励与前瞻：⿎励咨询者使⽤策略，强调这只是开始，并可能需要进⼀步的⽀持。
+      
+      最新对话历史：
+      {chat_history}
+      
+      现在请以结构化json格式输出你的回复，注意你需要生成一段流畅自然的文本，不要出现分段、markdown语法之类的表述。
+      
+      你的回复格式应该如下：
+      [Response]{{"strategy":"你选择的13种策略之一", "response":"你给出专业的，富有同情⼼和具有助益性的回复"}}[End of Response]
+
+    improve_response_by_advice_prompt: &improve_response_by_advice_prompt |-
+      以下是咨询者前来咨询的问题：
+      {question}
+      
+      以下是你作为咨询师，针对咨询者的问题给出的第一次回复：
+      {draft_response}
+      
+      现在你获得了来自多位督导师的如下修改意见，他们对你给出的回复有一些修改建议：
+      {change_advice}
+      
+      现在你需要根据督导师提供的修改意见，重新完善你原本打算发送给咨询者回复。
+    
+      首先请你基于咨询者的信息，从13种策略中选择一种对咨询最有用的策略，作为你接下来回复咨询者的依据：
+      ["信息收集", "设定议程", "状态回顾", "治疗目标", "心理教育", "自动化思维", "增强动机", "核心信念", "行为技巧", "防止复发", "家庭作业布置", "请求反馈", "总结"]
+      
+      然后请你基于咨询者的信息和已选择的策略，给出⼀条专业的，富有同情⼼和具有助益性的回复。确保你的回复在保持以下认知⾏为疗法回答结构的基础上，尤其是识别关键思维或信念部分，流畅地将各部分内容相互连接：
+      1. 验证和共情：对咨询者的情感或问题表示理解和同情，创建安全感。
+      2. 识别关键思维或信念：通过问题描述，找出可能的认知扭曲或核⼼信仰。
+      3. 提出挑战或反思：提出开放性问题，⿎励咨询者重新考虑或反思其初始思维或信仰。
+      4. 提供策略或⻅解：提供实⽤策略或⻅解，以帮助他们处理当前情况。
+      5. ⿎励与前瞻：⿎励咨询者使⽤策略，强调这只是开始，并可能需要进⼀步的⽀持。
+      
+      现在请以结构化json格式输出你的回复，注意你需要生成一段流畅自然的文本，不要出现分段、markdown语法之类的表述。
+      
+      你的回复格式应该如下：
+      [Response]{{"strategy":"你选择的13种策略之一", "response":"你改进完善后的新回复"}}[End of Response]
+
+    supervisor_prompt: &supervisor_prompt |-
+      {role_description}
+
+      以下是咨询者的提问，以及咨询师对此给出的回应：
+      {chat_history}
+      
+      现在请以结构化json格式输出你的回复，你的回复格式应该如下：
+      [Response]{{"score":"你对咨询师回复打出的7分制分数", "response":"你给出的修改意见"}}[End of Response]
+      
+
+
+  name: XinHai CBT
+
+  environment:
+    environment_type: cbt_single
+    environment_id: xinhai_cbt_simulation_0
+    controller_address: http://localhost:21001
+    topology:
+      edges:
+        - 0->1
+        - 1->2
+        - 1->3
+        - 1->4
+        - 1->5
+        - 1->6
+    max_turns: 1
+
+  agents:
+    - agent_type: patient
+      agent_id: 0
+      name: 咨询者
+      role_description: 咨询者，面临以下心理问题：“我该遵循自己的内心还是照顾男友的感受？”，具体如下：“去年偶然又和初恋联系上了，他已成家，我也已有男订婚男友。大家再次谈笑风生，说说以前，聊聊日常和各自现在的生活，也相互理解和关怀，就像是认识多年熟悉的老朋友。最近他不太顺心，要出去远行一趟，刚好我也有时间，就想着，要不一块同行，也有个照应，再来，由于曾经分开其实心里一直有个小遗憾，觉得那时候没有好好的陪他走一段，所以很想弥补这种缺憾。男友觉得我们快结婚了，不同意我和朋友出去（不想他多想和误会所以没有说明白是曾经的关系），无论我怎样解释怎样表达我想要去一趟的想法，他都不同意，我也不想一意孤行，但是我又确实很想在自己成家之前，陪他走这一段，然后好好放下缺憾，好好结婚和老公经营我们的生活，但又担心他得知真实情况后产生误会而影响我和他的感情。我是爱未婚夫的，但我又很想弥补曾经青春的缺憾，所以我该怎么做？”
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *consultant_prompt
+      llm: qwen
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1
+    - agent_type: consultant
+      agent_id: 1
+      name: 咨询师
+      role_description: 咨询师，直接和咨询者进行对话，并希望实践认知行为疗法，习惯向心理督导师求助，以使得咨询过程符合行为认知疗法的准则。在收到咨询者的求助后，需要向所有的督导师发送你的生成回复，你就可以得到来自督导师的修改意见。在得到督导师的修改意见后，你需要针对修改意见重新整理你的回复，然后再发送给咨询者本人。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      llm: qwen
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1
+      advice_border_line: 8
+      improve_response_by_advice_prompt: *improve_response_by_advice_prompt
+    - agent_type: supervisor
+      agent_id: 2
+      name: 督导师1
+      role_description: 你是一名心理咨询督导师，名为督导师1号，专注于验证和共情，能够对咨询者的情感或问题表示理解和同情，创建安全感。请根据咨询者的提问，对如下咨询师的回复进行7分制打分，1分代表验证和共情程度极低，咨询师的回复内容没有足够的共情与理解安慰，需要做较大的修改后才能告知咨询者；7分代表咨询师的共情和安慰程度极高，回复内容极为优秀，已经不需要再做多余的修改。在打分之后，请结合咨询者的问题，针对咨询师的回复的不足之处，给出修改意见。请你以「从咨询师的回复的共情程度来看，」开始输出。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *supervisor_prompt
+      llm: qwen
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1
+    - agent_type: supervisor
+      agent_id: 3
+      name: 督导师2
+      role_description: 你是一名心理咨询督导师，名为督导师2号，擅长识别关键思维或信念，能够通过问题描述，找出可能的认知扭曲或核⼼信仰。请根据咨询者的提问，对如下咨询师的回复进行7分制打分，1分代表关键思维或信念很差，咨询师的回复内容没有表达出关键思维或信念，需要做较大的修改后才能告知咨询者；7分代表咨询师表达出的关键思维或信念很优秀，回复内容极为优秀，已经不需要再做多余的修改。在打分之后，请结合咨询者的问题，针对咨询师的回复的不足之处，给出修改意见。请你以「从咨询师的回复的认知扭曲来看，」开始输出。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *supervisor_prompt
+      llm: qwen
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1
+    - agent_type: supervisor
+      agent_id: 4
+      name: 督导师3
+      role_description: 你是一名心理咨询督导师，名为督导师3号，善于提出挑战或反思，通过提出开放性问题，⿎励咨询者重新考虑或反思其初始思维或信仰。请根据咨询者的提问，对如下咨询师的回复进行7分制打分，1分代表挑战或反思很差，咨询师的回复内容没有提出足够开放性的问题来鼓励咨询者，需要做较大的修改后才能告知咨询者；7分代表咨询师回复内容的挑战或反思程度很高，回复内容极为优秀，已经不需要再做多余的修改。在打分之后，请结合咨询者的问题，针对咨询师的回复的不足之处，给出修改意见。请你以「从咨询师的回复的反思与挑战来看，」开始输出。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *supervisor_prompt
+      llm: qwen
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1
+    - agent_type: supervisor
+      agent_id: 5
+      name: 督导师4
+      role_description: 你是一名心理咨询督导师，名为督导师4号，善于提供策略或⻅解，通过提供实⽤策略或⻅解，以帮助他们处理当前情况。请根据咨询者的提问，对如下咨询师的回复进行7分制打分，1分代表策略或⻅解很差，咨询师的回复内容没有提供实⽤策略或⻅解来帮助咨询者，需要做较大的修改后才能告知咨询者；7分代表咨询师提出的策略或⻅解水平很高，回复内容极为优秀，已经不需要再做多余的修改。在打分之后，请结合咨询者的问题，针对咨询师的回复的不足之处，给出修改意见。请你以「从咨询师的回复的策略实用性来看，」开始输出。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *supervisor_prompt
+      llm: qwen
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1
+    - agent_type: supervisor
+      agent_id: 6
+      name: 督导师5
+      role_description: 你是一名心理咨询督导师，名为督导师5号，负责⿎励与前瞻，⿎励咨询者使⽤策略，强调这只是开始，并可能需要进⼀步的⽀持。请根据咨询者的提问，对如下咨询师的回复进行7分制打分，1分代表⿎励与前瞻很差，咨询师的回复内容没有⿎励咨询者使⽤策略，需要做较大的修改后才能告知咨询者；7分代表咨询师提出的⿎励让咨询者很受用，回复内容极为优秀，已经不需要再做多余的修改。在打分之后，请结合咨询者的问题，针对咨询师的回复的不足之处，给出修改意见。请你以「从咨询师的回复的鼓舞程度来看，」开始输出。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *supervisor_prompt
+      llm: qwen
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1
