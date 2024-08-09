@@ -15,6 +15,7 @@ from typing import List
 import requests
 from openai import OpenAI, OpenAIError
 
+from xinhai.types.arena import XinHaiArenaAgentTypes
 from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiChatSummary
 from xinhai.types.message import XinHaiChatMessage
 from xinhai.types.storage import XinHaiFetchMemoryResponse, XinHaiStoreMemoryRequest, XinHaiFetchMemoryRequest
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 class BaseAgent:
     name: str
     agent_id: int
+    agent_type: XinHaiArenaAgentTypes
     role_description: str
 
     llm: str
@@ -107,16 +109,16 @@ class BaseAgent:
     @staticmethod
     def chat_completion(client, model, agent_id, messages):
         try:
-            logger.debug(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-            logger.debug(f"Sending messages to Agent-{agent_id}: {messages}")
+            logger.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+            logger.info(f"Sending messages to Agent-{agent_id}: {messages}")
             chat_response = client.chat.completions.create(
                 model=model,
                 messages=messages
             )
-            logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
             content = chat_response.choices[0].message.content
             if content.strip():
-                logger.debug(f"Get response from Agent-{agent_id}: {content}")
+                logger.info(f"Get response from Agent-{agent_id}: {content}")
                 return content.strip()
             else:
                 usage = chat_response.usage

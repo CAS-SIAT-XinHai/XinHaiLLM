@@ -89,7 +89,7 @@ arena:
   name: XinHai CBT
 
   environment:
-    environment_type: simple
+    environment_type: agency
     environment_id: xinhai_cbt_simulation_0
     controller_address: http://localhost:5000
     topology:
@@ -109,7 +109,7 @@ arena:
     max_turns: 10
 
   agents:
-    - agent_type: simple
+    - agent_type: proxy
       agent_id: 0
       name: 咨询者
       role_description: 咨询者，面临以下心理问题：“察觉到一种模式，我总喜欢自己检讨、批评自己？”，具体如下：“我和我妈妈讲话会陷入一种很恶心的模式。我只要说遇到的烦恼她是无动于衷的，但是我一旦开始批评自我检讨，她就面露喜色。我觉得我已经不好办了，回想发现见人就自我检讨，觉得自己不是这里不足就是那里不足，再假假的夸两句别人，已经成为我的一种模式了，但这不正常的，苦恼”

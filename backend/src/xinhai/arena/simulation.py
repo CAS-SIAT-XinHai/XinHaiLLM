@@ -5,12 +5,10 @@ from argparse import ArgumentParser
 from typing import List
 
 import yaml
-from openai import OpenAI
 
 from xinhai.arena.agents import AGENT_REGISTRY
 from xinhai.arena.agents.base import BaseAgent
 from xinhai.arena.environments import ENVIRONMENT_REGISTRY, BaseEnvironment
-from xinhai.arena.topology.base import BaseTopology
 from xinhai.arena.topology import TOPOLOGY_REGISTRY
 
 logger = logging.getLogger(__name__)
@@ -78,6 +76,8 @@ if __name__ == "__main__":
 
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
 
     simulator = Simulation.from_config(args.config_path)
     simulator.run()

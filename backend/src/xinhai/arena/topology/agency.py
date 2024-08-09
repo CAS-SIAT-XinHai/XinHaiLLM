@@ -13,7 +13,7 @@ from xinhai.arena.topology import register_topology
 from xinhai.arena.topology.base import BaseTopology
 
 
-@register_topology("simple")
-class SimpleTopology(BaseTopology):
-    def __init__(self, graph: nx.DiGraph, nodes=None):
+@register_topology("agency")
+class AgencyTopology(BaseTopology):
+    def __init__(self, graph: nx.Graph, nodes=None):
         super().__init__(graph, nodes)
