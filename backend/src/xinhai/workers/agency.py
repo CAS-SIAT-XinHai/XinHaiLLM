@@ -18,16 +18,17 @@ import requests
 import uvicorn
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from more_itertools import split_when
 from sse_starlette import EventSourceResponse
 from starlette import status
 
 from llamafactory.api.chat import ROLE_MAPPING
 from llamafactory.api.common import dictify
 from llamafactory.api.protocol import ChatCompletionResponse, ChatCompletionRequest, Function, FunctionCall, \
-    ChatCompletionMessage, Finish, Role, ChatCompletionResponseChoice, ChatCompletionResponseUsage
+    ChatCompletionMessage, Finish, Role, ChatCompletionResponseChoice, ChatCompletionResponseUsage, ChatMessage
 from xinhai.arena.simulation import Simulation
-from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
-from ..utils import build_logger, pretty_print_semaphore
+from ..config import WORKER_HEART_BEAT_INTERVAL
+from ..utils import pretty_print_semaphore
 
 GB = 1 << 30
 
@@ -52,6 +53,8 @@ api_key = os.environ.get("API_KEY", None)
 security = HTTPBearer(auto_error=False)
 
 logging.basicConfig(level=logging.DEBUG)
+
+
 # logger.setLevel(logging.DEBUG)
 
 
@@ -118,33 +121,54 @@ class AgencyWorker:
         }
 
     async def interact(self, request: "ChatCompletionRequest") -> Tuple[List[Dict[str, str]], str, str]:
-        if len(request.messages) == 0:
+        logging.debug(request)
+        messages = []
+        for ms in split_when(request.messages, lambda x, y: x.role != y.role):
+            if len(ms) > 1:
+                content_str = ""
+                content = None
+                for m in ms:
+                    if isinstance(m.content, str):
+                        content_str = content_str + "\n" + m.content
+                    else:
+                        content = m.content
+                        for item in m.content:
+                            content_str = content_str + "\n" + item.text
+
+                if content is not None:
+                    content[0].text = content_str
+                    message = ChatMessage(role=m.role, content=content)
+                else:
+                    message = ChatMessage(role=m.role, content=content_str)
+                messages.append(message)
+            else:
+                messages.append(ms[0])
+
+        if len(messages) == 0:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid length")
 
-        logging.debug(request)
-
-        if request.messages[0].role == Role.SYSTEM:
-            system = request.messages.pop(0).content
+        if messages[0].role == Role.SYSTEM:
+            system = messages.pop(0).content
         else:
             system = ""
 
-        if len(request.messages) % 2 == 0:
+        if len(messages) % 2 == 0:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only supports u/a/u/a/u...")
 
         input_messages = []
-        for i, message in enumerate(request.messages):
-            if i % 2 == 0 and message.role not in [Role.USER, Role.TOOL]:
+        for i, m in enumerate(messages):
+            if i % 2 == 0 and m.role not in [Role.USER, Role.TOOL]:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
-            elif i % 2 == 1 and message.role not in [Role.ASSISTANT, Role.FUNCTION]:
+            elif i % 2 == 1 and m.role not in [Role.ASSISTANT, Role.FUNCTION]:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
 
-            if message.role == Role.ASSISTANT and isinstance(message.tool_calls, list) and len(message.tool_calls):
-                name = message.tool_calls[0].function.name
-                arguments = message.tool_calls[0].function.arguments
+            if m.role == Role.ASSISTANT and isinstance(m.tool_calls, list) and len(m.tool_calls):
+                name = m.tool_calls[0].function.name
+                arguments = m.tool_calls[0].function.arguments
                 content = json.dumps({"name": name, "argument": arguments}, ensure_ascii=False)
                 input_messages.append({"role": ROLE_MAPPING[Role.FUNCTION], "content": content})
             else:
-                input_messages.append({"role": ROLE_MAPPING[message.role], "content": message.content})
+                input_messages.append({"role": ROLE_MAPPING[m.role], "content": m.content})
 
         tool_list = request.tools
         if isinstance(tool_list, list) and len(tool_list):

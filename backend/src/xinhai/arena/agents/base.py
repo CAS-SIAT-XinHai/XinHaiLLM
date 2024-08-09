@@ -139,10 +139,11 @@ class BaseAgent:
                 if isinstance(data['target'], int):
                     targets = [data['target']]
 
-                if self.agent_id not in targets and data['method'] in self.allowed_routing_types:
+                routing_type = XinHaiRoutingType.from_str(data['method'])
+                if self.agent_id not in targets and routing_type in self.allowed_routing_types:
                     routing_message = XinHaiRoutingMessage(
                         agent_id=self.agent_id,
-                        routing_type=XinHaiRoutingType.from_str(data['method']),
+                        routing_type=routing_type,
                         targets=targets,
                         routing_prompt=routing_prompt
                     )
@@ -204,6 +205,7 @@ class BaseAgent:
                     except Exception as e:
                         logger.error(f"Evaluation {evaluate_ans} error: {e}")
             # num_retries -= 1
+
     def prompt_for_static_routing(self, agent_ids):
         method = XinHaiRoutingType.UNICAST if len(agent_ids) == 1 else XinHaiRoutingType.MULTICAST
         return XinHaiRoutingMessage(
@@ -212,7 +214,6 @@ class BaseAgent:
             targets=agent_ids,
             routing_prompt="Static Routing",
         )
-
 
     def complete_conversation(self, prompt, num_retries=5):
         answer_form = "The generated response should be enclosed by [Response] and [End of Response]."
