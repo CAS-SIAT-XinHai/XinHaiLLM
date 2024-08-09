@@ -93,10 +93,13 @@ class BaseAgent:
         chat_summary = "" if len(summaries) == 0 else summaries[-1].content
         return chat_summary
 
-    def get_history(self):
+    def get_history(self, is_str_type=True):
         dialogue_context = []
         for i, message in enumerate(self.memory.short_term_memory.messages[-self.summary_chunk_size:]):
-            dialogue_context.append(f"{message.senderId}: {message.content}")
+            if is_str_type:
+                dialogue_context.append(f"{message.senderId}: {message.content}")
+            else:
+                dialogue_context.append(message)
         return dialogue_context
 
     @property
