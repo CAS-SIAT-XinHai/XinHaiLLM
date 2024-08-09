@@ -34,7 +34,7 @@ arena:
       {agent_descriptions}
       
       ###可以采用的通讯方式有：
-          - [SingleCast] 单播，只发给特定智能体
+      {routing_descriptions}
       
       基于当前情况，选择合适的通讯方式和通讯目标的ID值。
       
