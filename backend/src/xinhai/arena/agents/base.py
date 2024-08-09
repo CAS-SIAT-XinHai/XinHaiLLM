@@ -124,7 +124,7 @@ class BaseAgent:
         if len(self.allowed_routing_types) == 1:
             routing_message = XinHaiRoutingMessage(
                 agent_id=self.agent_id,
-                routing_type=XinHaiRoutingType.from_str(self.allowed_routing_types[0]),
+                routing_type=self.allowed_routing_types[0],
                 targets=targets,
                 routing_prompt="Static Routing"
             )
