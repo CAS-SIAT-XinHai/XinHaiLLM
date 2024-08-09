@@ -6,13 +6,22 @@ XinHai stands for [Sea of Minds].
 
 Authors: Vimos Tan
 """
+from __future__ import annotations
+
 import os
+import sys
 from datetime import datetime
 from typing import List
 
+from more_itertools import split_when
 from pydantic import BaseModel
 
 from llamafactory.api.protocol import MultimodalInputItem, ImageURL
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 
 class XinHaiChatFile(BaseModel):
@@ -49,6 +58,38 @@ class XinHaiChatMessage(BaseModel):
 
     # reactions: Optional[Dict]
     # replyMessage: Optional['XinHaiChatMessage']
+
+    @classmethod
+    def squeeze_to_chat(cls, messages: List[Self], static_path):
+        content_str = ""
+        content = None
+        for message in messages:
+            content_str = content_str + "\n" + message.content
+            if message.files is not None:
+                content = [
+                              MultimodalInputItem(
+                                  type="text",
+                                  text=message.content)
+                          ] + [
+                              MultimodalInputItem(
+                                  type="image_url",
+                                  text="",
+                                  image_url=ImageURL(
+                                      url=os.path.join(static_path,
+                                                       f"{f.url.split(os.path.sep)[-1]}.{f.extension}"))) for
+                              f in message.files
+                          ]
+        if content is not None:
+            content[0].text = content_str
+            return {
+                "role": message.role,
+                "content": content,
+            }
+        else:
+            return {
+                "role": message.role,
+                "content": content_str,
+            }
 
     def to_chat(self, static_path):
         if self.files:
@@ -101,6 +142,9 @@ class XinHaiChatCompletionRequest(BaseModel):
 
     def to_chat(self, static_path):
         messages = []
-        for m in self.messages:
-            messages.append(m.to_chat(static_path))
+        for ms in split_when(self.messages, lambda x, y: x.role != y.role):
+            if len(ms) > 1:
+                messages.append(XinHaiChatMessage.squeeze_to_chat(ms, static_path))
+            else:
+                messages.append(ms[0].to_chat(static_path))
         return messages
