@@ -6,9 +6,12 @@ XinHai stands for [Sea of Minds].
 
 Authors: Vimos Tan
 """
+from __future__ import annotations
+
 import json
 import logging
 import re
+import sys
 from abc import abstractmethod
 from typing import List
 
@@ -16,9 +19,16 @@ import requests
 from openai import OpenAI, OpenAIError
 
 from xinhai.types.arena import XinHaiArenaAgentTypes
+from xinhai.types.i18n import XinHaiI18NLocales
 from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiChatSummary
 from xinhai.types.message import XinHaiChatMessage
+from xinhai.types.routing import XinHaiRoutingMessage, XinHaiRoutingType
 from xinhai.types.storage import XinHaiFetchMemoryResponse, XinHaiStoreMemoryRequest, XinHaiFetchMemoryRequest
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +47,7 @@ class BaseAgent:
 
     def __init__(self, name, agent_id, role_description, llm, api_key, api_base,
                  routing_prompt_template, summary_prompt_template, prompt_template,
-                 environment_id, controller_address,
+                 environment_id, controller_address, locale, allowed_routing_types,
                  max_retries=5):
         self.name = name
         self.agent_id = agent_id
@@ -58,11 +68,13 @@ class BaseAgent:
             api_key=self.api_key,
             base_url=self.api_base,
         )
-        self.response_pattern = re.compile(r"\[Response]([\s\S]+)\[End of Response]")
+        self.response_pattern = re.compile(r"\[?Response]?([\s\S]+)\[?End of Response]?")
         self.summary_chunk_size = 5
 
         self.controller_address = controller_address
         self.environment_id = environment_id
+        self.locale = XinHaiI18NLocales(locale)
+        self.allowed_routing_types = [XinHaiRoutingType.from_str(t) for t in allowed_routing_types]
 
         self.memory = self.retrieve_memory()
 
@@ -91,13 +103,53 @@ class BaseAgent:
     def storage_key(self):
         return f"{self.environment_id}-{self.agent_id}"
 
-    @abstractmethod
-    def routing(self, agent_descriptions):
+    def get_routing_prompt(self, candidate_agents, **kwargs):
+        """Get one step response"""
+        chat_summary = self.get_summary()
+        chat_history = '\n'.join(self.get_history())
+        agent_descriptions = self.agent_descriptions(candidate_agents)
+        return self.routing_prompt_template.format(agent_name=self.name,
+                                                   role_description=self.role_description,
+                                                   chat_summary=chat_summary,
+                                                   chat_history=chat_history,
+                                                   agent_descriptions=agent_descriptions,
+                                                   routing_descriptions=XinHaiRoutingType.to_description(
+                                                       locale=self.locale,
+                                                       allowed_routing_types=self.allowed_routing_types
+                                                   ))
+
+    def routing(self, candidate_agents: List[Self], **kwargs) -> XinHaiRoutingMessage:
         """Routing logic for agent"""
-        pass
+        targets = [a.agent_id for a in candidate_agents]
+        if len(self.allowed_routing_types) == 1:
+            routing_message = XinHaiRoutingMessage(
+                agent_id=self.agent_id,
+                routing_type=XinHaiRoutingType.from_str(self.allowed_routing_types[0]),
+                targets=targets,
+                routing_prompt="Static Routing"
+            )
+            return routing_message
+        else:
+            routing_prompt = self.get_routing_prompt(candidate_agents, **kwargs)
+            routing_message = None
+            while not routing_message:
+                data = self.prompt_for_routing(routing_prompt)
+                logger.debug(data)
+                targets = data["target"]
+                if isinstance(data['target'], int):
+                    targets = [data['target']]
+
+                if self.agent_id not in targets and data['method'] in self.allowed_routing_types:
+                    routing_message = XinHaiRoutingMessage(
+                        agent_id=self.agent_id,
+                        routing_type=XinHaiRoutingType.from_str(data['method']),
+                        targets=targets,
+                        routing_prompt=routing_prompt
+                    )
+            return routing_message
 
     @abstractmethod
-    def step(self, routing, agents):
+    def step(self, routing, agents, **kwargs):
         """Get one step response"""
         pass
 
@@ -128,6 +180,9 @@ class BaseAgent:
             logger.warning("*****************************************")
             logger.warning(f"Error response from Agent-{agent_id}: {e}")
 
+    def agent_descriptions(self, candidate_agents: List[Self]):
+        return "\n".join([f"{a.agent_id}: {a.role_description}" for a in candidate_agents])
+
     def prompt_for_routing(self, routing_prompt, num_retries=5):
         messages = [{
             "role": "user",
@@ -149,6 +204,15 @@ class BaseAgent:
                     except Exception as e:
                         logger.error(f"Evaluation {evaluate_ans} error: {e}")
             # num_retries -= 1
+    def prompt_for_static_routing(self, agent_ids):
+        method = XinHaiRoutingType.UNICAST if len(agent_ids) == 1 else XinHaiRoutingType.MULTICAST
+        return XinHaiRoutingMessage(
+            agent_id=self.agent_id,
+            routing_type=XinHaiRoutingType.from_str(method),
+            targets=agent_ids,
+            routing_prompt="Static Routing",
+        )
+
 
     def complete_conversation(self, prompt, num_retries=5):
         answer_form = "The generated response should be enclosed by [Response] and [End of Response]."

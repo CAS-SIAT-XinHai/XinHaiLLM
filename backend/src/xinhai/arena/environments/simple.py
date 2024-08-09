@@ -32,24 +32,19 @@ class SimpleEnvironment(BaseEnvironment):
         agent_queue = [self.agents[0]]
         while agent_queue:
             agent = agent_queue.pop(0)
-
-            agent_descriptions = "\n".join(
-                [f"ID为{n}: {self.agents[n].role_description}" for n in self.topology.digraph.neighbors(agent.agent_id)])
-
-            data = agent.routing(agent_descriptions)
-            logger.debug(data)
-
-            targets = data["target"]
-            if isinstance(data['target'], int):
-                targets = [data['target']]
-            targets = [self.agents[n] for n in targets if self.topology.digraph.has_edge(agent.agent_id, n)]
-
+            candidate_agents = [self.agents[n] for n in self.topology.digraph.neighbors(agent.agent_id)]
+            routing_message = agent.routing(candidate_agents)
+            logger.debug(routing_message)
+            targets = [self.agents[n] for n in routing_message.targets if
+                       self.topology.digraph.has_edge(agent.agent_id, n)]
             if targets:
                 agent_queue.extend(targets)
-
                 targets_descriptions = "\n".join(
                     [f"{n.agent_id}: {n.role_description}" for n in targets])
-                message = agent.step(routing=data["method"], agents=targets_descriptions)
+                message = agent.step(
+                    routing=routing_message.routing_type.routing_name,
+                    agents=targets_descriptions
+                )
                 agent.update_memory([message])
 
                 for a in targets:

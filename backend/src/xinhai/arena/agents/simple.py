@@ -14,8 +14,10 @@ from datetime import datetime
 
 from xinhai.arena.agents import register_agent
 from xinhai.arena.agents.base import BaseAgent
+from xinhai.arena.topology.base import BaseTopology
 from xinhai.types.arena import XinHaiArenaAgentTypes
 from xinhai.types.message import XinHaiChatMessage
+from xinhai.types.routing import XinHaiRoutingMessage, XinHaiRoutingType
 
 logger = logging.getLogger(__name__)
 
@@ -27,30 +29,7 @@ class SimpleAgent(BaseAgent):
     def reset(self) -> None:
         pass
 
-    def routing(self, agent_descriptions):
-        chat_summary = self.get_summary()
-        chat_history = '\n'.join(self.get_history())
-        # logger.debug("~~~~~~~~~~~~~~~~~~~~~~~~chat_history~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        # logger.debug(f"{self.agent_id}: {chat_history}")
-        # logger.debug("~~~~~~~~~~~~~~~~~~~~~~~~chat_history~~~~~~~~~~~~~~~~~~~~~~~~~~")
-        routing_prompt = self.routing_prompt_template.format(agent_name=self.name,
-                                                             role_description=self.role_description,
-                                                             chat_summary=chat_summary,
-                                                             chat_history=chat_history,
-                                                             agent_descriptions=agent_descriptions)
-        while True:
-            data = self.prompt_for_routing(routing_prompt)
-            logger.debug(data)
-            targets = data["target"]
-            if isinstance(data['target'], int):
-                targets = [data['target']]
-
-            if self.agent_id not in targets:
-                break
-
-        return data
-
-    def step(self, routing, agents):
+    def step(self, routing, agents, **kwargs):
         chat_summary = self.get_summary()
         chat_history = '\n'.join(self.get_history())
         prompt = self.prompt_template.format(chat_history=chat_history,

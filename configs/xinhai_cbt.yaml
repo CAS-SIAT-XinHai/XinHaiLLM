@@ -15,6 +15,10 @@ workers:
   - worker_type: storage
 
 arena:
+  allowed_routing_types: &allowed_routing_types
+    - "[Unicast]"
+    - "[Multicast]"
+    - "[Broadcast]"
   prompts:
     routing_prompt: &routing_prompt |-
       现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：
@@ -31,9 +35,7 @@ arena:
           {agent_descriptions}
       
       （5）可以采用的通讯方式有：
-          - [SingleCast] 单播，只发给特定智能体
-          - [Multicast] 组播，发给若干智能体
-          - [Broadcast] 广播，发给所有可通讯智能体
+          {routing_descriptions}
       
       基于当前情况，选择合适的通讯目标和通讯方式。
       
@@ -116,6 +118,8 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *consultant_prompt
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40001/v1
@@ -126,6 +130,8 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40001/v1
@@ -136,6 +142,8 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40001/v1
@@ -146,6 +154,8 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40001/v1
@@ -156,6 +166,8 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40001/v1
@@ -166,6 +178,8 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40001/v1
@@ -176,6 +190,8 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40001/v1
