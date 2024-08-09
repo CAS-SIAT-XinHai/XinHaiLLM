@@ -16,6 +16,9 @@ workers:
   - worker_type: storage
 
 arena:
+  allowed_routing_types: &allowed_routing_types
+    - "[Unicast]"
+    - "[Multicast]"
   prompts:
     routing_prompt: &routing_prompt |-
       现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：
@@ -35,10 +38,7 @@ arena:
         {agent_descriptions}
       
       可采用的通讯方式：
-        - [Unicast] 单播，与单个智能体进行通讯
-        - [Multicast] 组播，与多个指定智能体进行通讯
-        - [Broadcast] 广播，与所有可通讯的智能体进行通讯
-        - [Endcast] 终止，终止与指定智能体之间的通讯
+        {routing_descriptions}
       
       请你根据当前的环境状态，基于你的角色描述和对话历史，从[可采用的通讯方式]中选出合适的通讯方式，从[可通讯的智能体列表]中选出通讯目标。
 
@@ -115,7 +115,6 @@ arena:
         ref_info:
           - 3->retrieve->Catalogs[knowledge]->[all]
     max_turns: 10
-    routing_method: static
 
   agents:
     - agent_type: school
@@ -135,6 +134,8 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt_w_info
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
       llm: Qwen/Qwen2-72B-Instruct
       api_key: EMPTY
       api_base: http://localhost:40001/v1
@@ -158,6 +159,8 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt_w_info
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
       llm: Qwen/Qwen2-72B-Instruct
       api_key: EMPTY
       api_base: http://localhost:40001/v1  
@@ -181,6 +184,8 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt_w_info
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
       llm: Qwen/Qwen2-72B-Instruct
       api_key: EMPTY
       api_base: http://localhost:40001/v1
@@ -198,6 +203,8 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt_w_info
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
       llm: Qwen/Qwen2-72B-Instruct
       api_key: EMPTY
       api_base: http://localhost:40001/v1
