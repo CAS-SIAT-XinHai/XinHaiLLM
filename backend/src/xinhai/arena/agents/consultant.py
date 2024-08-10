@@ -119,8 +119,7 @@ class ConsultantAgent(BaseAgent):
                 for strategy in strategy_list:
                     if strategy in strategy_generate:
                         data["strategy"] = strategy
-                    else:
-                        data["strategy"] = "其他"
+                    # 如果不在13种之内，直接保留，后面可以再自行处理
                     return True, json.dumps(data)
             return False, ""
         except json.JSONDecodeError:

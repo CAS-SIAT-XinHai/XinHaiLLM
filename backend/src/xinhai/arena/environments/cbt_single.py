@@ -3,14 +3,27 @@ import logging
 
 from xinhai.arena.environments import register_environment
 from xinhai.arena.environments.base import BaseEnvironment
+from typing import List, Dict
+from xinhai.arena.agents.base import BaseAgent
 import matplotlib.pyplot as plt
 import networkx as nx
 import uuid
+import datetime
 
 logger = logging.getLogger(__name__)
 
 @register_environment("cbt_single")
 class CBTEnvironment(BaseEnvironment):
+
+    def __init__(self, environment_id, agents: List[BaseAgent], topology, max_turns=10, cnt_turn=0, controller_address=None, save_path=""):
+        self.environment_id = environment_id
+        self.agents = agents
+        self.topology = topology
+        self.max_turns = max_turns
+        self.cnt_turn = cnt_turn
+        self.controller_address = controller_address
+        self.save_path = save_path
+
     def process_single_turn_dialog(self) -> str:
         agent_queue = [self.agents[0]]
         memory_list = []
@@ -49,10 +62,14 @@ class CBTEnvironment(BaseEnvironment):
         self.cnt_turn += 1
         return memory_list[-1].content
 
-    async def step(self):
+    async def step(self, question):
+        top_dict_from_qa = json.loads(question)
+        self.agents[0].role_description = top_dict_from_qa["question"] + top_dict_from_qa["description"]
         answer = self.process_single_turn_dialog()
-        result_str = json.dumps({"question": self.agents[0].role_description, "answer": answer}, ensure_ascii=False, indent=4) + ","
-        self.read_and_append("/data/xuancheng/psyqa_cbtagency_240810.txt", result_str)
+        top_dict_from_qa["cbtagency_answer"] = answer
+        top_dict_from_qa["generate_time"] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        result_str = json.dumps(top_dict_from_qa, ensure_ascii=False, indent=4) + ","
+        self.read_and_append(self.save_path, result_str)
 
     def read_and_append(self, file_path, content):
         # 读取文件内容

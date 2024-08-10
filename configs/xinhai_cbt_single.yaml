@@ -131,6 +131,7 @@ arena:
     environment_type: cbt_single
     environment_id: xinhai_cbt_simulation_0
     controller_address: http://localhost:21001
+    save_path: /data/xuancheng/psyqa_cbtagency_240810.txt
     topology:
       edges:
         - 0->1
@@ -162,7 +163,7 @@ arena:
       llm: qwen
       api_key: EMPTY
       api_base: http://localhost:40001/v1
-      advice_border_line: 8
+      advice_border_line: 6
       improve_response_by_advice_prompt: *improve_response_by_advice_prompt
     - agent_type: supervisor
       agent_id: 2
