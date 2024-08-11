@@ -15,7 +15,10 @@ workers:
   - worker_type: storage
 
 arena:
-  allowed_routing_types: &allowed_routing_types
+  allowed_routing_types_1: &allowed_routing_types_1
+    - "[EndCast]"
+    - "[Unicast]"
+  allowed_routing_types_2: &allowed_routing_types_2
     - "[Unicast]"
   routing_strategy: static
   prompts:
@@ -187,7 +190,7 @@ arena:
       summary_prompt_template: *summary_prompt
       prompt_template: *consultant_prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
+      allowed_routing_types: *allowed_routing_types_2
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40007/v1
@@ -199,7 +202,7 @@ arena:
       summary_prompt_template: *summary_prompt
       prompt_template: *counselor_prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
+      allowed_routing_types: *allowed_routing_types_2
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40007/v1
@@ -211,7 +214,7 @@ arena:
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
+      allowed_routing_types: *allowed_routing_types_1
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40007/v1
@@ -223,7 +226,7 @@ arena:
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
+      allowed_routing_types: *allowed_routing_types_1
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40007/v1
@@ -235,7 +238,7 @@ arena:
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
+      allowed_routing_types: *allowed_routing_types_1
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40007/v1
@@ -247,7 +250,7 @@ arena:
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
+      allowed_routing_types: *allowed_routing_types_1
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40007/v1
@@ -259,7 +262,7 @@ arena:
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
+      allowed_routing_types: *allowed_routing_types_1
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40007/v1
@@ -271,7 +274,7 @@ arena:
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
+      allowed_routing_types: *allowed_routing_types_1
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40007/v1
@@ -283,7 +286,7 @@ arena:
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
+      allowed_routing_types: *allowed_routing_types_1
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40007/v1
@@ -295,7 +298,7 @@ arena:
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
+      allowed_routing_types: *allowed_routing_types_1
       llm: Qwen1.5-7B-Chat
       api_key: EMPTY
       api_base: http://localhost:40007/v1
