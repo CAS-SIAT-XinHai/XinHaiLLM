@@ -3,14 +3,14 @@ controller:
 
 workers:
   - worker_type: llm
-    worker_name: Qwen1.5-7B-Chat
-    worker_address: http://localhost:40007
+    worker_name: qwen2:72b
+    worker_address: http://localhost:11434/v1
     worker_host: 0.0.0.0
     worker_port: 40007
     no_register: false
     limit_model_concurrency: 5
     device: cuda
-    api_key: EMPTY
+    api_key: sk
   - worker_type: ocr
   - worker_type: storage
 
@@ -18,6 +18,7 @@ arena:
   allowed_routing_types_1: &allowed_routing_types_1
     - "[EndCast]"
     - "[Unicast]"
+    - "[Multicast]"
   allowed_routing_types_2: &allowed_routing_types_2
     - "[Unicast]"
   routing_strategy: static
@@ -61,10 +62,12 @@ arena:
 
       ###任务描述：
       1. 你是一名熟悉CBT治疗的专家，你应该首先与咨询者多沟通，掌握咨询者基本情况。
-      2. 接着在与咨询者的对话中找出咨询者可能存在的认知扭曲。
-      3. 当找到认知扭曲时，先判断该认知扭曲属于哪一类型，并向熟悉该认知扭曲的智能体描述患者的认知和你的判断。
-      4. 若处理该认知扭曲的智能体认为你的判断是正确的，你才可以向患者说明他的认知错误。若智能体认为你的判断是错误的，你需要重新判断患者的认知扭曲类型并向对应智能体验证。
-      
+      2. 在与咨询者的对话中找出咨询者可能存在的认知扭曲。
+      3. 当找到认知扭曲时，先判断该认知扭曲属于哪一类型，并向熟悉该认知扭曲的认知智能体描述患者的认知和你的判断。
+      4. 若处理该认知扭曲的智能体认为你的判断是正确的，你必须向患者说明他的认知扭曲类型并进行治疗。
+      5. 若智能体认为你的判断是错误的，你需要重新判断患者的认知扭曲类型并向对应智能体验证。
+      6. 当你认为对话可以结束时，请结束对话，发送[EndCast]。
+
       ###可以进行交互的智能体列表：
       {agent_descriptions}
       
@@ -81,7 +84,7 @@ arena:
       ###Task：
       请根据之前的对话摘要和新的对话内容，给出新的对话摘要。
       新的对话摘要应当包含之前摘要的内容。
-      摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。
+      摘要长度不应过长或过短。
       
       ###以前的对话摘要：
       {chat_summary}
@@ -107,9 +110,10 @@ arena:
       {agents}
 
       ###Attention:
-      你是一名患者，应当配合咨询师治疗。
-      对话长度不应过长，应根据情境和对话历史决定对话长度。
-      对话内容应该具备连贯性
+      1. 你是一名患者，应当配合咨询师治疗。
+      2. 对话长度不应过长，应根据情境和对话历史决定对话长度。
+      3. 对话内容应该具备连贯性.
+      4. 当你认为你的问题得到解决时可以结束对话。
 
       根据你的角色描述和通信智能体，请问你想发出的消息内容是什么？
 
@@ -118,8 +122,10 @@ arena:
       ###任务描述：
       1. 你是一名熟悉CBT治疗的专家，你应该首先与咨询者多沟通，掌握咨询者基本情况。
       2. 在与咨询者的对话中找出咨询者可能存在的认知扭曲。
-      3. 当找到认知扭曲时，先判断该认知扭曲属于哪一类型，并向熟悉该认知扭曲的认知智能体描述患者的认知和你的判断。
-      4. 若处理该认知扭曲的智能体认为你的判断是正确的，你才可以向患者说明他的认知错误并进行CBT治疗。若智能体认为你的判断是错误的，你需要重新判断患者的认知扭曲类型并向对应智能体验证。
+      3. 当找到认知扭曲时，先判断该认知扭曲属于哪些类型，并向熟悉该认知扭曲的认知智能体描述患者的认知和你的判断。
+      4. 若处理该认知扭曲的智能体认为你的判断是正确的，你必须向患者说明他的认知扭曲类型并进行治疗。
+      5. 若智能体认为你的判断是错误的，你需要重新判断患者的认知扭曲类型并向对应智能体验证。
+      6. 当你认为对话可以结束时，请结束对话。
       
       ###角色描述:
       {role_description}
@@ -129,9 +135,16 @@ arena:
       
       ###最新对话历史：
       {chat_history}
+
+      ###注意：
+      1. 你首先应该多与患者沟通以掌握更多的患者信息。
+      2. 咨询者不知道认知专家的存在，禁止在患者面前提到认知专家。
+      3. 必须向患者说明其认知扭曲类型。
+      4. 对话长度不应过长，应根据情境和对话历史决定对话长度。对话内容应具有连贯性。
       
       ###
-      现在，你选择了以{routing}方式与{agents}通信。记住你的任务描述，根据你的角色和通信对象，请问你想发出的消息内容是什么？
+      现在，你选择了以{routing}方式与{agents}通信。
+      记住你的任务描述，根据你的角色和通信对象，向通信对象发出的消息内容是什么？
 
       ###返回格式：
 
@@ -150,13 +163,14 @@ arena:
         ###最新对话历史：
         {chat_history}
         
-        现在，你选择了以{routing}方式与{agents}通信。记住你的任务，然后根据你的角色描述和通信对象，请问你想发出的消息内容是什么？
+        现在，你选择了以{routing}方式与{agents}通信。
+        记住你的任务，然后根据你的角色描述和通信对象，请问你想向该通信对象发出的消息内容是什么？
 
   name: XinHai CBT
 
   environment:
     environment_type: simple
-    environment_id: xinhai_cbt_simulation_6
+    environment_id: xinhai_cbt_simulation_10
     controller_address: http://localhost:5001
     topology:
       edges:
@@ -168,16 +182,12 @@ arena:
         - 1->5
         - 1->6
         - 1->7
-        - 1->8
-        - 1->9
         - 2->1
         - 3->1
         - 4->1
         - 5->1
         - 6->1
         - 7->1
-        - 8->1
-        - 9->1
 
     max_turns: 10
 
@@ -190,10 +200,10 @@ arena:
       summary_prompt_template: *summary_prompt
       prompt_template: *consultant_prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types_2
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      allowed_routing_types: *allowed_routing_types_1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
     - agent_type: simple
       agent_id: 1
       name: 咨询师
@@ -202,10 +212,10 @@ arena:
       summary_prompt_template: *summary_prompt
       prompt_template: *counselor_prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types_2
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      allowed_routing_types: *allowed_routing_types_1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
     - agent_type: simple
       agent_id: 2
       name: 认知专家A
@@ -215,9 +225,9 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
     - agent_type: simple
       agent_id: 3
       name: 认知专家B
@@ -227,9 +237,9 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
     - agent_type: simple
       agent_id: 4
       name: 认知专家C
@@ -239,9 +249,9 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
     - agent_type: simple
       agent_id: 5
       name: 认知专家D
@@ -251,9 +261,9 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
     - agent_type: simple
       agent_id: 6
       name: 认知专家E
@@ -263,9 +273,9 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
     - agent_type: simple
       agent_id: 7
       name: 认知专家F
@@ -275,30 +285,7 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
-    - agent_type: simple
-      agent_id: 8
-      name: 认知专家G
-      role_description: 认知专家G，你十分熟悉灾难化这种认知扭曲，即患者总是关注最坏的情况。例如：如果我面试回答不好问题，我一会失去这份工作，最后一无所有。并能很好地识别该认知扭曲的临床表现和治疗方法。
-      routing_prompt_template: *routing_prompt
-      summary_prompt_template: *summary_prompt
-      prompt_template: *prompt
-      locale: zh
-      allowed_routing_types: *allowed_routing_types_1
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
-    - agent_type: simple
-      agent_id: 9
-      name: 认知专家H
-      role_description: 认知专家H，你十分熟悉应该陈述这种认知扭曲，即患者为自己设定不切实际的期望。例如：我不需要任何帮助，我很独立。并能很好地识别该认知扭曲的临床表现和治疗方法。
-      routing_prompt_template: *routing_prompt
-      summary_prompt_template: *summary_prompt
-      prompt_template: *prompt
-      locale: zh
-      allowed_routing_types: *allowed_routing_types_1
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
+
