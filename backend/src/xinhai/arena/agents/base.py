@@ -48,7 +48,7 @@ class BaseAgent:
     def __init__(self, name, agent_id, role_description, llm, api_key, api_base,
                  routing_prompt_template, summary_prompt_template, prompt_template,
                  environment_id, controller_address, locale, allowed_routing_types,
-                 max_retries=5):
+                 max_retries=4):
         self.name = name
         self.agent_id = agent_id
         self.role_description = role_description
@@ -121,33 +121,40 @@ class BaseAgent:
     def routing(self, candidate_agents: List[Self], **kwargs) -> XinHaiRoutingMessage:
         """Routing logic for agent"""
         targets = [a.agent_id for a in candidate_agents]
-        if len(self.allowed_routing_types) == 1:
-            routing_message = XinHaiRoutingMessage(
-                agent_id=self.agent_id,
-                routing_type=self.allowed_routing_types[0],
-                targets=targets,
-                routing_prompt="Static Routing"
-            )
-            return routing_message
-        else:
-            routing_prompt = self.get_routing_prompt(candidate_agents, **kwargs)
-            routing_message = None
-            while not routing_message:
-                data = self.prompt_for_routing(routing_prompt)
-                logger.debug(data)
+        # if len(self.allowed_routing_types) == 1:
+        #     routing_message = XinHaiRoutingMessage(
+        #         agent_id=self.agent_id,
+        #         routing_type=self.allowed_routing_types[0],
+        #         targets=targets,
+        #         routing_prompt="Static Routing"
+        #     )
+        #     return routing_message
+        # else:
+        routing_prompt = self.get_routing_prompt(candidate_agents, **kwargs)
+        routing_message = None
+        while not routing_message:
+            data = self.prompt_for_routing(routing_prompt)
+            logger.debug(data)
+            try:
                 targets = data["target"]
-                if isinstance(data['target'], int):
-                    targets = [data['target']]
+            except KeyError:
+                continue
+            
+            if isinstance(data['target'], int):
+                targets = [data['target']]
+            else:
+                continue
 
-                routing_type = XinHaiRoutingType.from_str(data['method'])
-                if self.agent_id not in targets and routing_type in self.allowed_routing_types:
-                    routing_message = XinHaiRoutingMessage(
-                        agent_id=self.agent_id,
-                        routing_type=routing_type,
-                        targets=targets,
-                        routing_prompt=routing_prompt
-                    )
-            return routing_message
+            routing_type = XinHaiRoutingType.from_str(data['method'])
+            if self.agent_id not in targets and routing_type in self.allowed_routing_types:
+                routing_message = XinHaiRoutingMessage(
+                    agent_id=self.agent_id,
+                    routing_type=routing_type,
+                    targets=targets,
+                    routing_prompt=routing_prompt
+                )
+
+        return routing_message
 
     @abstractmethod
     def step(self, routing, agents, **kwargs):
