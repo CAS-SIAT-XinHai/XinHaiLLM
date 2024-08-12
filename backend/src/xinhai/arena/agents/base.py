@@ -142,8 +142,6 @@ class BaseAgent:
             
             if isinstance(data['target'], int):
                 targets = [data['target']]
-            else:
-                continue
 
             routing_type = XinHaiRoutingType.from_str(data['method'])
             if self.agent_id not in targets and routing_type in self.allowed_routing_types:
