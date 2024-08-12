@@ -3,19 +3,23 @@ controller:
 
 workers:
   - worker_type: llm
-    worker_name: Qwen1.5-7B-Chat
-    worker_address: http://localhost:40007
+    worker_name: qwen2:72b
+    worker_address: http://localhost:11434/v1
     worker_host: 0.0.0.0
     worker_port: 40007
     no_register: false
     limit_model_concurrency: 5
     device: cuda
-    api_key: EMPTY
+    api_key: sk
   - worker_type: ocr
   - worker_type: storage
 
 arena:
-  allowed_routing_types: &allowed_routing_types
+  allowed_routing_types_1: &allowed_routing_types_1
+    - "[EndCast]"
+    - "[Unicast]"
+    - "[Multicast]"
+  allowed_routing_types_2: &allowed_routing_types_2
     - "[Unicast]"
   routing_strategy: static
   prompts:
@@ -58,17 +62,18 @@ arena:
 
       ###任务描述：
       1. 你是一名熟悉CBT治疗的专家，你应该首先与咨询者多沟通，掌握咨询者基本情况。
-      2. 接着在与咨询者的对话中找出咨询者可能存在的认知扭曲。
-      3. 当找到认知扭曲时，先判断该认知扭曲属于哪一类型，并向熟悉该认知扭曲的智能体描述患者的认知和你的判断。
-      4. 若处理该认知扭曲的智能体认为你的判断是正确的，你才可以向患者说明他的认知错误。若智能体认为你的判断是错误的，你需要重新判断患者的认知扭曲类型并向对应智能体验证。
-      
+      2. 在与咨询者的对话中找出咨询者可能存在的认知扭曲。
+      3. 当找到认知扭曲时，先判断该认知扭曲属于哪一类型，并向熟悉该认知扭曲的认知智能体描述患者的认知和你的判断。
+      4. 若处理该认知扭曲的智能体认为你的判断是正确的，你必须向患者说明他的认知扭曲类型并进行治疗。
+      5. 若智能体认为你的判断是错误的，你需要重新判断患者的认知扭曲类型并向对应智能体验证。
+      6. 当你认为对话可以结束时，请结束对话，发送[EndCast]。
+
       ###可以进行交互的智能体列表：
       {agent_descriptions}
       
       ###可以采用的通讯方式有：
       {routing_descriptions}
       
-      ###Attention:
       
       ###样例：
       {{"method": "[SingleCast]", "target": [1], "description": }}
@@ -79,7 +84,7 @@ arena:
       ###Task：
       请根据之前的对话摘要和新的对话内容，给出新的对话摘要。
       新的对话摘要应当包含之前摘要的内容。
-      摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。
+      摘要长度不应过长或过短。
       
       ###以前的对话摘要：
       {chat_summary}
@@ -105,9 +110,10 @@ arena:
       {agents}
 
       ###Attention:
-      你是一名患者，应当配合咨询师治疗。
-      对话长度不应过长，应根据情境和对话历史决定对话长度。
-      对话内容应该具备连贯性
+      1. 你是一名患者，应当配合咨询师治疗。
+      2. 对话长度不应过长，应根据情境和对话历史决定对话长度。
+      3. 对话内容应该具备连贯性.
+      4. 当你认为你的问题得到解决时可以结束对话。
 
       根据你的角色描述和通信智能体，请问你想发出的消息内容是什么？
 
@@ -116,8 +122,10 @@ arena:
       ###任务描述：
       1. 你是一名熟悉CBT治疗的专家，你应该首先与咨询者多沟通，掌握咨询者基本情况。
       2. 在与咨询者的对话中找出咨询者可能存在的认知扭曲。
-      3. 当找到认知扭曲时，先判断该认知扭曲属于哪一类型，并向熟悉该认知扭曲的认知智能体描述患者的认知和你的判断。
-      4. 若处理该认知扭曲的智能体认为你的判断是正确的，你才可以向患者说明他的认知错误并进行CBT治疗。若智能体认为你的判断是错误的，你需要重新判断患者的认知扭曲类型并向对应智能体验证。
+      3. 当找到认知扭曲时，先判断该认知扭曲属于哪些类型，并向熟悉该认知扭曲的认知智能体描述患者的认知和你的判断。
+      4. 若处理该认知扭曲的智能体认为你的判断是正确的，你必须向患者说明他的认知扭曲类型并进行治疗。
+      5. 若智能体认为你的判断是错误的，你需要重新判断患者的认知扭曲类型并向对应智能体验证。
+      6. 当你认为对话可以结束时，请结束对话。
       
       ###角色描述:
       {role_description}
@@ -127,9 +135,16 @@ arena:
       
       ###最新对话历史：
       {chat_history}
+
+      ###注意：
+      1. 你首先应该多与患者沟通以掌握更多的患者信息。
+      2. 咨询者不知道认知专家的存在，禁止在患者面前提到认知专家。
+      3. 必须向患者说明其认知扭曲类型。
+      4. 对话长度不应过长，应根据情境和对话历史决定对话长度。对话内容应具有连贯性。
       
       ###
-      现在，你选择了以{routing}方式与{agents}通信，根据你的任务描述请问你想发出的消息内容是什么？
+      现在，你选择了以{routing}方式与{agents}通信。
+      记住你的任务描述，根据你的角色和通信对象，向通信对象发出的消息内容是什么？
 
       ###返回格式：
 
@@ -148,13 +163,14 @@ arena:
         ###最新对话历史：
         {chat_history}
         
-        现在，你选择了以{routing}方式与{agents}通信，根据你的任务描述，请问你想发出的消息内容是什么？
+        现在，你选择了以{routing}方式与{agents}通信。
+        记住你的任务，然后根据你的角色描述和通信对象，请问你想向该通信对象发出的消息内容是什么？
 
   name: XinHai CBT
 
   environment:
     environment_type: simple
-    environment_id: xinhai_cbt_simulation_5
+    environment_id: xinhai_cbt_simulation_10
     controller_address: http://localhost:5001
     topology:
       edges:
@@ -184,10 +200,10 @@ arena:
       summary_prompt_template: *summary_prompt
       prompt_template: *consultant_prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      allowed_routing_types: *allowed_routing_types_1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
     - agent_type: simple
       agent_id: 1
       name: 咨询师
@@ -196,79 +212,80 @@ arena:
       summary_prompt_template: *summary_prompt
       prompt_template: *counselor_prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      allowed_routing_types: *allowed_routing_types_1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
     - agent_type: simple
       agent_id: 2
       name: 认知专家A
-      role_description: 认知专家A，你十分熟悉非黑即白这种认知扭曲，即患者将经验分为黑白两类(对和错)。并能很好地识别该认知扭曲的临床表现和治疗方法。
+      role_description: 认知专家A，你十分熟悉两极化思维这种认知扭曲，即患者不是根据事物本身的多种可能作出决策，而是一种对事物的极端判断。例如：如果我不完美，我就是失败者。并能很好地识别该认知扭曲的临床表现和治疗方法。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      allowed_routing_types: *allowed_routing_types_1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
     - agent_type: simple
       agent_id: 3
       name: 认知专家B
-      role_description: 认知专家B，你十分熟悉以偏概全这种认知扭曲，即患者根据有限部分对整体做出快速判断。并能很好地识别该认知扭曲的临床表现和治疗方法。
+      role_description: 认知专家B，你十分熟悉以偏概全这种认知扭曲，即患者基于有限的经验，得出十分泛化的结论。例如：这里画错了，我整个画都毁了。并能很好地识别该认知扭曲的临床表现和治疗方法。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      allowed_routing_types: *allowed_routing_types_1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
     - agent_type: simple
       agent_id: 4
       name: 认知专家C
-      role_description: 认知专家C，你十分熟悉心里过滤这种认知扭曲，即患者容易过滤掉积极的因素并过度关注情况的消息方面。并能很好地识别该认知扭曲的临床表现和治疗方法。
+      role_description: 认知专家C，你十分熟悉感情推理这种认知扭曲，即患者把感受视为事实。例如：我感到有点紧张，今天肯定有坏事发生。并能很好地识别该认知扭曲的临床表现和治疗方法。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      allowed_routing_types: *allowed_routing_types_1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
     - agent_type: simple
       agent_id: 5
       name: 认知专家D
-      role_description: 认知专家D，你十分熟悉个性化这种认知扭曲，即患者将外部事件归因于自己，即使没有依据将这些事件与自己联系起来。并能很好地识别该认知扭曲的临床表现和治疗方法。
+      role_description: 认知专家D，你十分熟悉个性化这种认知扭曲，即患者把事情看成是针对自己的，尽管自己可以与该事情并无关系。例如：他很安静，我想是不是我做错了什么。并能很好地识别该认知扭曲的临床表现和治疗方法。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      allowed_routing_types: *allowed_routing_types_1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
     - agent_type: simple
       agent_id: 6
       name: 认知专家E
-      role_description: 认知专家E，你十分熟悉错误标签这种认知扭曲，即患者用极其负面的语言来描述自己或他人。并能很好地识别该认知扭曲的临床表现和治疗方法。
+      role_description: 认知专家E，你十分熟悉错误标签这种认知扭曲，即患者用行为和特征来定义一个人。例如：我说了一些尴尬的话，我是一个失败者。并能很好地识别该认知扭曲的临床表现和治疗方法。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      allowed_routing_types: *allowed_routing_types_1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
     - agent_type: simple
       agent_id: 7
       name: 认知专家F
-      role_description: 认知专家F，你十分熟悉读心术这种认知扭曲，即患者根据自己的感知或解释，对他人的想法、感受或意图做出假设。并能很好地识别该认知扭曲的临床表现和治疗方法。
+      role_description: 认知专家F，你十分熟悉读心术这种认知扭曲，即患者假设自己能知道别人的想法。例如：她没有与我打招呼，她肯定很讨厌我。并能很好地识别该认知扭曲的临床表现和治疗方法。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40007/v1
+      allowed_routing_types: *allowed_routing_types_1
+      llm: qwen2:72b
+      api_key: sk
+      api_base: http://localhost:11434/v1
+
