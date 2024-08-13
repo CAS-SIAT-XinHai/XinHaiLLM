@@ -8,6 +8,8 @@ Authors: Vimos Tan
 """
 from __future__ import annotations
 
+import base64
+import io
 import os
 import sys
 from datetime import datetime
@@ -59,6 +61,12 @@ class XinHaiChatMessage(BaseModel):
     # reactions: Optional[Dict]
     # replyMessage: Optional['XinHaiChatMessage']
 
+    @staticmethod
+    def to_base64(filename: str) -> str:
+        buf = io.BytesIO(open(filename, "rb").read())
+        img_b64_str = base64.b64encode(buf.getvalue()).decode()
+        return f"data:image,{img_b64_str}"
+
     @classmethod
     def squeeze_to_chat(cls, messages: List[Self], static_path):
         content_str = ""
@@ -75,8 +83,9 @@ class XinHaiChatMessage(BaseModel):
                                   type="image_url",
                                   text="",
                                   image_url=ImageURL(
-                                      url=os.path.join(static_path,
-                                                       f"{f.url.split(os.path.sep)[-1]}.{f.extension}"))) for
+                                      url=cls.to_base64(os.path.join(static_path,
+                                                                     f"{f.url.split(os.path.sep)[-1]}.{f.extension}"))))
+                              for
                               f in message.files
                           ]
         if content is not None:
@@ -102,8 +111,9 @@ class XinHaiChatMessage(BaseModel):
                               type="image_url",
                               text="",
                               image_url=ImageURL(
-                                  url=os.path.join(static_path,
-                                                   f"{f.url.split(os.path.sep)[-1]}.{f.extension}"))) for
+                                  url=self.to_base64(os.path.join(static_path,
+                                                                  f"{f.url.split(os.path.sep)[-1]}.{f.extension}"))))
+                          for
                           f in self.files
                       ]
         else:
