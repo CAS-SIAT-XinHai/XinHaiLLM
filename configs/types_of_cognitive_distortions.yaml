@@ -18,7 +18,6 @@ arena:
   allowed_routing_types_1: &allowed_routing_types_1
     - "[EndCast]"
     - "[Unicast]"
-    - "[Multicast]"
   allowed_routing_types_2: &allowed_routing_types_2
     - "[Unicast]"
   routing_strategy: static
@@ -49,6 +48,36 @@ arena:
       
       现在，基于以上信息，你的Routing策略是什么？
 
+    consultant_routing_prompt: &consultant_routing_prompt |-
+      现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：
+      ###角色描述：
+      {role_description}
+      
+      ###对话历史摘要：
+      {chat_summary}
+      
+      ###最新对话历史：
+      {chat_history}
+      
+      ###可以进行交互的智能体列表：
+      {agent_descriptions}
+      
+      ###可以采用的通讯方式有：
+      {routing_descriptions}
+      
+      基于当前情况，选择合适的通讯方式和通讯目标的ID值。
+      
+      ###样例：
+      {{"method": "[UniCast]", "target": [1], "description": 任务描述}}
+      target是通讯目标ID。
+
+      ###Attention:
+      1. 当你认为对话可以结束时，请结束对话，选择[EndCast] Routing策略。
+      2. 当你认为咨询师解决了你的问题时，选择[EndCast] Routing策略。
+
+      
+      现在，基于以上信息，你的Routing策略是什么？
+
     counselor_routing_prompt: &counselor_routing_prompt |-
       现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：
       ###角色描述：
@@ -66,7 +95,7 @@ arena:
       3. 当找到认知扭曲时，先判断该认知扭曲属于哪一类型，并向熟悉该认知扭曲的认知智能体描述患者的认知和你的判断。
       4. 若处理该认知扭曲的智能体认为你的判断是正确的，你必须向患者说明他的认知扭曲类型并进行治疗。
       5. 若智能体认为你的判断是错误的，你需要重新判断患者的认知扭曲类型并向对应智能体验证。
-      6. 当你认为对话可以结束时，请结束对话，发送[EndCast]。
+      6. 当你认为对话可以结束时，请结束对话，发送[EndCast]。当咨询者想结束对话时，请结束对话，发送[EndCast]。
 
       ###可以进行交互的智能体列表：
       {agent_descriptions}
@@ -76,7 +105,7 @@ arena:
       
       
       ###样例：
-      {{"method": "[SingleCast]", "target": [1], "description": }}
+      {{"method": "[SingleCast]", "target": [0], "description": }}
       target是通讯目标ID
       
       现在请深呼吸并一步一步地思考，基于你的任务描述，你的Routing策略是什么？
@@ -113,7 +142,7 @@ arena:
       1. 你是一名患者，应当配合咨询师治疗。
       2. 对话长度不应过长，应根据情境和对话历史决定对话长度。
       3. 对话内容应该具备连贯性.
-      4. 当你认为你的问题得到解决时可以结束对话。
+      4. 当你认为你的问题得到解决时可以结束对话，对话轮数尽量控制在10轮以内。
 
       根据你的角色描述和通信智能体，请问你想发出的消息内容是什么？
 
@@ -139,9 +168,8 @@ arena:
       ###注意：
       1. 你首先应该多与患者沟通以掌握更多的患者信息。
       2. 咨询者不知道认知专家的存在，禁止在患者面前提到认知专家。
-      3. 必须向患者说明其认知扭曲类型。
-      4. 对话长度不应过长，应根据情境和对话历史决定对话长度。对话内容应具有连贯性。
-      
+      3. 对话长度不应过长，应根据情境和对话历史决定对话长度。对话内容应具有连贯性。
+      4. 必须向患者说明其认知扭曲类型！
       ###
       现在，你选择了以{routing}方式与{agents}通信。
       记住你的任务描述，根据你的角色和通信对象，向通信对象发出的消息内容是什么？
@@ -156,6 +184,7 @@ arena:
         1. 根据咨询师对咨询者的描述，评价咨询师对咨询者的认知扭曲判断是否正确。
         2. 若判断错误，则只返回“判断错误”。
         3. 若判断正确，返回“判断正确”，并给出治疗该认知扭曲的方法。
+        4. 对话内容不能过长,内容应该精简有效。
  
         ###对话历史摘要：
         {chat_summary}
@@ -170,7 +199,7 @@ arena:
 
   environment:
     environment_type: simple
-    environment_id: xinhai_cbt_simulation_10
+    environment_id: xinhai_cbt_simulation_30
     controller_address: http://localhost:5001
     topology:
       edges:
@@ -189,7 +218,7 @@ arena:
         - 6->1
         - 7->1
 
-    max_turns: 10
+    max_turns: 8
 
   agents:
     - agent_type: simple

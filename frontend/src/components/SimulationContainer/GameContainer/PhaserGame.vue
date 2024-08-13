@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { EventBus } from './EventBus';
 import StartGame from './main';
+import { defineEmits, defineExpose } from 'vue';
 
 // Save the current scene instance
 const scene = ref();
