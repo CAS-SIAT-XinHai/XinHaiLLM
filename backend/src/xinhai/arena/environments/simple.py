@@ -42,7 +42,7 @@ class SimpleEnvironment(BaseEnvironment):
             logger.info("********************************************************")
             logger.info(f"{agent.agent_id }:{self.cnt_turn}")
             logger.info("********************************************************")
-            if (routing_message.routing_type == XinHaiRoutingType.END_CAST or self.cnt_turn >= self.max_turns) and agent.agent_id == 0:
+            if ((routing_message.routing_type == XinHaiRoutingType.END_CAST or self.cnt_turn >= self.max_turns) and agent.agent_id == 0) or self.cnt_turn > 16:
                 # [a.store_long_term_memory() for a in diagraph.nodes]
                 break
             targets = [self.agents[n] for n in routing_message.targets if
