@@ -3,14 +3,14 @@ controller:
 
 workers:
   - worker_type: llm
-    worker_name: qwen2:72b
-    worker_address: http://localhost:11434/v1
+    worker_name: alibaba/Qwen2-72B-Instruct
+    worker_address: https://api.siliconflow.cn/v1
     worker_host: 0.0.0.0
     worker_port: 40007
     no_register: false
     limit_model_concurrency: 5
     device: cuda
-    api_key: sk
+    api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
   - worker_type: ocr
   - worker_type: storage
 
@@ -18,7 +18,6 @@ arena:
   allowed_routing_types_1: &allowed_routing_types_1
     - "[EndCast]"
     - "[Unicast]"
-    - "[Multicast]"
   allowed_routing_types_2: &allowed_routing_types_2
     - "[Unicast]"
   routing_strategy: static
@@ -43,12 +42,41 @@ arena:
       基于当前情况，选择合适的通讯方式和通讯目标的ID值。
       
       ###样例：
-      {{"method": "[UniCast]", "target": [1], "description": 任务描述}}
+      {{"method": "[UniCast]", "target": [1]}}
       target是通讯目标ID。
+      用json返回。
+
+      
+      现在，基于以上信息，你的Routing策略是什么, 并给出理由？
+    consultant_routing_prompt: &consultant_routing_prompt |-
+      现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：
+      ###角色描述：
+      {role_description}
+      
+      ###对话历史摘要：
+      {chat_summary}
+      
+      ###最新对话历史：
+      {chat_history}
+      
+      ###可以进行交互的智能体列表：
+      {agent_descriptions}
+      
+      ###可以采用的通讯方式有：
+      {routing_descriptions}
+      
+      基于当前情况，选择合适的通讯方式和通讯目标的ID值。
+      
+      ###样例：
+      {{"method": "[UniCast]", "target": [1]}}
+      target是通讯目标ID。
+      用json返回。
+      ###Attention:
+      1. 当你认为对话可以结束时，请结束对话，选择[EndCast] Routing策略。
+      2. 当你认为咨询师解决了你的问题时，选择[EndCast] Routing策略。
 
       
       现在，基于以上信息，你的Routing策略是什么？
-
     counselor_routing_prompt: &counselor_routing_prompt |-
       现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：
       ###角色描述：
@@ -66,7 +94,8 @@ arena:
       3. 当找到认知扭曲时，先判断该认知扭曲属于哪一类型，并向熟悉该认知扭曲的认知智能体描述患者的认知和你的判断。
       4. 若处理该认知扭曲的智能体认为你的判断是正确的，你必须向患者说明他的认知扭曲类型并进行治疗。
       5. 若智能体认为你的判断是错误的，你需要重新判断患者的认知扭曲类型并向对应智能体验证。
-      6. 当你认为对话可以结束时，请结束对话，发送[EndCast]。
+      6. 你需要和患者进行多轮对话
+      7. 当你认为对话可以结束时，请结束对话，发送[EndCast]。
 
       ###可以进行交互的智能体列表：
       {agent_descriptions}
@@ -76,8 +105,9 @@ arena:
       
       
       ###样例：
-      {{"method": "[SingleCast]", "target": [1], "description": }}
+      {{"method": "[SingleCast]", "target": [0]}}
       target是通讯目标ID
+      用json返回。
       
       现在请深呼吸并一步一步地思考，基于你的任务描述，你的Routing策略是什么？
     summary_prompt: &summary_prompt |-
@@ -111,9 +141,8 @@ arena:
 
       ###Attention:
       1. 你是一名患者，应当配合咨询师治疗。
-      2. 对话长度不应过长，应根据情境和对话历史决定对话长度。
+      2. 对话长度不应过长。
       3. 对话内容应该具备连贯性.
-      4. 当你认为你的问题得到解决时可以结束对话。
 
       根据你的角色描述和通信智能体，请问你想发出的消息内容是什么？
 
@@ -139,9 +168,9 @@ arena:
       ###注意：
       1. 你首先应该多与患者沟通以掌握更多的患者信息。
       2. 咨询者不知道认知专家的存在，禁止在患者面前提到认知专家。
-      3. 必须向患者说明其认知扭曲类型。
-      4. 对话长度不应过长，应根据情境和对话历史决定对话长度。对话内容应具有连贯性。
-      
+      3. 对话长度不能太长，长度应符合咨询对话场景。
+      4. 你需要与患者进行多轮对话。
+      5. 必须向患者说明其认知扭曲类型！
       ###
       现在，你选择了以{routing}方式与{agents}通信。
       记住你的任务描述，根据你的角色和通信对象，向通信对象发出的消息内容是什么？
@@ -156,6 +185,7 @@ arena:
         1. 根据咨询师对咨询者的描述，评价咨询师对咨询者的认知扭曲判断是否正确。
         2. 若判断错误，则只返回“判断错误”。
         3. 若判断正确，返回“判断正确”，并给出治疗该认知扭曲的方法。
+        4. 对话内容不能过长,内容应该精简有效。
  
         ###对话历史摘要：
         {chat_summary}
@@ -170,7 +200,7 @@ arena:
 
   environment:
     environment_type: simple
-    environment_id: xinhai_cbt_simulation_10
+    environment_id: xinhai_cbt_simulation_30
     controller_address: http://localhost:5001
     topology:
       edges:
@@ -189,7 +219,7 @@ arena:
         - 6->1
         - 7->1
 
-    max_turns: 10
+    max_turns: 8
 
   agents:
     - agent_type: simple
@@ -201,9 +231,9 @@ arena:
       prompt_template: *consultant_prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      llm: qwen2:72b
-      api_key: sk
-      api_base: http://localhost:11434/v1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
+      api_base: https://api.siliconflow.cn/v1
     - agent_type: simple
       agent_id: 1
       name: 咨询师
@@ -213,9 +243,9 @@ arena:
       prompt_template: *counselor_prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      llm: qwen2:72b
-      api_key: sk
-      api_base: http://localhost:11434/v1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
+      api_base: https://api.siliconflow.cn/v1
     - agent_type: simple
       agent_id: 2
       name: 认知专家A
@@ -225,9 +255,9 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      llm: qwen2:72b
-      api_key: sk
-      api_base: http://localhost:11434/v1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
+      api_base: https://api.siliconflow.cn/v1
     - agent_type: simple
       agent_id: 3
       name: 认知专家B
@@ -237,9 +267,9 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      llm: qwen2:72b
-      api_key: sk
-      api_base: http://localhost:11434/v1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
+      api_base: https://api.siliconflow.cn/v1
     - agent_type: simple
       agent_id: 4
       name: 认知专家C
@@ -249,9 +279,9 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      llm: qwen2:72b
-      api_key: sk
-      api_base: http://localhost:11434/v1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
+      api_base: https://api.siliconflow.cn/v1
     - agent_type: simple
       agent_id: 5
       name: 认知专家D
@@ -261,9 +291,9 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      llm: qwen2:72b
-      api_key: sk
-      api_base: http://localhost:11434/v1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
+      api_base: https://api.siliconflow.cn/v1
     - agent_type: simple
       agent_id: 6
       name: 认知专家E
@@ -273,19 +303,19 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      llm: qwen2:72b
-      api_key: sk
-      api_base: http://localhost:11434/v1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
+      api_base: https://api.siliconflow.cn/v1
     - agent_type: simple
       agent_id: 7
       name: 认知专家F
-      role_description: 认知专家F，你十分熟悉读心术这种认知扭曲，即患者假设自己能知道别人的想法。例如：她没有与我打招呼，她肯定很讨厌我。并能很好地识别该认知扭曲的临床表现和治疗方法。
+      role_description: 认知专家F，你十分熟悉过早下结论这种认知扭曲，即患者在缺乏充分证据的情况下，快速得出某种负面的结论，如读心术或预知未来。例如：她没有与我打招呼，她肯定很讨厌我。并能很好地识别该认知扭曲的临床表现和治疗方法。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      llm: qwen2:72b
-      api_key: sk
-      api_base: http://localhost:11434/v1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
+      api_base: https://api.siliconflow.cn/v1
 
