@@ -1,0 +1,321 @@
+controller:
+  controller_address: http://localhost:5002
+
+workers:
+  - worker_type: llm
+    worker_name: alibaba/Qwen2-72B-Instruct
+    worker_address: https://sambanova.chillway.me/v1
+    worker_host: 0.0.0.0
+    worker_port: 8000
+    no_register: false
+    limit_model_concurrency: 5
+    device: cuda
+    api_key: sk-xfttnwunwvnedetflnwbmkqmsalgfnosnrzlxqicjomcjixg
+  - worker_type: ocr
+  - worker_type: storage
+
+arena:
+  allowed_routing_types_1: &allowed_routing_types_1
+    - "[EndCast]"
+    - "[Unicast]"
+  allowed_routing_types_2: &allowed_routing_types_2
+    - "[Unicast]"
+  routing_strategy: static
+  prompts:
+    routing_prompt: &routing_prompt |-
+      Right now, you are playing as an intelligent agent in a virtual world with the name {agent_name}. You need to react based on your association with other intelligences. Currently, the following information is known:
+      ### Role description:
+      {role_description}
+      
+      ### Conversation history summary:
+      {chat_summary}
+      
+      ### Latest conversation history:
+      {chat_history}
+      
+      ### List of intelligences that can be interacted with:
+      {agent_descriptions}
+      
+      ### The communication methods that can be used are:
+      {routing_descriptions}
+      
+      Based on the current situation, select the appropriate communication method and the ID value of the communication target.
+      
+      ### Sample:
+      {{"method": "[UniCast]", "target": [1]}}
+      target is the communication target ID.
+      Return in json.
+      Now, based on the above information, what is your Routing strategy?
+
+    consultant_routing_prompt: &consultant_routing_prompt |-
+      Right now, you are playing as an intelligent agent in a virtual world with the name {agent_name}. You need to react based on your association with other intelligences. Currently, the following information is known:
+      ### Role description:
+      {role_description}
+      
+      ### Conversation history summary:
+      {chat_summary}
+      
+      ### Latest conversation history:
+      {chat_history}
+      
+      ### List of intelligences that can be interacted with:
+      {agent_descriptions}
+      
+      ### The communication methods that can be used are:
+      {routing_descriptions}
+      
+      Based on the current situation, select the appropriate communication method and the ID value of the communication target.
+      
+      ### Sample:
+      {{"method": "[UniCast]", "target": [1]}}
+      target is the communication target ID.
+      Return in json.
+
+      ###Attention.
+      1. when you think the conversation is ready to end, end the conversation and select the [EndCast] Routing strategy.
+      2. when you think the counselor has solved your problem, select the [EndCast] Routing strategy.
+
+      
+      Now, based on the information above, what is your Routing strategy?
+
+    counselor_routing_prompt: &counselor_routing_prompt |-
+      Right now, you are playing as an intelligent agent in a virtual world with the name {agent_name}. You need to react based on your association with other intelligences. Currently, the following information is known:
+      ### Role description:
+      {role_description}
+      
+      ### Conversation history summary:
+      {chat_summary}
+      
+      ### Latest conversation history:
+      {chat_history}
+
+      ### Task description:
+      1. you are a specialist who is familiar with CBT therapy, you should first communicate more with the counselor to get the basic situation of the counselor.
+      2. You should identify any cognitive distortions that may be present in your conversation with the counselor. 
+      3. when you find a cognitive distortion, determine which type of cognitive distortion it belongs to, and describe the patient's cognition and your judgment to a cognitive intelligence familiar with the cognitive distortion.
+      4. if the cognitive intelligence dealing with the cognitive distortion believes that your judgment is correct, you must describe the type of cognitive distortion to the patient and treat it.
+      5. if the Intelligence that handles the cognitive distortion thinks your judgment is wrong, you need to re-judge the patient's cognitive distortion type and verify it with the corresponding Intelligence.
+      6. when you think the conversation can be ended, end the conversation by sending [EndCast]. When the counselor wants to end the conversation, please end the conversation by sending [EndCast].
+
+      ### List of intelligences that can be interacted with:
+      {agent_descriptions}
+      
+      ### The communication methods that can be used are:
+      {routing_descriptions}
+      
+      
+      ### Sample:
+      {{"method": "[SingleCast]", "target": [0]}}
+      target is the communication target ID
+      Return in json.
+      Now take a deep breath and think step by step, what is your Routing strategy based on your task description?
+      
+    summary_prompt: &summary_prompt |-
+      ###Task:
+      Please give a new dialog summary based on the previous dialog summary and the new dialog content.
+      The new dialog summary should contain the content of the previous summary.
+      The length of the summary should not be too long or too short.
+      
+      ### Previous conversation summary:
+      {chat_summary}
+      
+      ### New conversation content:
+      {chat_history}
+      
+      ###Attention:
+      The summary should focus on summarizing the content of the counselor's cognition and the counselor's judgment and treatment of the patient's cognition.
+      Return only the content of the new conversation summary, not the analysis process!
+    consultant_prompt: &consultant_prompt |-
+      ### Role description.
+      {role_description}
+      
+      ### Conversation history summary: {chat_summary}
+      {chat_summary}
+      
+      ###Latest chat history: {chat_history}
+      {chat_history}
+      
+      ###Communicating intelligences:
+      Now, you have chosen to communicate with the following intelligences as {routing}.
+      {agents}
+
+      ###Attention.
+      1. you are a patient and should cooperate with the counselor.
+      2. the length of the conversation should  be short. 
+      3. the content of the conversation should be coherent.
+      4. you can end the conversation when you think your problem has been solved.
+
+      Based on your role description and communication intelligences, what is the content of the message you want to send?
+
+      ### Return Format:
+    counselor_prompt: &counselor_prompt |-
+      ### Task description:
+      1. you are an expert who is familiar with CBT therapy, you should first communicate more with the counselor to get the basic information about the counselor.
+      2. find out the cognitive distortions that the counselor may have in the conversation with the counselor.
+      3. when you find a cognitive distortion, determine what type of cognitive distortion it belongs to and describe the patient's cognition and your judgment to a cognitive intelligence familiar with the cognitive distortion.
+      4. if the cognitive intelligence dealing with the cognitive distortion believes that your judgment is correct, you must describe the type of cognitive distortion to the patient and treat it.
+      5. if the Intelligence that handles the cognitive distortion thinks your judgment is wrong, you need to re-judge the patient's cognitive distortion type and verify it with the corresponding Intelligence.
+      6. end the dialog when you think it is ready to end.
+      
+      ### Role description.
+      {role_description}
+      
+      ### Conversation history summary:
+      {chat_summary}
+      
+      ### Latest conversation history:
+      {chat_history}
+
+      ### Notes:
+      1. you should first communicate more with the patient to get more information about the patient.
+      2. the counselor is not aware of the existence of the cognitive specialist, and it is forbidden to mention the cognitive specialist in front of the patient.
+      3. the length of the conversation should be short.
+      4. the type of cognitive distortion must be explained to the patient!
+      ###
+      Now, you have chosen to communicate with {agents} as {routing}.
+      Keeping your task description in mind, what is the content of the message sent to the communication object, depending on your role and the communication object?
+
+      ### Return format:
+
+    prompt: &prompt |-        
+        ### Role description:
+        {role_description}
+
+        ### Task Description:
+        1) Evaluate whether the consultant's cognitive distortion judgment of the consultant is correct according to the consultant's description of the consultant. 2) If the judgment is wrong, only "judgment error" is returned.
+        2. If the judgment is wrong, only "judgment error" is returned. 3.
+        3. If the judgment is correct, return "Correct judgment" and give the method to treat the cognitive distortion. 4.
+        4. The dialog should not be too long, and should be concise and effective.
+ 
+        ### A summary of the conversation history:
+        {chat_summary}
+        
+        ### Latest conversation history:
+        {chat_history}
+        
+        Now you have chosen to communicate with {agents} as {routing}.
+        Remembering your task, and then based on your role description and the person you are communicating with, what is the content of the message you would like to send to that person you are communicating with?
+
+  name: XinHai CBT
+
+  environment:
+    environment_type: simple
+    environment_id: xinhai_cbt_simulation_0
+    controller_address: http://localhost:5002
+    topology:
+      edges:
+        - 0->1
+        - 1->0
+        - 1->2
+        - 1->3
+        - 1->4
+        - 1->5
+        - 1->6
+        - 1->7
+        - 2->1
+        - 3->1
+        - 4->1
+        - 5->1
+        - 6->1
+        - 7->1
+
+    max_turns: 8
+
+  agents:
+    - agent_type: simple
+      agent_id: 0
+      name: consultant
+      role_description: ID is 0. consultant, faced with the following psychological problem, "Notice a pattern where I am always reviewing and criticizing myself?" , specifically as follows, "I get into a very nasty pattern when I talk to my mom. All I have to do is talk about the troubles I'm experiencing and she is indifferent, but as soon as I start criticizing self-review, she blushes. I don't think I'm good at it anymore, looking back I realize that meeting people and self-examining them, feeling either inadequate here or there, and then falsely complimenting others, has become a pattern for me, but it's not normal and distressing"
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *consultant_prompt
+      locale: en
+      allowed_routing_types: *allowed_routing_types_1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-xfttnwunwvnedetflnwbmkqmsalgfnosnrzlxqicjomcjixg
+      api_base: https://sambanova.chillway.me/v1
+    - agent_type: simple
+      agent_id: 1
+      name: Counselor
+      role_description: ID is 1. Counselor, you are an experienced counseling professional who helps counselors with psychological problems.
+      routing_prompt_template: *counselor_routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *counselor_prompt
+      locale: en
+      allowed_routing_types: *allowed_routing_types_1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-xfttnwunwvnedetflnwbmkqmsalgfnosnrzlxqicjomcjixg
+      api_base: https://sambanova.chillway.me/v1
+    - agent_type: simple
+      agent_id: 2
+      name: Cognitive Expert A
+      role_description: ID is 2. Cognitive Expert A, you are very familiar with the cognitive distortion of All-or-Nothing Thinking, in which the patient is not making decisions based on the many possibilities of the thing itself, but rather an extreme judgment of the thing. For example, if I am not perfect, I am a failure. And you are well able to recognize the clinical manifestations and treatments for this cognitive distortion.
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      locale: en
+      allowed_routing_types: *allowed_routing_types_1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-xfttnwunwvnedetflnwbmkqmsalgfnosnrzlxqicjomcjixg
+      api_base: https://sambanova.chillway.me/v1
+    - agent_type: simple
+      agent_id: 3
+      name: Cognitive Specialist B
+      role_description: ID is 3. Cognitive Specialist B, you are very familiar with the cognitive distortion of Overgeneralization, where the patient draws very generalized conclusions based on limited experience. For example, here's the wrong painting, my whole painting is ruined. And you are well able to recognize the clinical manifestations and treatments for that cognitive distortion.
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      locale: en
+      allowed_routing_types: *allowed_routing_types_1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-xfttnwunwvnedetflnwbmkqmsalgfnosnrzlxqicjomcjixg
+      api_base: https://sambanova.chillway.me/v1
+    - agent_type: simple
+      agent_id: 4
+      name: Cognitive Specialist C
+      role_description: ID is 4. Cognitive Specialist C, you are very familiar with the cognitive distortion of Emotional Reasoning, in which the patient perceives feelings as facts.For example, I feel a little nervous, something bad must have happened today.And you are well able to recognize the clinical manifestations and treatments for that cognitive distortion.
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      locale: en
+      allowed_routing_types: *allowed_routing_types_1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-xfttnwunwvnedetflnwbmkqmsalgfnosnrzlxqicjomcjixg
+      api_base: https://sambanova.chillway.me/v1
+    - agent_type: simple
+      agent_id: 5
+      name: Cognitive Specialist D
+      role_description: ID is 5. Cognitive Specialist D, you are very familiar with the cognitive distortion of Personalization, in which the patient sees things as directed at him or her, even though he or she can have nothing to do with the thing. For example, he's quiet and I wonder if I'm doing something wrong. And you are very good at recognizing the clinical manifestations and treatments for that cognitive distortion.
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      locale: en
+      allowed_routing_types: *allowed_routing_types_1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-xfttnwunwvnedetflnwbmkqmsalgfnosnrzlxqicjomcjixg
+      api_base: https://sambanova.chillway.me/v1
+    - agent_type: simple
+      agent_id: 6
+      name: Cognitive Specialist E
+      role_description: ID is 6. Cognitive Specialist E. You are very familiar with the cognitive distortion of Labeling or Mislabeling, in which the patient defines a person by behaviors and characteristics. For example, I say embarrassing things, I'm a loser. And you are well able to recognize the clinical manifestations and treatments for that cognitive distortion.
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      locale: en
+      allowed_routing_types: *allowed_routing_types_1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-xfttnwunwvnedetflnwbmkqmsalgfnosnrzlxqicjomcjixg
+      api_base: https://sambanova.chillway.me/v1
+    - agent_type: simple
+      agent_id: 7
+      name: Cognitive Specialist F
+      role_description: ID is 7. Cognitive Specialist F, you are very familiar with the cognitive distortion of Mind Reading, in which the sufferer assumes that he or she can know what others are thinking. For example, if she didn't say hello to me, she must really hate me. And you are well able to recognize the clinical manifestations and treatments for this cognitive distortion.
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      locale: en
+      allowed_routing_types: *allowed_routing_types_1
+      llm: alibaba/Qwen2-72B-Instruct
+      api_key: sk-xfttnwunwvnedetflnwbmkqmsalgfnosnrzlxqicjomcjixg
+      api_base: https://sambanova.chillway.me/v1
+
