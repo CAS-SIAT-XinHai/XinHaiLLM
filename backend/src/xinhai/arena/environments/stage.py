@@ -84,10 +84,7 @@ class StageEnvironment(BaseEnvironment):
 
                 candidate_agents = [self.agents[n] for n in diagraph.neighbors(agent.agent_id)]
                 routing_message = agent.routing(candidate_agents, env_status=env_status)
-                logger.info("********************************************************")
-                logger.info(self.cnt_turn)
-                logger.info("********************************************************")
-                if routing_message.routing_type == XinHaiRoutingType.END_CAST or self.cnt_turn >= self.max_turns:
+                if routing_message.routing_type == XinHaiRoutingType.END_CAST:
                     # [a.store_long_term_memory() for a in diagraph.nodes]
                     break
 
