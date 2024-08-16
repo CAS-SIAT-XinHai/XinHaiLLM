@@ -96,7 +96,7 @@ export default {
         }
       }
     }
-// eslint-disable-next-line no-unused-vars
+
     function blobToBase64(blob) {
       const reader = new FileReader();
       reader.readAsDataURL(blob);
@@ -105,7 +105,7 @@ export default {
           resolve(reader.result);
         };
       });
-    }
+    };
 
     function updateFileProgress(messageId, fileUrl, progress) {
       const message = messages.value.find(message => message._id === messageId)
@@ -142,7 +142,7 @@ export default {
     function openFile({file}) {
       window.open(file.file.url, '_blank')
     }
-// eslint-disable-next-line no-unused-vars
+
     async function uploadFile({file, messageId, roomId}) {
       return new Promise(resolve => {
         let type = file.extension || file.type
@@ -162,7 +162,6 @@ export default {
             updateFileProgress(messageId, file.localUrl, Math.round(percent * 100));
           };
         }
-// eslint-disable-next-line no-unused-vars
         xhr.onerror = function error(e) {
           resolve(false)
         };
@@ -191,7 +190,7 @@ export default {
         // }
       })
     }
-// eslint-disable-next-line no-unused-vars
+
     async function sendMessage({content, roomId, files, replyMessage}) {
       // {
       //   "content": "你好、",

@@ -51,7 +51,7 @@ class XinHaiRoutingType(XinHaiRoutingTypeMixin, Enum):
     }
 
     END_CAST = "[EndCast]", {
-        XinHaiI18NLocales.CHINESE: "终止，对话圆满结束，可以终止对话了",
+        XinHaiI18NLocales.CHINESE: "终止，终止与指定智能体之间的通讯",
         XinHaiI18NLocales.ENGLISH: "Terminated broadcast, end communication with the specified agent."
     }
 
