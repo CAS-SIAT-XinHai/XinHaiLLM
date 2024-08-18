@@ -8,13 +8,10 @@ services:
       - ./configs:/usr/share/xinhai/configs
       - ./related_repos:/usr/share/xinhai/related_repos
     ports:
-      - 5000:5000
       - 8080:8080
-      - 40001:40001
-      - 40004:40004
     environment:
       PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
-    command: python -m xinhai.controller --host 0.0.0.0 --port 5000
+    command: python -m xinhai.controller --host ${CONTROLLER_HOST} --port ${CONTROLLER_PORT}
     healthcheck:
       test:
         [
@@ -31,41 +28,7 @@ services:
       - ./configs:/usr/share/xinhai/configs
     network_mode: service:controller
     working_dir: /usr/share/xinhai/frontend
-    command: bash -c "npm install && npm run serve"
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "curl -s https://localhost:5000 | grep 'detail'",
-        ]
-      interval: 10s
-      timeout: 10s
-      retries: 120
-  llm:
-    image: xinhai
-    depends_on:
-      - controller
-    volumes:
-      - ./backend:/usr/share/xinhai/backend
-      - ./configs:/usr/share/xinhai/configs
-      - ./related_repos:/usr/share/xinhai/related_repos
-      - pretrained_models:/usr/share/xinhai/pretrained_models
-    network_mode: service:controller
-    environment:
-      PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
-      CONTROLLER_ADDRESS: http://localhost:5000
-      MODEL_NAME: Qwen1.5-7B-Chat
-      WORKER_ADDRESS: http://localhost:40001
-      WORKER_HOST: 0.0.0.0
-      WORKER_PORT: 40001
-    command: python -m xinhai.workers.llm --model_name_or_path /usr/share/xinhai/pretrained_models/Qwen1.5-7B-Chat --template qwen --infer_backend vllm --vllm_enforce_eager --infer_dtype float16
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              device_ids: [ '0' ]
-              capabilities: [ gpu ]
+    command: npm run serve
     healthcheck:
       test:
         [
@@ -87,13 +50,13 @@ services:
     network_mode: service:controller
     environment:
       PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
-      CONTROLLER_ADDRESS: http://localhost:5000
+      CONTROLLER_ADDRESS: http://localhost:${CONTROLLER_PORT}
       MODEL_NAME: storage
-      WORKER_ADDRESS: http://localhost:40004
+      WORKER_ADDRESS: http://localhost:${STORAGE_WORKER_PORT}
       WORKER_HOST: 0.0.0.0
-      WORKER_PORT: 40004
-      DB_PATH: /usr/share/xinhai/pretrained_models/StorageDB-bge-1.5-300
-      EMBEDDING_MODEL_PATH: /usr/share/xinhai/pretrained_models/bge-large-zh-v1.5
+      WORKER_PORT: ${STORAGE_WORKER_PORT}
+      DB_PATH: /usr/share/xinhai/pretrained_models/${STORAGE_DB_PATH}
+      EMBEDDING_MODEL_PATH: /usr/share/xinhai/pretrained_models/${STORAGE_EMBEDDING_MODEL_PATH}
     command: python -m xinhai.workers.storage
     deploy:
       resources:
@@ -102,6 +65,70 @@ services:
             - driver: nvidia
               device_ids: [ '0' ]
               capabilities: [ gpu ]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s https://localhost:5000 | grep 'detail'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+  llm:
+    image: xinhai
+    depends_on:
+      - controller
+      - storage
+    volumes:
+      - ./backend:/usr/share/xinhai/backend
+      - ./configs:/usr/share/xinhai/configs
+      - ./related_repos:/usr/share/xinhai/related_repos
+      - pretrained_models:/usr/share/xinhai/pretrained_models
+    network_mode: service:controller
+    environment:
+      PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
+      CONTROLLER_ADDRESS: http://localhost:${CONTROLLER_PORT}
+      MODEL_NAME: ${LLM_MODEL_NAME}
+      WORKER_ADDRESS: http://localhost:${LLM_WORKER_PORT}
+      WORKER_HOST: 0.0.0.0
+      WORKER_PORT: ${LLM_WORKER_PORT}
+    command: python -m xinhai.workers.llm --model_name_or_path /usr/share/xinhai/pretrained_models/${LLM_MODEL_PATH} --template ${LLM_MODEL_TEMPLATE} --infer_backend vllm --vllm_enforce_eager --infer_dtype float16
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: [ '0' ]
+              capabilities: [ gpu ]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -s https://localhost:5000 | grep 'detail'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+  bridge:
+    image: xinhai
+    depends_on:
+      - controller
+      - storage
+    volumes:
+      - ./backend:/usr/share/xinhai/backend
+      - ./configs:/usr/share/xinhai/configs
+      - ./related_repos:/usr/share/xinhai/related_repos
+    network_mode: service:controller
+    environment:
+      PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
+      CONTROLLER_ADDRESS: http://localhost:${CONTROLLER_PORT}
+      MODEL_NAME: Qwen/Qwen2-7B-Instruct
+      WORKER_ADDRESS: http://localhost:${BRIDGE_WORKER_PORT}
+      WORKER_HOST: 0.0.0.0
+      WORKER_PORT: ${BRIDGE_WORKER_PORT}
+      API_KEY: ${BRIDGE_API_KEY}
+      API_BASE: ${BRIDGE_API_BASE}
+    command: python -m xinhai.workers.bridge
     healthcheck:
       test:
         [

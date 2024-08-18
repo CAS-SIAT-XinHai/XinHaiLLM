@@ -10,6 +10,11 @@ Build a local docker image in `docker` directory.
 docker build --add-host raw.githubusercontent.com:185.199.108.133 -t xinhai .
 ```
 
+Modify env file
+```shell
+cp .env.example .env
+```
+
 Change `docker-compose.yml` accordingly.
 
 Start docker compose in project root directory.
