@@ -10,7 +10,7 @@ import re
 import threading
 import time
 from enum import Enum, auto
-from typing import List
+from typing import List, Union
 
 import aiofiles
 import numpy as np
@@ -26,7 +26,9 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from more_itertools import sliced
 from openai import OpenAI, OpenAIError
+from sse_starlette import EventSourceResponse
 
+from llamafactory.api.protocol import ChatCompletionResponse, ChatCompletionRequest
 from .config import CONTROLLER_HEART_BEAT_EXPIRATION, LOG_DIR, STATIC_PATH
 from .types.message import XinHaiChatCompletionRequest
 from .utils import build_logger, server_error_msg
@@ -199,7 +201,7 @@ class Controller:
         for worker_name in to_delete:
             self.remove_worker(worker_name)
 
-    def worker_api_chat_completion(self, request: XinHaiChatCompletionRequest):
+    def worker_api_chat_completion(self, request: Union[XinHaiChatCompletionRequest, ChatCompletionRequest]):
         worker_addr = self.get_worker_address(request.model)
         logger.info(f"Worker {request.model}: {worker_addr} , {request}")
         if not worker_addr:
@@ -210,7 +212,10 @@ class Controller:
             }
             yield json.dumps(ret).encode() + b"\0"
 
-        messages = request.to_chat(STATIC_PATH)
+        if isinstance(request, XinHaiChatCompletionRequest):
+            messages = request.to_chat(STATIC_PATH)
+        else:
+            messages = request.messages
 
         openai_api_key = "EMPTY"  # OPENAI_API_KEY
         openai_api_base = f"{worker_addr}/v1/"
@@ -733,7 +738,7 @@ class Controller:
             return None
 
         return r.json()
-    
+
     # Let the controller act as a worker to achieve hierarchical
     # management. This can be used to connect isolated sub networks.
     def worker_api_get_status(self):
@@ -755,48 +760,48 @@ class Controller:
         }
 
     def worker_api_mllm_chat(self, params):
-            worker_addr = self.get_worker_address(params["model"])
-            try:
-                r = requests.post(worker_addr + "/worker_mllm_chat", json=params, timeout=60)
-            except requests.exceptions.RequestException as e:
-                logger.error(f"Get status fails: {worker_addr}, {e}")
-                return None
+        worker_addr = self.get_worker_address(params["model"])
+        try:
+            r = requests.post(worker_addr + "/worker_mllm_chat", json=params, timeout=60)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {worker_addr}, {e}")
+            return None
 
-            if r.status_code != 200:
-                logger.error(f"Get status fails: {worker_addr}, {r}")
-                return None
+        if r.status_code != 200:
+            logger.error(f"Get status fails: {worker_addr}, {r}")
+            return None
 
-            return r.json()
+        return r.json()
 
     def worker_api_query_search(self, worker, params):
-            worker_addr = self.get_worker_address(worker)
-            logger.info(f"Worker {worker}: {worker_addr}")
-            if not worker_addr:
-                logger.info(f"no worker: {worker}")
-                ret = {
-                    "text": server_error_msg,
-                    "error_code": 2,
-                }
-                return ret
+        worker_addr = self.get_worker_address(worker)
+        logger.info(f"Worker {worker}: {worker_addr}")
+        if not worker_addr:
+            logger.info(f"no worker: {worker}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            return ret
 
-            try:
-                r = requests.post(worker_addr + "/worker_rag_query",
-                                json=params,
-                                timeout=60)        
-            except requests.exceptions.RequestException as e:
-                logger.error(f"Get status fails: {worker_addr}, {e}")
-                return None
+        try:
+            r = requests.post(worker_addr + "/worker_rag_query",
+                              json=params,
+                              timeout=60)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {worker_addr}, {e}")
+            return None
 
-            if r.status_code != 200:
-                logger.error(f"Get status fails: {worker_addr}, {r}")
-                return None
+        if r.status_code != 200:
+            logger.error(f"Get status fails: {worker_addr}, {r}")
+            return None
 
-            knowledge_data = r.json()
-            if isinstance(knowledge_data, str):
-                knowledge_data = json.loads(knowledge_data)
+        knowledge_data = r.json()
+        if isinstance(knowledge_data, str):
+            knowledge_data = json.loads(knowledge_data)
 
-            logger.info(f"Get response from [knowledge]: {knowledge_data}")
-            return knowledge_data
+        logger.info(f"Get response from [knowledge]: {knowledge_data}")
+        return knowledge_data
 
     def worker_api_storage_recall_memory(self, worker, params):
         storage_worker_addr = self.get_worker_address(worker)
@@ -842,6 +847,7 @@ class Controller:
 
         logger.error(r.text)
         return r.json()
+
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
@@ -953,6 +959,19 @@ async def worker_api_chat_completion(request: XinHaiChatCompletionRequest):
     # params = await request.json()
     generator = controller.worker_api_chat_completion(request)
     return StreamingResponse(generator)
+
+
+@app.post(
+    "/v1/chat/completions",
+    response_model=ChatCompletionResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def create_chat_completion(request: ChatCompletionRequest):
+    if request.stream:
+        generator = controller.worker_api_chat_completion(request)
+        return EventSourceResponse(generator, media_type="text/event-stream")
+    else:
+        raise NotImplementedError
 
 
 @app.post("/api/rag-chat-completion")

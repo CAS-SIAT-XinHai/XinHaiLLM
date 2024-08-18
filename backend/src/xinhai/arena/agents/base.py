@@ -55,7 +55,7 @@ class BaseAgent:
 
         self.llm = llm
         self.api_key = api_key
-        self.api_base = api_base
+        self.api_base = api_base or f'{controller_address}/v1'
 
         self.max_retries = max_retries
         self.routing_prompt_template = routing_prompt_template
@@ -139,7 +139,7 @@ class BaseAgent:
                 targets = data["target"]
             except KeyError:
                 continue
-            
+
             if isinstance(data['target'], int):
                 targets = [data['target']]
 
@@ -174,7 +174,6 @@ class BaseAgent:
                 messages=messages,
                 stream=True,
                 temperature=0.98
-                
             )
             logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
             content = ""
