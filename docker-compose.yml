@@ -17,7 +17,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl -s http://localhost:5000 | grep 'detail'",
+          "curl -X POST http://localhost:5000/api/list_models",
         ]
       interval: 10s
       timeout: 10s
