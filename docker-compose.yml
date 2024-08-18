@@ -9,6 +9,7 @@ services:
       - ./related_repos:/usr/share/xinhai/related_repos
     ports:
       - 8080:8080
+      - ${CONTROLLER_PORT}:${CONTROLLER_PORT}
     environment:
       PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
     command: python -m xinhai.controller --host ${CONTROLLER_HOST} --port ${CONTROLLER_PORT}
