@@ -49,8 +49,8 @@ def compute_score_from_dict():
 
 def gpt4(message: list):
     model = 'gpt-4'
-    openai_api_key = "sk"
-    openai_api_base = "api_base"
+    openai_api_key = os.environ.get("API_KEY")
+    openai_api_base = os.environ.get("API_BASE")
     client = OpenAI(api_key=openai_api_key, base_url=openai_api_base)
     completion = client.chat.completions.create(model=model, messages=message)
     return completion.choices[0].message.content
