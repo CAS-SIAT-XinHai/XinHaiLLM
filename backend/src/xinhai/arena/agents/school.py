@@ -39,10 +39,11 @@ class SchoolAgent(BaseAgent):
 
     def __init__(self, name, agent_id, role_description, env_role, llm, api_key, api_base, routing_prompt_template,
                  summary_prompt_template, prompt_template, environment_id, controller_address, locale,
-                 allowed_routing_types):
+                 allowed_routing_types, format_prompt_type, static_routing):
         super().__init__(name, agent_id, role_description, llm, api_key, api_base,
                          routing_prompt_template, summary_prompt_template, prompt_template,
                          environment_id, controller_address, locale, allowed_routing_types,
+                         format_prompt_type, static_routing,
                          max_retries=5)
         self.env_role = env_role
         self.last_message = None
@@ -288,14 +289,14 @@ class SchoolAgent(BaseAgent):
     # knowledge-related functions
     def retrieve_from_db(self, worker, source, query):
         if source == "Catalogs":
-            with open("../../source_data/ProDB_Catalogs.txt", 'r', encoding='utf-8') as f:
+            with open("../../examples/PsyTraArena/resources/ProDB_Catalogs.txt", 'r', encoding='utf-8') as f:
                 tmp_res = f.read()
             return [tmp_res]
 
         params_for_query_search = {
             "user_query": query,
             "source": source,
-            "top_k": 10
+            "top_k": 5
         }
 
         try:
@@ -335,10 +336,10 @@ class SchoolAgent(BaseAgent):
 
         prompt = "[教案开头]\n"
         i = 1
-        for key in retrieved_res.keys():
-            if "rag_pro_knowledge" in key:
-                prompt = prompt + f"#{i}\n" + retrieved_res[key] + "\n"
-                i += 1
+        res_key = "rag_pro_knowledge_docs"
+        for item in retrieved_res[res_key]:
+            prompt = prompt + f"#{i}\n" + item +"\n"
+            i += 1
         prompt += "[教案结尾]"
         return [prompt]
 

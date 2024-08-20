@@ -50,6 +50,6 @@ class StageTopology(BaseTopology):
                         "ref_query": ref_query
                     }
             iter_num = value['iter_num'] if 'iter_num' in value else 1
-            config_in_each_stage.append((stage_name, status, nx.Graph(edges), start, budget, ref_info, iter_num))
+            config_in_each_stage.append((stage_name, status, nx.DiGraph(edges), start, budget, ref_info, iter_num))
 
         return cls(config_in_each_stage)

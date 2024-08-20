@@ -110,11 +110,11 @@ class StageEnvironment(BaseEnvironment):
                     agent.update_short_term_memory([message])
                     [a.update_short_term_memory([message]) for a in targets]
                     self.message_cache.append(message)
-
+                    
                     stage_conv_num += 1
                     if stage_conv_num >= stage_conv_budget:
                         [agent.pop_ref_info_cache() for agent in self.agents]
                         break
-
+            
             self.cnt_iter += 1
             self.reset_iter()
