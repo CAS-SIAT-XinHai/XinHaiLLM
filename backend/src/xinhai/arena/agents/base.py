@@ -49,8 +49,8 @@ class BaseAgent:
     def __init__(self, name, agent_id, role_description, llm, api_key, api_base,
                  routing_prompt_template, summary_prompt_template, prompt_template,
                  environment_id, controller_address, locale,
-                 allowed_routing_types, format_prompt_type, 
-                 static_routing=False, max_retries=4):
+                 allowed_routing_types, static_routing=False,
+                 max_retries=4):
         self.name = name
         self.agent_id = agent_id
         self.role_description = role_description
@@ -76,8 +76,12 @@ class BaseAgent:
         self.environment_id = environment_id
         self.locale = XinHaiI18NLocales(locale)
         self.allowed_routing_types = [XinHaiRoutingType.from_str(t) for t in allowed_routing_types]
-        self.format_prompt_type = XinHaiPromptType.from_str(format_prompt_type)
         self.static_routing = static_routing
+        self.format_prompt, self.format_regex = XinHaiPromptType.get_content(
+            locale=self.locale,
+            format_prompt_type=XinHaiPromptType.from_str("[FormatResponse]")
+        )
+        self.format_pattern = re.compile(self.format_regex)
 
         self.memory = self.retrieve_memory()
 
@@ -231,22 +235,17 @@ class BaseAgent:
             routing_prompt="Static Routing",
         )
 
-    def complete_conversation(self, prompt, num_retries=5):
-        format_prompt, format_regex = XinHaiPromptType.get_content(
-            locale=self.locale,
-            format_prompt_type=self.format_prompt_type
-        )
-
+    def complete_conversation(self, prompt, num_retries=5):    
         messages = [{
             "role": "user",
-            "content": prompt + "\n\n" + format_prompt,
+            "content": prompt + "\n\n" + self.format_prompt,
         }]
 
         while True:
             logger.debug(messages)
             chat_response = self.chat_completion(self.client, model=self.llm, agent_id=self.agent_id, messages=messages)
             if chat_response:
-                rr = re.compile(format_regex).findall(chat_response)
+                rr = self.format_pattern.findall(chat_response)
                 if rr:
                     break
 

@@ -20,8 +20,6 @@ arena:
     - "[Unicast]"
   allowed_routing_types_2: &allowed_routing_types_2
     - "[Unicast]"
-  format_prompt_type: &format_prompt_type
-    "[FormatResponse]"  
   routing_strategy: static
   prompts:
     routing_prompt: &routing_prompt |-
@@ -233,7 +231,6 @@ arena:
       prompt_template: *consultant_prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      format_prompt_type: *format_prompt_type
       llm: alibaba/Qwen2-72B-Instruct
       api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
       api_base: https://api.siliconflow.cn/v1
@@ -246,7 +243,6 @@ arena:
       prompt_template: *counselor_prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      format_prompt_type: *format_prompt_type
       llm: alibaba/Qwen2-72B-Instruct
       api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
       api_base: https://api.siliconflow.cn/v1
@@ -259,7 +255,6 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      format_prompt_type: *format_prompt_type
       llm: alibaba/Qwen2-72B-Instruct
       api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
       api_base: https://api.siliconflow.cn/v1
@@ -272,7 +267,6 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      format_prompt_type: *format_prompt_type
       llm: alibaba/Qwen2-72B-Instruct
       api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
       api_base: https://api.siliconflow.cn/v1
@@ -285,7 +279,6 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      format_prompt_type: *format_prompt_type
       llm: alibaba/Qwen2-72B-Instruct
       api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
       api_base: https://api.siliconflow.cn/v1
@@ -298,7 +291,6 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      format_prompt_type: *format_prompt_type
       llm: alibaba/Qwen2-72B-Instruct
       api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
       api_base: https://api.siliconflow.cn/v1
@@ -311,7 +303,6 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      format_prompt_type: *format_prompt_type
       llm: alibaba/Qwen2-72B-Instruct
       api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
       api_base: https://api.siliconflow.cn/v1
@@ -324,7 +315,6 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types_1
-      format_prompt_type: *format_prompt_type
       llm: alibaba/Qwen2-72B-Instruct
       api_key: sk-lsfjohamzsiaojqffmuagcgveqicoaftfnnwcijqyrarcnnp
       api_base: https://api.siliconflow.cn/v1

@@ -39,11 +39,11 @@ class SchoolAgent(BaseAgent):
 
     def __init__(self, name, agent_id, role_description, env_role, llm, api_key, api_base, routing_prompt_template,
                  summary_prompt_template, prompt_template, environment_id, controller_address, locale,
-                 allowed_routing_types, format_prompt_type, static_routing):
+                 allowed_routing_types, static_routing):
         super().__init__(name, agent_id, role_description, llm, api_key, api_base,
                          routing_prompt_template, summary_prompt_template, prompt_template,
-                         environment_id, controller_address, locale, allowed_routing_types,
-                         format_prompt_type, static_routing,
+                         environment_id, controller_address, locale, 
+                         allowed_routing_types, static_routing,
                          max_retries=5)
         self.env_role = env_role
         self.last_message = None
