@@ -73,7 +73,7 @@ class XinHaiRoutingType(XinHaiRoutingTypeMixin, Enum):
     @classmethod
     def to_description(cls, locale: XinHaiI18NLocales, allowed_routing_types: List[Self]) -> str:
         return "\n".join(
-            f" - {member.value.routing_name}: {member.value.description[locale]}" for member in cls if
+            f" - {member.routing_name}: {member.description[locale]}" for member in cls if
             member in allowed_routing_types)
 
 

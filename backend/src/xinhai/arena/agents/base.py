@@ -23,6 +23,7 @@ from xinhai.types.i18n import XinHaiI18NLocales
 from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiChatSummary
 from xinhai.types.message import XinHaiChatMessage
 from xinhai.types.routing import XinHaiRoutingMessage, XinHaiRoutingType
+from xinhai.types.prompt import XinHaiPromptType
 from xinhai.types.storage import XinHaiFetchMemoryResponse, XinHaiStoreMemoryRequest, XinHaiFetchMemoryRequest
 
 if sys.version_info >= (3, 11):
@@ -47,7 +48,8 @@ class BaseAgent:
 
     def __init__(self, name, agent_id, role_description, llm, api_key, api_base,
                  routing_prompt_template, summary_prompt_template, prompt_template,
-                 environment_id, controller_address, locale, allowed_routing_types,
+                 environment_id, controller_address, locale,
+                 allowed_routing_types, static_routing=False,
                  max_retries=4):
         self.name = name
         self.agent_id = agent_id
@@ -68,13 +70,18 @@ class BaseAgent:
             api_key=self.api_key,
             base_url=self.api_base,
         )
-        self.response_pattern = re.compile(r"\[?Response]?([\s\S]+)\[?End of Response]?")
         self.summary_chunk_size = 5
 
         self.controller_address = controller_address
         self.environment_id = environment_id
         self.locale = XinHaiI18NLocales(locale)
         self.allowed_routing_types = [XinHaiRoutingType.from_str(t) for t in allowed_routing_types]
+        self.static_routing = static_routing
+        self.format_prompt, self.format_regex = XinHaiPromptType.get_content(
+            locale=self.locale,
+            format_prompt_type=XinHaiPromptType.from_str("[FormatResponse]")
+        )
+        self.format_pattern = re.compile(self.format_regex)
 
         self.memory = self.retrieve_memory()
 
@@ -130,27 +137,30 @@ class BaseAgent:
         #     )
         #     return routing_message
         # else:
-        routing_prompt = self.get_routing_prompt(candidate_agents, **kwargs)
-        routing_message = None
-        while not routing_message:
-            data = self.prompt_for_routing(routing_prompt)
-            logger.debug(data)
-            try:
-                targets = data["target"]
-            except KeyError:
-                continue
+        if self.static_routing:
+            routing_message = self.prompt_for_static_routing(targets)
+        else:
+            routing_prompt = self.get_routing_prompt(candidate_agents, **kwargs)
+            routing_message = None
+            while not routing_message:
+                data = self.prompt_for_routing(routing_prompt)
+                logger.debug(data)
+                try:
+                    targets = data["target"]
+                except KeyError:
+                    continue
+                
+                if isinstance(data['target'], int):
+                    targets = [data['target']]
 
-            if isinstance(data['target'], int):
-                targets = [data['target']]
-
-            routing_type = XinHaiRoutingType.from_str(data['method'])
-            if self.agent_id not in targets and routing_type in self.allowed_routing_types:
-                routing_message = XinHaiRoutingMessage(
-                    agent_id=self.agent_id,
-                    routing_type=routing_type,
-                    targets=targets,
-                    routing_prompt=routing_prompt
-                )
+                routing_type = XinHaiRoutingType.from_str(data['method'])
+                if self.agent_id not in targets and routing_type in self.allowed_routing_types:
+                    routing_message = XinHaiRoutingMessage(
+                        agent_id=self.agent_id,
+                        routing_type=routing_type,
+                        targets=targets,
+                        routing_prompt=routing_prompt
+                    )
 
         return routing_message
 
@@ -217,7 +227,7 @@ class BaseAgent:
             # num_retries -= 1
 
     def prompt_for_static_routing(self, agent_ids):
-        method = XinHaiRoutingType.UNICAST if len(agent_ids) == 1 else XinHaiRoutingType.MULTICAST
+        method = XinHaiRoutingType.UNICAST.routing_name if len(agent_ids) == 1 else XinHaiRoutingType.MULTICAST.routing_name
         return XinHaiRoutingMessage(
             agent_id=self.agent_id,
             routing_type=XinHaiRoutingType.from_str(method),
@@ -225,18 +235,17 @@ class BaseAgent:
             routing_prompt="Static Routing",
         )
 
-    def complete_conversation(self, prompt, num_retries=5):
-        answer_form = "The generated response should be enclosed by [Response] and [End of Response]."
+    def complete_conversation(self, prompt, num_retries=5):    
         messages = [{
             "role": "user",
-            "content": prompt + "\n\n" + answer_form,
+            "content": prompt + "\n\n" + self.format_prompt,
         }]
 
         while True:
             logger.debug(messages)
             chat_response = self.chat_completion(self.client, model=self.llm, agent_id=self.agent_id, messages=messages)
             if chat_response:
-                rr = self.response_pattern.findall(chat_response)
+                rr = self.format_pattern.findall(chat_response)
                 if rr:
                     break
 
