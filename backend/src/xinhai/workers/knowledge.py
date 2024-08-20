@@ -122,8 +122,19 @@ class RAGWorker:
             ss_chunks.append(chunks_ss[i])
         return pro_chunks, ss_chunks
 
+    def initial_retrieval_with_meta(self, query, rids):
+        n_results = 30
+        if rids:
+            where = {"id": {"$nin": rids}}
+            query_res = self.pro_collection.query(query_texts=query, n_results=n_results, where=where)
+        else:
+            query_res = self.pro_collection.query(query_texts=query, n_results=n_results)
+        docs = query_res["documents"][0]
+        metas = query_res["metadatas"][0]
+        return docs, metas
+    
     def get_sentence_pairs(self, query, chunks):
-        sentence_pairs = [[query, chunks[i]] for i in range(70)]
+        sentence_pairs = [[query, chunks[i]] for i in range(len(chunks))]
         return sentence_pairs
 
     def reranker_top2(self, sentence_pairs):
@@ -136,6 +147,16 @@ class RAGWorker:
         index1, index2 = scores_[0][0], scores_[1][0]
         return index1, index2
 
+    def reranker_topk(self, sentence_pairs, top_k):
+        # calculate scores of sentence pairs
+        sort_scores = {}
+        scores = self.reranker_model.predict(sentence_pairs)
+        for i, score in enumerate(scores):
+            sort_scores[i] = score
+        scores_ = sorted(sort_scores.items(), key=lambda item: item[1], reverse=True)
+        topk_indx = [scores_[i][0] for i in range(top_k)]
+        return topk_indx
+        
     def rag(self, params):
         ### metadatas的格式：[{"source": "Human"}, {"source": "AI"}]
         ### documents格式: ['one', 'tow']
@@ -153,6 +174,43 @@ class RAGWorker:
             "rag_ss_knowledge_2": pro_chunks[ss_index2]
         }, ensure_ascii=False)
 
+    def rag_meta(self, params):
+        query = params.get('user_query')
+        top_k = params.get('top_k', 5)
+        no_repetition = params.get('none_repetition', True)
+
+        rids = []
+        if no_repetition:
+            cache_folder_path = "../../examples/PsyTraArena/cache/"
+            cache_file_path = "reserved_ids.txt"
+            if not os.path.exists(cache_folder_path):
+                os.makedirs(cache_folder_path)
+            rids_path = os.path.join(cache_folder_path, cache_file_path)
+            
+            if not os.path.exists(rids_path):
+                with open(rids_path, 'w') as f:
+                    pass
+            else:
+                with open(rids_path, 'r') as f:
+                    rids = f.readlines()
+                rids = [rid.strip('\n') for rid in rids]
+
+        docs, metas = self.initial_retrieval_with_meta(query, rids)
+        pro_sentence_pairs = self.get_sentence_pairs(query, docs)
+        topk_indx = self.reranker_topk(pro_sentence_pairs, top_k)
+        topk_docs = [docs[indx] for indx in topk_indx]
+        topk_metas = [metas[indx] for indx in topk_indx]
+
+        if no_repetition:
+            new_rids = [c["id"] for c in topk_metas]
+            for rid in new_rids:
+                with open(rids_path, 'a') as f:
+                    f.write(f"{rid}\n")
+
+        return json.dumps({
+            "rag_pro_knowledge_docs": topk_docs,
+        }, ensure_ascii=False)
+
 
 app = FastAPI()
 
@@ -167,6 +225,12 @@ def release_model_semaphore(fn=None):
 async def rag_query(request: Request):
     params = await request.json()
     return worker.rag(params)
+
+
+@app.post("/worker_rag_query_meta")
+async def rag_query_meta(request: Request):
+    params = await request.json()
+    return worker.rag_meta(params)
 
 
 @app.post("/worker_get_status")

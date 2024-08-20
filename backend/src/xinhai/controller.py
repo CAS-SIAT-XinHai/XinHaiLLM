@@ -784,13 +784,13 @@ class Controller:
             }
             return ret
 
-        try:
-            r = requests.post(worker_addr + "/worker_rag_query",
-                              json=params,
-                              timeout=60)
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Get status fails: {worker_addr}, {e}")
-            return None
+            try:
+                r = requests.post(worker_addr + "/worker_rag_query_meta",
+                                json=params,
+                                timeout=60)        
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Get status fails: {worker_addr}, {e}")
+                return None
 
         if r.status_code != 200:
             logger.error(f"Get status fails: {worker_addr}, {r}")
