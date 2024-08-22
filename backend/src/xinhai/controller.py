@@ -785,6 +785,36 @@ class Controller:
             return ret
 
         try:
+            r = requests.post(worker_addr + "/worker_rag_query",
+                            json=params,
+                            timeout=60)        
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {worker_addr}, {e}")
+            return None
+
+        if r.status_code != 200:
+            logger.error(f"Get status fails: {worker_addr}, {r}")
+            return None
+
+        knowledge_data = r.json()
+        if isinstance(knowledge_data, str):
+            knowledge_data = json.loads(knowledge_data)
+
+        logger.info(f"Get response from [{worker}]: {knowledge_data}")
+        return knowledge_data
+    
+    def worker_api_query_search_meta(self, worker, params):
+        worker_addr = self.get_worker_address(worker)
+        logger.info(f"Worker {worker}: {worker_addr}")
+        if not worker_addr:
+            logger.info(f"no worker: {worker}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            return ret
+
+        try:
             r = requests.post(worker_addr + "/worker_rag_query_meta",
                             json=params,
                             timeout=60)        
@@ -800,7 +830,7 @@ class Controller:
         if isinstance(knowledge_data, str):
             knowledge_data = json.loads(knowledge_data)
 
-        logger.info(f"Get response from [knowledge]: {knowledge_data}")
+        logger.info(f"Get response from [{worker}]: {knowledge_data}")
         return knowledge_data
 
     def worker_api_storage_recall_memory(self, worker, params):
@@ -1041,6 +1071,12 @@ async def worker_api_fetch_messages(worker: str, request: Request):
 async def worker_api_query_search(worker: str, request: Request):
     params = await request.json()
     return controller.worker_api_query_search(worker, params)
+
+
+@app.post("/api/{worker}/query-search-meta")
+async def worker_api_query_search_meta(worker: str, request: Request):
+    params = await request.json()
+    return controller.worker_api_query_search_meta(worker, params)
 
 
 @app.post("/api/{worker}/chat-search")
