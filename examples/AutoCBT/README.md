@@ -1,0 +1,4 @@
+启动命令\
+cd /data/xuancheng/koenshen/XinHaiLLM_240821/backend/src && PATH=/home/xuancheng/miniconda3/envs/vllm_openbmb/bin:$PATH python -m xinhai.controller --host localhost --port 5000
+cd /data/xuancheng/koenshen/XinHaiLLM_240821/backend/src && PATH=/home/xuancheng/miniconda3/envs/vllm_openbmb/bin:$PATH CONTROLLER_ADDRESS=http://localhost:5000 CUDA_VISIBLE_DEVICES=0 DB_PATH=/data/pretrained_models/AutoCBT-DB EMBEDDING_MODEL_PATH=/data/pretrained_models/bge-large-zh-v1.5 MODEL_NAME=storage WORKER_ADDRESS=http://localhost:40003 WORKER_HOST=0.0.0.0 WORKER_PORT=40003 python -m xinhai.workers.storage
+cd /data/xuancheng/koenshen/XinHaiLLM_240821/examples/AutoCBT && PATH=/home/xuancheng/miniconda3/envs/vllm_openbmb/bin:$PATH python autocbt_single_qa.py
