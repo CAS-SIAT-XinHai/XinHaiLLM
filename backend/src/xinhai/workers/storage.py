@@ -193,7 +193,7 @@ class StorageWorker:
         if collection.count() < request.threshold:
             summaries = []
         else:
-            summaries = collection.query(query_texts=request.query, n_results=request.top_k, include=['metadatas'])['metadatas']
+            summaries = collection.query(query_texts=request.query, n_results=request.top_k, include=['metadatas'])['metadatas'][0]
             summaries = [XinHaiChatSummary.model_validate_json(s['summary']) for s in summaries]
 
             # documents = search_res['documents'][0]
