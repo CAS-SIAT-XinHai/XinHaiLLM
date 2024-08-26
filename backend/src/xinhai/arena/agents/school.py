@@ -38,7 +38,7 @@ class SchoolAgent(BaseAgent):
     env_role: str
 
     def __init__(self, name, agent_id, role_description, env_role, llm, api_key, api_base, routing_prompt_template,
-                 summary_prompt_template, prompt_template, environment_id, controller_address, locale,
+                 summary_prompt_template, reflect_prompt_template, prompt_template, summary_mode, environment_id, controller_address, locale,
                  allowed_routing_types, static_routing):
         super().__init__(name, agent_id, role_description, llm, api_key, api_base,
                          routing_prompt_template, summary_prompt_template, prompt_template,
@@ -49,6 +49,9 @@ class SchoolAgent(BaseAgent):
         self.last_message = None
         self.ref_info_cache = []
         self.cnt_conv_turn = 0
+
+        self.reflect_prompt_template = reflect_prompt_template
+        self.summary_mode = summary_mode
 
     def reset(self):
         self.last_message = None
@@ -188,9 +191,9 @@ class SchoolAgent(BaseAgent):
 
         return r.json()
 
-    def update_long_term_memory(self, summary_mode="full"):
+    def update_long_term_memory(self):
         # flush current short-term memory to long-term-memory        
-        stored_long_term_mem = self.dialogue_summary(summary_mode)
+        stored_long_term_mem = self.dialogue_summary(self.summary_mode)
 
         memory_request = XinHaiStoreMemoryRequest(
             storage_key=self.storage_key,
@@ -251,6 +254,15 @@ class SchoolAgent(BaseAgent):
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user",
                  "content": self.summary_prompt_template.format(chat_history=chat_history)},
+            ]
+            content = self.chat_completion(client=self.client, model=self.llm, agent_id=self.agent_id,
+                                           messages=messages)
+        elif summary_mode == "reflect":
+            messages = [
+                {
+                    "role": "user",
+                    "content": self.reflect_prompt_template.format(chat_history=chat_history)
+                },
             ]
             content = self.chat_completion(client=self.client, model=self.llm, agent_id=self.agent_id,
                                            messages=messages)
@@ -373,11 +385,12 @@ class SchoolAgent(BaseAgent):
 
     def prompt_for_experience(self, recalled_memory):
         prompt = ""
-        if len(recalled_memory) > 0:
+        summaries = recalled_memory.long_term_memory.summaries
+        if len(summaries) > 0:
             prompt = "[可供参考的经验]\n"
             i = 1
-            for m in recalled_memory:
-                prompt = prompt + f"#{i}\n" + m.content + "\n"
+            for s in summaries:
+                prompt = prompt + f"#{i}\n" + s.content + "\n"
                 i += 1
             prompt += "[可供参考的经验结束]"
 

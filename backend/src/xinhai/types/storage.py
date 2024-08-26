@@ -63,7 +63,7 @@ class XinHaiRecallMemoryRequest(BaseModel):
 
 
 class XinHaiRecallMemoryResponse(BaseModel):
-    recalled_memory: List[XinHaiChatSummary] = []
+    recalled_memory: XinHaiMemory
     error_code: XinHaiStorageErrorCode
 
 

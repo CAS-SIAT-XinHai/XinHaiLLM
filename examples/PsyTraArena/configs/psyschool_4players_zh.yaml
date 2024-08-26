@@ -57,6 +57,15 @@ arena:
       
       ###Attention###
       直接返回新的对话摘要内容，不要返回分析过程！
+    reflect_prompt: &reflect_prompt |-
+      请根据下面给出的对话历史，从学生视角将学习到的重要内容进行经验性总结与反思，包括但不局限于心理学概念、知识点、案例分析、具体题目等。
+      你的反思内容长度不应过长或过短，应该根据之前具体对话历史内容而定。
+
+      ####
+      对话历史：{chat_history}
+      
+      ###Attention###
+      直接返回你的总结反思内容，不要返回分析过程！
     task_prompt: &task_prompt |-
       ##角色描述：
         {role_description}
@@ -143,7 +152,9 @@ arena:
       env_role: 李雷，一名对心理学感兴趣的学生。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
+      reflect_prompt_template: *reflect_prompt
       prompt_template: *task_prompt
+      summary_mode: reflect
       locale: zh
       allowed_routing_types: *allowed_routing_types
       static_routing: True
@@ -169,7 +180,9 @@ arena:
       env_role: 韩梅，一名经验丰富的心理学教师。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
+      reflect_prompt_template: *reflect_prompt
       prompt_template: *task_prompt
+      summary_mode: full
       locale: zh
       allowed_routing_types: *allowed_routing_types
       static_routing: True
@@ -195,7 +208,9 @@ arena:
       env_role: 张明，一名专业的心理学知识测试考官。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
+      reflect_prompt_template: *reflect_prompt
       prompt_template: *task_prompt
+      summary_mode: full
       locale: zh
       allowed_routing_types: *allowed_routing_types
       static_routing: True
@@ -215,7 +230,9 @@ arena:
       env_role: 王浩，一名经验丰富的课程规划者。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
+      reflect_prompt_template: *reflect_prompt
       prompt_template: *task_prompt
+      summary_mode: full
       locale: zh
       allowed_routing_types: *allowed_routing_types
       static_routing: True

@@ -195,16 +195,9 @@ class StorageWorker:
         else:
             summaries = collection.query(query_texts=request.query, n_results=request.top_k, include=['metadatas'])['metadatas'][0]
             summaries = [XinHaiChatSummary.model_validate_json(s['summary']) for s in summaries]
-
-            # documents = search_res['documents'][0]
-            # metadatas = search_res['metadatas'][0]
-            # recall_memories = []
-            # for i in range(request.top_k):
-            #     results.append(sources[i]['source'] +  ":" + dialogues[i])
-                
-        
+            
         return XinHaiRecallMemoryResponse(
-            memory=XinHaiMemory(
+            recalled_memory=XinHaiMemory(
                 storage_key=request.storage_key,
                 short_term_memory=XinHaiShortTermMemory(messages=[]),
                 long_term_memory=XinHaiLongTermMemory(summaries=summaries),

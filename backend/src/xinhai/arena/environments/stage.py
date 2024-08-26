@@ -125,7 +125,7 @@ class StageEnvironment(BaseEnvironment):
 
     def __load_var_from_cache(self):
         cache_folder_path = "../../examples/PsyTraArena/cache/"
-        cache_file_path = "sim_records.json"
+        cache_file_path = "simulation_records.json"
         self.records_path = os.path.join(cache_folder_path, cache_file_path)
 
         if not os.path.exists(cache_folder_path):
