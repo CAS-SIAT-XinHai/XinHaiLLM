@@ -38,7 +38,7 @@ class SchoolAgent(BaseAgent):
     env_role: str
 
     def __init__(self, name, agent_id, role_description, env_role, llm, api_key, api_base, routing_prompt_template,
-                 summary_prompt_template, prompt_template, environment_id, controller_address, locale,
+                 summary_prompt_template, reflect_prompt_template, prompt_template, summary_mode, environment_id, controller_address, locale,
                  allowed_routing_types, static_routing):
         super().__init__(name, agent_id, role_description, llm, api_key, api_base,
                          routing_prompt_template, summary_prompt_template, prompt_template,
@@ -49,6 +49,9 @@ class SchoolAgent(BaseAgent):
         self.last_message = None
         self.ref_info_cache = []
         self.cnt_conv_turn = 0
+
+        self.reflect_prompt_template = reflect_prompt_template
+        self.summary_mode = summary_mode
 
     def reset(self):
         self.last_message = None
@@ -188,9 +191,9 @@ class SchoolAgent(BaseAgent):
 
         return r.json()
 
-    def update_long_term_memory(self, summary_mode="full"):
+    def update_long_term_memory(self):
         # flush current short-term memory to long-term-memory        
-        stored_long_term_mem = self.dialogue_summary(summary_mode)
+        stored_long_term_mem = self.dialogue_summary(self.summary_mode)
 
         memory_request = XinHaiStoreMemoryRequest(
             storage_key=self.storage_key,
@@ -254,6 +257,15 @@ class SchoolAgent(BaseAgent):
             ]
             content = self.chat_completion(client=self.client, model=self.llm, agent_id=self.agent_id,
                                            messages=messages)
+        elif summary_mode == "reflect":
+            messages = [
+                {
+                    "role": "user",
+                    "content": self.reflect_prompt_template.format(chat_history=chat_history)
+                },
+            ]
+            content = self.chat_completion(client=self.client, model=self.llm, agent_id=self.agent_id,
+                                           messages=messages)
         else:
             raise NotImplementedError
 
@@ -287,7 +299,7 @@ class SchoolAgent(BaseAgent):
         return self.prompt_for_experience(memory_response.recalled_memory)
 
     # knowledge-related functions
-    def retrieve_from_db(self, worker, source, query):
+    def retrieve_from_db(self, worker, source, query, top_k=5):
         if source == "Catalogs":
             with open("../../examples/PsyTraArena/resources/ProDB_Catalogs.txt", 'r', encoding='utf-8') as f:
                 tmp_res = f.read()
@@ -296,14 +308,17 @@ class SchoolAgent(BaseAgent):
         params_for_query_search = {
             "user_query": query,
             "source": source,
-            "top_k": 5
+            "top_k": top_k,
+            "exclude": self.environment.excluded_ids
         }
 
         try:
-            r = requests.post(f"{self.environment.controller_address}/api/{worker}/query-search",
-                              json=params_for_query_search,
-                              timeout=60
-                              )
+            call_func = "query-search-meta" if worker == "knowledge" else "query-search"
+            r = requests.post(
+                f"{self.environment.controller_address}/api/{worker}/{call_func}",
+                json=params_for_query_search,
+                timeout=60
+            )
         except requests.exceptions.RequestException as e:
             logger.error(f"Get status fails: {self.environment.controller_address}, {e}")
             return None
@@ -336,8 +351,14 @@ class SchoolAgent(BaseAgent):
 
         prompt = "[教案开头]\n"
         i = 1
-        res_key = "rag_pro_knowledge_docs"
-        for item in retrieved_res[res_key]:
+        doc_key = "rag_pro_knowledge_docs"
+        meta_key = "rag_pro_knowledge_metas"
+
+        retrieved_ids = [c["id"] for c in retrieved_res[meta_key]]
+        self.environment.retrieved_ids = retrieved_ids
+        self.environment.excluded_ids += retrieved_ids
+        
+        for item in retrieved_res[doc_key]:
             prompt = prompt + f"#{i}\n" + item +"\n"
             i += 1
         prompt += "[教案结尾]"
@@ -364,81 +385,17 @@ class SchoolAgent(BaseAgent):
 
     def prompt_for_experience(self, recalled_memory):
         prompt = ""
-        if len(recalled_memory) > 0:
-            prompt = "[过去的经验开头]\n"
+        summaries = recalled_memory.long_term_memory.summaries
+        if len(summaries) > 0:
+            prompt = "[可供参考的经验]\n"
             i = 1
-            for m in recalled_memory:
-                prompt = prompt + f"#{i}\n" + m.content + "\n"
+            for s in summaries:
+                prompt = prompt + f"#{i}\n" + s.content + "\n"
                 i += 1
-            prompt += "[过去的经验结尾]"
+            prompt += "[可供参考的经验结束]"
 
         return [prompt]
 
     def pop_ref_info_cache(self):
         if self.ref_info_cache:
             return self.ref_info_cache.pop(0)
-
-    # legacy functions
-    def __retrieve_from_db(self, source, queries):
-        if source == "book_content":
-            tmp_res = "[教案]\n" + \
-                      "心理治疗（英语：Psychotherapy）是由经过受过心理治疗专业训练并通过考核的人员，主要是心理师或接受心理治疗训练的精神科医师以对话为主的治疗模式。而在某些国家，受过相关培训的精神科护士或临床社会工作者亦可取得进行心理治疗的相关资格。建立一种独特的人际关系来协助当事人（或称案主、个案）处理心理问题、减轻主观痛苦经验、医治精神疾病及促进心理健康、个人成长。心理治疗一般是基于心理治疗理论及相关实证研究（主要是咨商心理学、临床心理学和精神病学）而建立的治疗系统，以建立关系、对话、沟通、深度自我探索、行为改变等的技巧来达到治疗目标，例如改善受助者的心理健康或减轻精神疾病症状等。"
-        elif source == "qa_test":
-            tmp1 = {
-                "subject_name": "普通心理学",
-                "question_type": "multi",
-                "kind": "knowledge",
-                "question": "下列选项中，属于感觉适应现象的有( )",
-                "options": {
-                    "A": "入芝兰之室，久而不闻其香",
-                    "B": "刚从暗处走到亮处，两眼什么也看不到，经过几秒钟后才恢复正常",
-                    "C": "月明星稀",
-                    "D": "音乐会开始后，全场灯光熄灭",
-                    "E": ""
-                },
-                "answer": "AB",
-                "explanation": "选项D是人为现象，选项C是感觉对比",
-                "id": "acbb8bcb3327f7a4405ce4e41bf274ef909110dd"
-            }
-            tmp2 = {
-                "subject_name": "高等学校教师心理学",
-                "question_type": "multi",
-                "kind": "knowledge",
-                "question": "个体自我意识的发展过程包括（　）。确认答案",
-                "options": {
-                    "A": "自我中心期",
-                    "B": "客观化时期",
-                    "C": "主观化时期",
-                    "D": "社会化时期",
-                    "E": "心理化时期"
-                },
-                "answer": "ABC",
-                "explanation": "个体自我意识从发生、发展到相对稳定和成熟，大约需要20多年的时间，经历自我中心期、客观化时期和主观化时期。",
-                "id": "eaf5cf52ccb1d5e90f64289e9ddaf4d0a712173e"
-            }
-
-            if not hasattr(self, "count"):
-                self.count = 1
-            else:
-                self.count += 1
-            dict_content = tmp1 if self.count <= 2 else tmp2
-            text_option = ""
-            for opt_indx, opt_ctx in dict_content["options"].items():
-                if opt_ctx:
-                    temp = (" - ").join([opt_indx, opt_ctx])
-                    text_option = text_option + temp + "\n"
-                else:
-                    break
-            dict_content["options"] = text_option
-
-            text_content = "<问题>\n{question}\n<选项>\n{options}\n<标答>\n{answer}\n<题解>\n{explanation}\n".format(
-                **dict_content)
-            return text_content
-        elif source == "course_outline":
-            with open("../../course_outline.txt", 'r', encoding='utf-8') as f:
-                tmp_res = f.read()
-            tmp_res = "[Start of Course Outline]\n" + tmp_res + "[End of Course Outline]"
-        return tmp_res
-
-    def __recall_from_db(self, source, queries):
-        return ""

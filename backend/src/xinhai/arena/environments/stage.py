@@ -6,6 +6,8 @@ XinHai stands for [Sea of Minds].
 
 Authors: Renhao Li, Vimos Tan
 """
+import os
+import json
 import logging
 from typing import List
 
@@ -35,7 +37,7 @@ class StageEnvironment(BaseEnvironment):
         self.stages = topology.stages
         self.routing_method = routing_method
         self.envolve_agents = list(set().union(*[set(nodes) for nodes in topology.nodes]))
-        self.cross_turn_info = "认知行为疗法"
+        self.__load_var_from_cache()
         self.message_cache = []
 
     async def step(self):
@@ -48,9 +50,11 @@ class StageEnvironment(BaseEnvironment):
             agent.update_long_term_memory()
             agent.clear_short_term_memory()
 
-        self.cnt_turn += 1
         self.cross_turn_info = self.message_cache[-1].content
+        self.__dump_var_to_cache()
+        
         self.message_cache = []
+        self.cnt_turn += 1
 
     def reset(self) -> None:
         """Reset the environment"""
@@ -118,3 +122,39 @@ class StageEnvironment(BaseEnvironment):
             
             self.cnt_iter += 1
             self.reset_iter()
+
+    def __load_var_from_cache(self):
+        cache_folder_path = "../../examples/PsyTraArena/cache/"
+        cache_file_path = "simulation_records.json"
+        self.records_path = os.path.join(cache_folder_path, cache_file_path)
+
+        if not os.path.exists(cache_folder_path):
+            os.makedirs(cache_folder_path)
+        if not os.path.exists(self.records_path):
+            tmp = []
+            with open(self.records_path, 'w') as f:
+                json.dump(tmp, f)
+            self.cross_turn_info = "认知行为疗法"
+            self.retrieved_ids = []
+            self.excluded_ids = []
+        else:
+            with open(self.records_path, 'r', encoding="utf-8") as f:
+                records = json.load(f)
+            last_record = records[-1]
+            self.cnt_turn = last_record["cnt_turn"] + 1
+            
+            self.cross_turn_info = last_record["cross_turn_info"]
+            self.retrieved_ids = []
+            self.excluded_ids = sum([r["retrieved_ids"] for r in records], [])
+
+    def __dump_var_to_cache(self):
+        new_record = {
+            "cnt_turn": self.cnt_turn,
+            "retrieved_ids": self.retrieved_ids,
+            "cross_turn_info": self.cross_turn_info,
+        }
+        with open(self.records_path, 'r', encoding="utf-8") as f:
+            records = json.load(f)
+        records.append(new_record)
+        with open(self.records_path, 'w', encoding="utf-8") as f:
+            json.dump(records, f, ensure_ascii=False)

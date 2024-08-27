@@ -81,7 +81,7 @@ class BaseAgent:
             locale=self.locale,
             format_prompt_type=XinHaiPromptType.from_str("[FormatResponse]")
         )
-        self.format_pattern = re.compile(self.format_regex)
+        self.format_pattern = re.compile(self.format_regex, re.DOTALL)
 
         self.memory = self.retrieve_memory()
 
@@ -249,7 +249,7 @@ class BaseAgent:
                 if rr:
                     break
 
-        return self.name, rr[0]
+        return self.name, rr[0].strip()
 
     def retrieve_memory(self) -> XinHaiMemory:
         fetch_request = XinHaiFetchMemoryRequest(storage_key=self.storage_key)
