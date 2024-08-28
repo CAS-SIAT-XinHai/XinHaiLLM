@@ -1,5 +1,5 @@
 controller:
-  controller_address: http://localhost:5000
+  controller_address: http://localhost:5077
 
 workers:
   - worker_type: llm
@@ -118,9 +118,9 @@ arena:
   name: XinHai CBT
 
   environment:
-    environment_type: simple
+    environment_type: autocbt
     environment_id: xinhai_cbt_simulation_0
-    controller_address: http://localhost:5000
+    controller_address: http://localhost:5077
     topology:
       edges:
         - 0->1
@@ -135,7 +135,7 @@ arena:
         - 4->1
         - 5->1
         - 6->1
-    max_turns: 10
+    max_turns: 16
 
   agents:
     - agent_type: simple

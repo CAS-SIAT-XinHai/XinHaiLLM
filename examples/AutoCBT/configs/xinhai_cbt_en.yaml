@@ -1,5 +1,5 @@
 controller:
-  controller_address: http://localhost:5000
+  controller_address: http://localhost:5077
 
 workers:
   - worker_type: llm
@@ -10,7 +10,7 @@ workers:
     no_register: false
     limit_model_concurrency: 5
     device: cuda
-    api_key: sk-xxxxxxxxxxx
+    api_key: EMPTY
   - worker_type: ocr
   - worker_type: storage
 
@@ -120,9 +120,9 @@ arena:
   name: XinHai CBT
 
   environment:
-    environment_type: simple
+    environment_type: autocbt
     environment_id: xinhai_cbt_simulation_0
-    controller_address: http://localhost:5000
+    controller_address: http://localhost:5077
     topology:
       edges:
         - 0->1
@@ -137,7 +137,7 @@ arena:
         - 4->1
         - 5->1
         - 6->1
-    max_turns: 10
+    max_turns: 16
 
   agents:
     - agent_type: simple
@@ -150,8 +150,8 @@ arena:
       locale: en
       allowed_routing_types: *allowed_routing_types
       llm: meta-llama/Meta-Llama-3.1-8B-Instruct
-      api_key: sk-xxxxxxxxxxx
-      api_base: https://api.siliconflow.cn/v1
+      api_key: EMPTY
+      api_base: http://localhost:40011/v1
     - agent_type: simple
       agent_id: 1
       name: therapist
@@ -162,8 +162,8 @@ arena:
       locale: en
       allowed_routing_types: *allowed_routing_types
       llm: meta-llama/Meta-Llama-3.1-8B-Instruct
-      api_key: sk-xxxxxxxxxxx
-      api_base: https://api.siliconflow.cn/v1
+      api_key: EMPTY
+      api_base: http://localhost:40011/v1
     - agent_type: simple
       agent_id: 2
       name: supervisor1
@@ -174,8 +174,8 @@ arena:
       locale: en
       allowed_routing_types: *allowed_routing_types
       llm: meta-llama/Meta-Llama-3.1-8B-Instruct
-      api_key: sk-xxxxxxxxxxx
-      api_base: https://api.siliconflow.cn/v1
+      api_key: EMPTY
+      api_base: http://localhost:40011/v1
     - agent_type: simple
       agent_id: 3
       name: supervisor2
@@ -186,8 +186,8 @@ arena:
       locale: en
       allowed_routing_types: *allowed_routing_types
       llm: meta-llama/Meta-Llama-3.1-8B-Instruct
-      api_key: sk-xxxxxxxxxxx
-      api_base: https://api.siliconflow.cn/v1
+      api_key: EMPTY
+      api_base: http://localhost:40011/v1
     - agent_type: simple
       agent_id: 4
       name: supervisor3
@@ -198,8 +198,8 @@ arena:
       locale: en
       allowed_routing_types: *allowed_routing_types
       llm: meta-llama/Meta-Llama-3.1-8B-Instruct
-      api_key: sk-xxxxxxxxxxx
-      api_base: https://api.siliconflow.cn/v1
+      api_key: EMPTY
+      api_base: http://localhost:40011/v1
     - agent_type: simple
       agent_id: 5
       name: supervisor4
@@ -210,8 +210,8 @@ arena:
       locale: en
       allowed_routing_types: *allowed_routing_types
       llm: meta-llama/Meta-Llama-3.1-8B-Instruct
-      api_key: sk-xxxxxxxxxxx
-      api_base: https://api.siliconflow.cn/v1
+      api_key: EMPTY
+      api_base: http://localhost:40011/v1
     - agent_type: simple
       agent_id: 6
       name: supervisor5
@@ -222,5 +222,5 @@ arena:
       locale: en
       allowed_routing_types: *allowed_routing_types
       llm: meta-llama/Meta-Llama-3.1-8B-Instruct
-      api_key: sk-xxxxxxxxxxx
-      api_base: https://api.siliconflow.cn/v1
+      api_key: EMPTY
+      api_base: http://localhost:40011/v1
