@@ -1,0 +1,46 @@
+dataset:
+  name: nq_samples
+  corpus_path: /data/indexes/nq_samples/general_knowledge.jsonl
+  path: /data/dataset/nq_samples
+  splits:
+    - test
+
+rag:
+  method: "sequential"
+  retriever:
+    type: "dense"
+    topk: 1
+    indexer:
+      type: chroma
+      collection_name: nq_samples
+      embeddings:
+        type: huggingface-bge
+        model_name: /data/pretrained_models/bge-large-zh-v1.5/
+        model_kwargs:
+          device: cuda
+        encode_kwargs:
+          normalize_embeddings: false
+      index_path: /data/indexes/bge-index
+  refiner:
+    type: noop
+    system_prompt_template: "Answer the question based on the given document. \
+    Only give me the answer and do not output any other words. \
+    \nThe following are given documents.\n\n${reference}"
+    user_prompt_template: "Question: ${query}\nAnswer:"
+    reference_template: "Doc ${idx}(Title: ${title}) ${text}"
+  generator:
+    type: API
+    api_base: http://localhost:5000/v1
+    api_key: Empty
+    model_name: Llama-3-8B-Instruct
+    generation_params:
+      max_tokens: 32
+
+evaluation:
+  metric_setting:
+    retrieval_recall_topk: 5
+    tokenizer_name: gpt-4
+  metrics:
+    - em
+    - f1
+    - sub_em

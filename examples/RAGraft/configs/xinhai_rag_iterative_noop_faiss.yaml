@@ -1,0 +1,47 @@
+dataset:
+  name: nq_samples
+  corpus_path: /data/indexes/nq_samples/general_knowledge.jsonl
+  path: /data/dataset/nq_samples
+  splits:
+    - test
+
+rag:
+  method: "iterative"
+  iter_num: 3
+  retriever:
+    type: "dense"
+    topk: 1
+    indexer:
+      type: faiss
+      faiss_type: Flat
+      embeddings:
+        type: huggingface
+        model_name: /data/pretrained_models/e5-base-v2
+        model_kwargs:
+          device: cpu
+        encode_kwargs:
+          normalize_embeddings: false
+      index_path: /data/indexes/e5_Flat.index
+  refiner:
+    type: noop
+    system_prompt_template: "Answer the question based on the given document. \
+    Only give me the answer and do not output any other words. \
+    \nThe following are given documents.\n\n${reference}"
+    user_prompt_template: "Question: ${query}\nAnswer:"
+    reference_template: "Doc ${idx}(Title: ${title}) ${text}"
+  generator:
+    type: API
+    api_base: http://localhost:5000/v1
+    api_key: Empty
+    model_name: Llama-3-8B-Instruct
+    generation_params:
+      max_tokens: 32
+
+evaluation:
+  metric_setting:
+    retrieval_recall_topk: 5
+    tokenizer_name: gpt-4
+  metrics:
+    - em
+    - f1
+    - sub_em

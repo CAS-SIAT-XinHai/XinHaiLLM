@@ -201,7 +201,7 @@ class Controller:
         for worker_name in to_delete:
             self.remove_worker(worker_name)
 
-    def worker_api_chat_completion(self, request: Union[XinHaiChatCompletionRequest, ChatCompletionRequest]):
+    def worker_api_chat_completion_streaming(self, request: Union[XinHaiChatCompletionRequest, ChatCompletionRequest]):
         worker_addr = self.get_worker_address(request.model)
         logger.info(f"Worker {request.model}: {worker_addr} , {request}")
         if not worker_addr:
@@ -233,6 +233,38 @@ class Controller:
                 stream=True
         ):
             yield response.to_json()
+
+    def worker_api_chat_completion(self, request: Union[XinHaiChatCompletionRequest, ChatCompletionRequest]):
+        worker_addr = self.get_worker_address(request.model)
+        logger.info(f"Worker {request.model}: {worker_addr} , {request}")
+        if not worker_addr:
+            logger.info(f"no worker: {request.model}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            return ret
+
+        if isinstance(request, XinHaiChatCompletionRequest):
+            messages = request.to_chat(STATIC_PATH)
+        else:
+            messages = request.messages
+
+        openai_api_key = "EMPTY"  # OPENAI_API_KEY
+        openai_api_base = f"{worker_addr}/v1/"
+
+        client = OpenAI(
+            api_key=openai_api_key,
+            base_url=openai_api_base,
+        )
+
+        logger.info(f"Sending messages: {messages}!")
+
+        response = client.chat.completions.create(
+            model=request.model,
+            messages=messages
+        )
+        return response
 
     @staticmethod
     def chat_completion(client, model, messages):
@@ -816,8 +848,8 @@ class Controller:
 
         try:
             r = requests.post(worker_addr + "/worker_rag_query_meta",
-                            json=params,
-                            timeout=60)        
+                              json=params,
+                              timeout=60)
         except requests.exceptions.RequestException as e:
             logger.error(f"Get status fails: {worker_addr}, {e}")
             return None
@@ -998,10 +1030,10 @@ async def worker_api_chat_completion(request: XinHaiChatCompletionRequest):
 )
 async def create_chat_completion(request: ChatCompletionRequest):
     if request.stream:
-        generator = controller.worker_api_chat_completion(request)
+        generator = controller.worker_api_chat_completion_streaming(request)
         return EventSourceResponse(generator, media_type="text/event-stream")
     else:
-        raise NotImplementedError
+        return controller.worker_api_chat_completion(request)
 
 
 @app.post("/api/rag-chat-completion")
