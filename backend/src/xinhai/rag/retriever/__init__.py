@@ -58,7 +58,7 @@ def register_retriever(name, subname=None):
     return register_retriever_cls
 
 
-class XinHaiBaseRetriever:
+class XinHaiRAGRetrieverBase:
     """Base object for all retrievers."""
     indexer: XinHaiRAGIndexerBase
 

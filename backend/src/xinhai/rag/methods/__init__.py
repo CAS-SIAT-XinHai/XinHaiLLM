@@ -15,7 +15,7 @@ from xinhai.rag.generator import GENERATOR_REGISTRY
 from xinhai.rag.refiner import REFINER_REGISTRY
 from xinhai.rag.reranker import XinHaiBaseReranker
 from xinhai.rag.retriever import RETRIEVER_REGISTRY
-from xinhai.rag.retriever import XinHaiBaseRetriever
+from xinhai.rag.retriever import XinHaiRAGRetrieverBase
 from xinhai.types.rag import XinHaiRAGMethodTypes, XinHaiRAGRetrieverTypes, XinHaiRAGRefinerTypes, \
     XinHaiRAGGeneratorTypes
 
@@ -63,7 +63,7 @@ def register_rag(name, subname=None):
 
 class XinHaiRAGMethodBase:
     method_type: XinHaiRAGMethodTypes
-    retriever: XinHaiBaseRetriever
+    retriever: XinHaiRAGRetrieverBase
     reranker: XinHaiBaseReranker
 
     def __init__(self, config):

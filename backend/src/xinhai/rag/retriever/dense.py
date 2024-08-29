@@ -9,7 +9,7 @@ Authors: Vimos Tan
 import logging
 
 from xinhai.rag.indexer import INDEXER_REGISTRY, XinHaiRAGDenseIndexer
-from xinhai.rag.retriever import XinHaiBaseRetriever, register_retriever
+from xinhai.rag.retriever import XinHaiRAGRetrieverBase, register_retriever
 from xinhai.types.rag import XinHaiRAGRetrieverTypes, XinHaiRAGIndexerTypes, XinHaiRAGRetrievedResult, \
     XinHaiRAGDocumentOut, XinHaiRAGDocumentIn
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @register_retriever(XinHaiRAGRetrieverTypes.DENSE)
-class DenseRetriever(XinHaiBaseRetriever):
+class XinHaiRAGDenseRetriever(XinHaiRAGRetrieverBase):
     r"""Dense retriever based on pre-built faiss index."""
     name = XinHaiRAGRetrieverTypes.DENSE
 
