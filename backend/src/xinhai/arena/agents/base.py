@@ -182,14 +182,11 @@ class BaseAgent:
             chat_response = client.chat.completions.create(
                 model=model,
                 messages=messages,
-                stream=True,
+                stream=False,
                 temperature=0.98
             )
             logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-            content = ""
-            for chunk in chat_response:
-                if chunk.choices[0].delta.content:
-                    content += chunk.choices[0].delta.content
+            content = chat_response.choices[0].message.content
             if content.strip():
                 logger.info(f"Get response from Agent-{agent_id}: {content}")
                 return content.strip()
