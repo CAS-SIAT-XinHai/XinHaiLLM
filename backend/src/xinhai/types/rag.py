@@ -75,7 +75,7 @@ class XinHaiRAGMethodTypes(str, Enum):
     IR_COT = 'ir_cot'
 
 
-class XinHaiRAGMetricTypes(str, Enum):
+class XinHaiMetricTypes(str, Enum):
     BLEU = 'bleu'
     F1 = 'f1'
     EM = 'em'

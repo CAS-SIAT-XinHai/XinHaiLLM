@@ -43,9 +43,11 @@ class NoopRefiner(XinHaiRAGRefinerBase):
         input_params = {"query": query, "reference": formatted_reference}
 
         system_prompt = self.system_prompt_template.safe_substitute(input_params)
-        print(system_prompt)
+        logger.debug(system_prompt)
+
         user_prompt = self.user_prompt_template.safe_substitute(input_params)
-        print(user_prompt)
+        logger.debug(user_prompt)
+
         return XinHaiRAGRefinedResult(
             system_prompt=system_prompt,
             user_prompt=user_prompt,

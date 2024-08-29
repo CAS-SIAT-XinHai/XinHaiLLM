@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 from xinhai.rag.methods import RAG_REGISTRY, XinHaiRAGMethodBase
 # from xinhai.rag.metrics import XinHaiRAGMetricBase, METRIC_REGISTRY
-from xinhai.types.rag import XinHaiRAGDocumentIn, XinHaiRAGMetricTypes, XinHaiRAGMethodTypes
+from xinhai.types.rag import XinHaiRAGDocumentIn, XinHaiRAGMethodTypes
 
 logger = logging.getLogger(__name__)
 
