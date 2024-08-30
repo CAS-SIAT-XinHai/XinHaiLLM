@@ -1,26 +1,32 @@
-import json, datetime, csv, re, os
+import json, tiktoken, re, os
 from openai import OpenAI
 
-def read_json_files(directory):
+read_data_path = "/data/xuancheng/koenshen/data/result"
+save_data_path = "/data/xuancheng/koenshen/data/score"
+
+
+def read_json_files(path=read_data_path):
     # 遍历指定目录下的所有文件
     result_list = []
-    for filename in os.listdir(directory):
+    for filename in os.listdir(path):
         if filename.endswith('.json'):
             result_list.append(filename)
     return result_list
 
+
 # 读取某一路径下的json格式，然后统计里面的各项子分
 def compute_score_from_dict():
-    read_path = "/data/xuancheng/final_cbtagency/score"
-    read_file_list = read_json_files(read_path)
+    read_file_list = read_json_files(save_data_path)
     for read_file in read_file_list:
-        file_path = f"{read_path}/{read_file}"
+        file_path = f"{save_data_path}/{read_file}"
         with open(file_path, 'r', encoding='utf-8') as f:
             json_list = json.load(f)
         if "therapistqa" in read_file:
-            total_score_dict = {'Empathy_score': 0, 'Identification_score': 0, 'Reflection_score': 0, 'Strategy_score': 0, 'Encouragement_score': 0, 'Relevance_score': 0}
+            total_score_dict = {'Empathy_score': 0, 'Identification_score': 0, 'Reflection_score': 0,
+                                'Strategy_score': 0, 'Encouragement_score': 0, 'Relevance_score': 0}
         else:
-            total_score_dict = {'共情分数': 0, '辨识分数': 0, '反思分数': 0, '策略分数': 0, '鼓励分数': 0, '相关性分数': 0}
+            total_score_dict = {'共情分数': 0, '辨识分数': 0, '反思分数': 0, '策略分数': 0, '鼓励分数': 0,
+                                '相关性分数': 0}
         single_file_list = []
         for index, json_dict in enumerate(json_list):
             score_str = json_dict["score"]
@@ -42,7 +48,7 @@ def compute_score_from_dict():
                         total_score_dict["Relevance_score"] += float(str(data["Relevance_score"]))
                         single_file_list.append(data)
                     else:
-                        match = match.replace("得分","分数").replace("：","")
+                        match = match.replace("得分", "分数").replace("：", "")
                         data = json.loads(match)
                         # print(f"{index} Found JSON:", data)
                         total_score_dict["共情分数"] += float(str(data["共情分数"]))
@@ -56,14 +62,14 @@ def compute_score_from_dict():
                 print(f"{index}出现异常：{matches}")
         # print(f"{file_path} -> {total_score_dict}")
         modified_data = {}
-        divisors = [100, 100, 100, 100, 100, 100]
         for i, (key, value) in enumerate(total_score_dict.items()):
             # 根据索引应用不同的除法操作
-            modified_value = value / divisors[i]
+            modified_value = value / 100
             modified_data[key] = modified_value
         formatted_dict = {k: f"{v:.3f}" for k, v in modified_data.items()}
         print(f"{file_path} -> {formatted_dict} -> {sum([float(v) for v in formatted_dict.values()]):.3f}")
         print("==========================================================")
+
 
 def gpt4(message: list):
     model = 'gpt-4'
@@ -73,19 +79,27 @@ def gpt4(message: list):
     completion = client.chat.completions.create(model=model, messages=message)
     return completion.choices[0].message.content
 
-def  psyqa_auto_scoring():
-    read_path = "/data/xuancheng/final_cbtagency" # 要读取哪一个路径下的所有文件来评测？文件内容必须是json格式
-    save_path = "/data/xuancheng/final_cbtagency/score"  #要将新的结果保存到哪一个路径下？
-    read_file_list = read_json_files(read_path)
+
+def truncate(text: str, ntokens: int):
+    encoding = tiktoken.encoding_for_model('gpt-4')
+    tokens = encoding.encode(text)[:ntokens]
+    return encoding.decode(tokens)
+
+
+def psyqa_auto_scoring():
+    read_file_list = read_json_files()
     for read_file in read_file_list:
-        whole_path = f"{read_path}/{read_file}"
+        whole_path = f"{read_data_path}/{read_file}"
         with open(whole_path, 'r', encoding='utf-8') as f:
             json_list = json.load(f)
 
+        result_list = []
+        # therapistqa_balanced_autocbt.json json_list[29:30] no.29 start from 0，由于超过8196字符导致api无法评分，可能需要在网页端进行手工评分
         for index, psyqa_balanced_dict in enumerate(json_list):
             # 多轮的history和单轮qa的history可能不一样，按照你觉得合适的方法，组装这个history就行
             if "therapistqa" in read_file:
                 history = f"user's QUESTION=[{psyqa_balanced_dict['question'] + psyqa_balanced_dict['description']}]\npsychological counsellors' ANSWER=[{psyqa_balanced_dict['cbt_answer']}]"
+                # history = truncate(history, 6000)
                 prompt = f'''# Role:\nYou are an impartial judge, familiar with psychological knowledge and psychological counseling.\n\n## Attention:\nYou are responsible for evaluating the quality of the response provided by the AI Psychological counsellors to the user's psychological problems. Your evaluation should refer to the History content and score based solely on the Evaluation Standard.\n\n## Evaluation Standard:\n### Empathy (0-2 points):\nYou need to determine the level of empathy between the counsellor's ANSWER and the user's QUESTION, that is, whether the counsellor's ANSWER expresses understanding and sympathy for the user's emotions or questions, and creates a sense of security for them.\nIncluding but not limited to the following aspects:\n- 1.1 Did the content of counsellor's ANSWER correctly understand the intention of user's QUESTION?\n- 1.2 Does the content of the counsellor's ANSWER respect the thoughts and emotions of the user's QUESTION?\n\n### Identification (0-4 points):\nYou need to determine the level of cognitive distortion in the recognition between the counsellor's ANSWER and the user's QUESTION, that is, whether the counsellor's ANSWER recognized the user's cognitive distortion through the user's QUESTION description in the conversation.\nIncluding but not limited to the following aspects:\n- 2.1 Has the content of the counsellor's ANSWER recognized the cognitive distortion in the user's QUESTION?\n- 2.2 Can the content of counsellor's ANSWER correctly identify and classify the types of cognitive distortions in user's QUESTION?\n\n### Reflection (0-3 points):\nYou need to determine the level of reflection between the counsellor's ANSWER and the user's QUESTION, that is, whether the counsellor's ANSWER asked some open-ended questions to encourage the user to reconsider their initial ideas or beliefs.\nIncluding but not limited to the following aspects:\n- 3.1 Did the counsellor's ANSWER ask any questions related to the user's initial thoughts or beliefs?\n- 3.2 Can ANSWER's inquiry help the user to engage in deep thinking?\n- 3.3 Is the inquiry from counsellor ANSWER open-ended?\n\n### Strategy (0-4 points):\nYou need to determine the whether the strategies mentioned are correct between the counsellor's ANSWER and the user's QUESTION, that is, whether the counsellor's ANSWER provides practical strategies or insights to help the user solve their current situation.\nIncluding but not limited to the following aspects:\n- 4.1 Is the strategy or insight provided by counsellor ANSWER feasible?\n- 4.2 Can the strategies or insights provided by counsellor ANSWER solve the current problem of the user?\n- 4.3 Is the strategy provided by counsellor ANSWER innovative? Have new perspectives or methods been introduced to help user solve their problems?\n- 4.4 Is the strategy provided by counsellor ANSWER professional? Have established psychological treatment methods been used?\n\n### Encouragement (0-1 points):\nYou need to determine the whether the ANSWER provided by the counsellor has inspired the user to take action and solve their current situation between the counsellor's ANSWER and the user's QUESTION.\nIncluding but not limited to the following aspects:\n- 5.1 Has the counsellor's ANSWER encouraged the user to take action to address their current situation?\n\n### Relevance (0-4 points):\nYou need to determine the relevance of the conversation between the counsellor's ANSWER and the user's QUESTION.\nIncluding but not limited to the following aspects:\n- 6.1 Is the content of the counsellor's ANSWER very relevant to the content of the user's QUESTION?\n- 6.2 Is the conversation between the counsellor's ANSWER and the user's QUESTION natural and smooth?\n- 6.3 Does the counsellor's ANSWER cover the main questions or concerns in the user's QUESTION?\n- 6.4 Does the counsellor's ANSWER avoid including content unrelated to the user's question?\n\n## History\n{history}\n\n## Constraints\n- Avoid any position biases and ensure that the order in which the responses were presented does not influence your decision\n- Do not allow the length of the responses to influence your evaluation\n- Do not favor certain names of the assistants. Be as objective as possible\n\n## Workflow\nPlease first analyze the conversation above history between user and counselor based on the 6 evaluation metrics, and then give your score.\nPlease return the score in JSON format. The reference output format is as follows:\n- your Analysis content.\n- {{"Empathy_score": "xx", "Identification_score": "xx", "Reflection_score": "xx", "Strategy_score": "xx", "Encouragement_score": "xx", "Relevance_score": "xx"}}\n\nTake a deep breath and think step by step! '''
             else:
                 history = f"用户提问QUESTION=[{psyqa_balanced_dict['question'] + psyqa_balanced_dict['description']}]\n咨询师回复ANSWER=[{psyqa_balanced_dict['cbt_answer']}]"
@@ -93,13 +107,13 @@ def  psyqa_auto_scoring():
             message = [{"role": "user", "content": prompt}]
             result = gpt4(message)
             psyqa_balanced_dict["score"] = result
+            result_list.append(psyqa_balanced_dict)
             print(f"============{index}：{result}==============================")
 
-        result_str = json.dumps(json_list, ensure_ascii=False, indent=4)
-        with open(f"{save_path}/{read_file}", 'a') as file:
-            file.write(result_str)
-            file.flush()
+            with open(f"{save_data_path}/{read_file}", 'w', encoding='utf-8') as f:
+                json.dump(result_list, f, indent=4, ensure_ascii=False)
+
 
 if __name__ == '__main__':
-    psyqa_auto_scoring() # 先让GPT打分，保存GPT的返回信息
-    compute_score_from_dict() # 本地根据GPT信息，做二次处理
+    # psyqa_auto_scoring()  # 先让GPT打分，保存GPT的返回信息
+    compute_score_from_dict()  # 本地根据GPT信息，做二次处理
