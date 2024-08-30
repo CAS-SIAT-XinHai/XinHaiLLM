@@ -87,6 +87,9 @@ class XinHaiRAGDenseIndexer(XinHaiRAGIndexerBase):
         self.vectorstore.add_texts(texts, metadatas, ids)
         logger.info("Finish!")
 
+    def reset_index(self):
+        pass
+
     def search(self):
         pass
 

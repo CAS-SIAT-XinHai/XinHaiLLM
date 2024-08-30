@@ -68,11 +68,13 @@ class XinHaiRAGMethodBase:
         self.retriever_type = XinHaiRAGRetrieverTypes(config['retriever'].pop('type'))
         self.retriever = RETRIEVER_REGISTRY[self.retriever_type](config['retriever'])
 
-        self.refiner_type = XinHaiRAGRefinerTypes(config['refiner'].pop('type'))
-        self.refiner = REFINER_REGISTRY[self.refiner_type](config['refiner'])
-
         generator_type = XinHaiRAGGeneratorTypes(config['generator'].pop('type'))
         self.generator = GENERATOR_REGISTRY[generator_type](config['generator'])
+
+        self.refiner_type = XinHaiRAGRefinerTypes(config['refiner'].pop('type'))
+        self.refiner = REFINER_REGISTRY[self.refiner_type](config['refiner'])
+        if self.refiner.share_generator:
+            self.refiner.generator = self.generator
 
     @abstractmethod
     async def __call__(self, *args, **kwargs):

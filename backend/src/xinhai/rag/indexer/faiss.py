@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 @register_indexer(XinHaiRAGIndexerTypes.FAISS)
 class XinHaiRAGFaissIndexer(XinHaiRAGDenseIndexer):
     name = XinHaiRAGIndexerTypes.FAISS
+    vectorstore: FAISS
 
     def __init__(self, config):
         super().__init__(config)
@@ -43,3 +44,7 @@ class XinHaiRAGFaissIndexer(XinHaiRAGDenseIndexer):
             docstore=InMemoryDocstore(),
             index_to_docstore_id={}
         )
+
+    def reset_index(self):
+        self.vectorstore.index.reset()
+        self.vectorstore.docstore = InMemoryDocstore()

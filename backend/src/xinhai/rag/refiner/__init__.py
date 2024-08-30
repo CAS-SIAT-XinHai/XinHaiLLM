@@ -59,42 +59,9 @@ def register_refiner(name, subname=None):
 class XinHaiRAGRefinerBase:
     r"""Base object of Refiner method"""
     name: XinHaiRAGRefinerTypes
+    share_generator = False
 
     def __init__(self, config):
-        # self.config = config
-        # self.model_path = config["refiner_model_path"]
-        # self.device = config["device"]
-        # self.input_prompt_flag = config["refiner_input_prompt_flag"] if "refiner_input_prompt_flag" in config else False
-        # DEFAULT_PATH_DICT = {
-        #     "recomp_abstractive_nq": "fangyuan/nq_abstractive_compressor",
-        #     "recomp:abstractive_tqa": "fangyuan/tqa_abstractive_compressor",
-        #     "recomp:abstractive_hotpotqa": "fangyuan/hotpotqa_abstractive",
-        # }
-        #
-        # refiner_path = config["refiner_model_path"]
-        #
-        # if refiner_path is None:
-        #     refiner_path = DEFAULT_PATH_DICT.get(refiner_name)
-        #
-        # if refiner_path is None:
-        #     raise ValueError("Refiner path is not specified and no default path available!")
-        #
-        # model_config = AutoConfig.from_pretrained(refiner_path)
-        # arch = model_config.architectures[0].lower()
-        #
-        # if "recomp" in refiner_name or "recomp" in refiner_path or "bert" in arch:
-        #     if model_config.model_type == "t5":
-        #         refiner_class = "AbstractiveRecompRefiner"
-        #     else:
-        #         refiner_class = "ExtractiveRefiner"
-        # elif "lingua" in refiner_name:
-        #     refiner_class = "LLMLinguaRefiner"
-        # elif "selective-context" in refiner_name or "sc" in refiner_name:
-        #     refiner_class = "SelectiveContextRefiner"
-        # elif "kg-trace" in refiner_name:
-        #     return getattr(REFINER_MODULE, "KGTraceRefiner")(config, retriever, generator)
-        # else:
-        #     raise ValueError("No implementation!")
         self.system_prompt_template = Template(config['system_prompt_template'])
         self.user_prompt_template = Template(config['user_prompt_template'])
         self.reference_template = Template(config['reference_template'])
