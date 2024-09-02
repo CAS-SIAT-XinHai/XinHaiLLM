@@ -11,16 +11,16 @@ rag:
     type: "dense"
     topk: 1
     indexer:
-      type: faiss
-      faiss_type: Flat
+      type: chroma
+      collection_name: nq_samples
       embeddings:
-        type: huggingface
-        model_name: /data/pretrained_models/e5-base-v2
+        type: huggingface-bge
+        model_name: /data/pretrained_models/bge-large-zh-v1.5/
         model_kwargs:
           device: cuda
         encode_kwargs:
           normalize_embeddings: false
-      index_path: /data/indexes/e5_Flat.index
+      index_path: /data/indexes/bge-index
   refiner:
     type: noop
     system_prompt_template: "Answer the question based on the given document. \

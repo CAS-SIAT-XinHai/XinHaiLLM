@@ -32,6 +32,8 @@ class XinHaiRAGDenseRetriever(XinHaiRAGRetrieverBase):
 
         docs_with_scores = await self.indexer.vectorstore.asimilarity_search_with_score(query, k=num)
 
+        logger.debug(docs_with_scores)
+
         return XinHaiRAGRetrievedResult(
             query=query,
             num=num,

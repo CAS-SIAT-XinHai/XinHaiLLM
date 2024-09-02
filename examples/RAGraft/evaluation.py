@@ -40,11 +40,13 @@ class Evaluation:
 
     def build_index(self):
         r"""Constructing different indexes based on selective retrieval method."""
+        logger.info("Creating index")
         documents = [XinHaiRAGDocumentIn(id=str(item['id']),
                                          text=item['contents'],
                                          metadata=item) for item in
                      datasets.load_dataset("json", data_files=self.dataset.corpus_path, split="train", num_proc=4)]
         self.rag.retriever.indexer.build_index(documents)
+        logger.info("Finish!")
 
     @staticmethod
     def load_dataset(config):
@@ -108,15 +110,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.debug:
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+                            datefmt='%Y-%m-%d:%H:%M:%S',
+                            level=logging.DEBUG, force=True)
     else:
         logging.basicConfig(level=logging.INFO)
-
-    # Create a handler
-    c_handler = logging.StreamHandler()
-
-    # link handler to logger
-    logger.addHandler(c_handler)
 
     evaluator = Evaluation.from_config(args.config_path)
     evaluator.run()
