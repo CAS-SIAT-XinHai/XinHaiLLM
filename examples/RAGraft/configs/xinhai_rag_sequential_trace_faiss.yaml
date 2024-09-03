@@ -21,7 +21,7 @@ rag:
         encode_kwargs:
           normalize_embeddings: false
       index_path: /data/indexes/e5_Flat.index
-  refiner:
+  augmentor:
     type: kg_trace
     max_chain_length: 4
     topk_triple_select: 5  # num of candidate triples

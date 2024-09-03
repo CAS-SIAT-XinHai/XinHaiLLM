@@ -13,7 +13,7 @@ from openai import OpenAIError, OpenAI
 from pydantic import BaseModel
 
 from xinhai.rag.generator import XinHaiRAGGeneratorBase, register_generator
-from xinhai.types.rag import XinHaiRAGGeneratorTypes, XinHaiRAGRefinedResult
+from xinhai.types.rag import XinHaiRAGGeneratorTypes, XinHaiRAGAugmentedResult
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ class APIGenerator(XinHaiRAGGeneratorBase):
             # Handle all OpenAI API errors
             logger.warning("*****************************************")
 
-    def _generate(self, refined_result: XinHaiRAGRefinedResult, *args, **kwargs) -> List[str]:
+    def _generate(self, refined_result: XinHaiRAGAugmentedResult, *args, **kwargs) -> List[str]:
         messages = [
             {
                 "role": "system",

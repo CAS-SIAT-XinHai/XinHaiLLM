@@ -17,9 +17,9 @@ import torch
 
 from xinhai.rag.generator import XinHaiRAGGeneratorBase
 from xinhai.rag.indexer import XinHaiRAGDenseIndexer, INDEXER_REGISTRY
-from xinhai.rag.refiner import register_refiner, XinHaiRAGRefinerBase
+from xinhai.rag.augmentor import register_augmentor, XinHaiRAGAugmentorBase
 from xinhai.types.kg import XinHaiKGTriplet, XinHaiKGReasoningChain
-from xinhai.types.rag import XinHaiRAGRefinerTypes, XinHaiRAGRefinedResult, XinHaiRAGDocumentOut, XinHaiRAGIndexerTypes, \
+from xinhai.types.rag import XinHaiRAGAugmentorTypes, XinHaiRAGAugmentedResult, XinHaiRAGDocumentOut, XinHaiRAGIndexerTypes, \
     XinHaiRAGDocumentIn
 
 logger = logging.getLogger(__name__)
@@ -86,7 +86,7 @@ class TripletExtraction:
         user_prompt = self.user_prompt_template.safe_substitute(input_params)
         logger.debug(user_prompt)
 
-        prompts = XinHaiRAGRefinedResult(
+        prompts = XinHaiRAGAugmentedResult(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
         )
@@ -228,7 +228,7 @@ class ReasoningChain:
                 user_prompt = self.user_prompt_template.safe_substitute(input_params)
                 logger.debug(user_prompt)
 
-                prompts = XinHaiRAGRefinedResult(
+                prompts = XinHaiRAGAugmentedResult(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
                 )
@@ -254,9 +254,9 @@ class ReasoningChain:
         return [chain for chain in chains if chain.is_complete]
 
 
-@register_refiner(XinHaiRAGRefinerTypes.KG_TRACE)
-class KGTraceRefiner(XinHaiRAGRefinerBase):
-    name = XinHaiRAGRefinerTypes.KG_TRACE
+@register_augmentor(XinHaiRAGAugmentorTypes.KG_TRACE)
+class KGTraceAugmentor(XinHaiRAGAugmentorBase):
+    name = XinHaiRAGAugmentorTypes.KG_TRACE
     share_generator = True
     generator: XinHaiRAGGeneratorBase
 
@@ -266,8 +266,8 @@ class KGTraceRefiner(XinHaiRAGRefinerBase):
         self.triplets_extraction = TripletExtraction(config['triplets_extraction'])
         self.reasoning_chain = ReasoningChain(config['reasoning_chain'])
 
-    def _refine(self, query: str, retrieved_documents: List[XinHaiRAGDocumentOut], *args,
-                **kwargs) -> XinHaiRAGRefinedResult:
+    def _augment(self, query: str, retrieved_documents: List[XinHaiRAGDocumentOut], *args,
+                 **kwargs) -> XinHaiRAGAugmentedResult:
         logger.debug("Begin extracting triples")
         triplets = []
         for doc in retrieved_documents:
@@ -295,7 +295,7 @@ class KGTraceRefiner(XinHaiRAGRefinerBase):
 
         user_prompt = self.user_prompt_template.safe_substitute(input_params)
         logger.debug(user_prompt)
-        return XinHaiRAGRefinedResult(
+        return XinHaiRAGAugmentedResult(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
         )

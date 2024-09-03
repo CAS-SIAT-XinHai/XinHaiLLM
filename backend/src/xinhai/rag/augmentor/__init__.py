@@ -12,14 +12,14 @@ import os
 from string import Template
 from typing import List, Dict
 
-from xinhai.types.rag import XinHaiRAGRefinerTypes, XinHaiRAGRetrievedResult
+from xinhai.types.rag import XinHaiRAGAugmentorTypes, XinHaiRAGRetrievedResult
 
 logger = logging.getLogger(__name__)
 
-REFINER_REGISTRY = {}
+AUGMENTOR_REGISTRY = {}
 
 
-def register_refiner(name, subname=None):
+def register_augmentor(name, subname=None):
     """
     New model types can be added to fairseq with the :func:`register_model`
     function decorator.
@@ -41,24 +41,24 @@ def register_refiner(name, subname=None):
         :param subname:
     """
 
-    def register_refiner_cls(cls):
+    def register_augmentor_cls(cls):
         if subname is None:
-            if name in REFINER_REGISTRY:
+            if name in AUGMENTOR_REGISTRY:
                 raise ValueError('Cannot register duplicate model ({})'.format(name))
-            REFINER_REGISTRY[name] = cls
+            AUGMENTOR_REGISTRY[name] = cls
         else:
-            if name in REFINER_REGISTRY and subname in REFINER_REGISTRY[name]:
+            if name in AUGMENTOR_REGISTRY and subname in AUGMENTOR_REGISTRY[name]:
                 raise ValueError('Cannot register duplicate model ({}/{})'.format(name, subname))
-            REFINER_REGISTRY.setdefault(name, {})
-            REFINER_REGISTRY[name][subname] = cls
+            AUGMENTOR_REGISTRY.setdefault(name, {})
+            AUGMENTOR_REGISTRY[name][subname] = cls
         return cls
 
-    return register_refiner_cls
+    return register_augmentor_cls
 
 
-class XinHaiRAGRefinerBase:
+class XinHaiRAGAugmentorBase:
     r"""Base object of Refiner method"""
-    name: XinHaiRAGRefinerTypes
+    name: XinHaiRAGAugmentorTypes
     share_generator = False
 
     def __init__(self, config):
@@ -66,7 +66,7 @@ class XinHaiRAGRefinerBase:
         self.user_prompt_template = Template(config['user_prompt_template'])
         self.reference_template = Template(config['reference_template'])
 
-    def _refine(self, query: str, retrieval_result: XinHaiRAGRetrievedResult, *args, **kwargs) -> List[Dict[str, str]]:
+    def _augment(self, query: str, retrieval_result: XinHaiRAGRetrievedResult, *args, **kwargs) -> List[Dict[str, str]]:
         r"""Retrieve topk relevant documents in corpus.
 
         Return:
@@ -78,8 +78,8 @@ class XinHaiRAGRefinerBase:
         """
         pass
 
-    def refine(self, *args, **kwargs):
-        return self._refine(*args, **kwargs)
+    def augment(self, *args, **kwargs):
+        return self._augment(*args, **kwargs)
 
 
 # automatically import any Python files in the models/ directory
@@ -92,4 +92,4 @@ for file in os.listdir(refiner_dir):
             and (file.endswith('.py') or os.path.isdir(path))
     ):
         model_name = file[:file.find('.py')] if file.endswith('.py') else file
-        module = importlib.import_module(f'xinhai.rag.refiner.{model_name}')
+        module = importlib.import_module(f'xinhai.rag.augmentor.{model_name}')

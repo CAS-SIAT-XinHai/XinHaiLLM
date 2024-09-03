@@ -22,7 +22,7 @@ rag:
         encode_kwargs:
           normalize_embeddings: false
       index_path: /data/indexes/e5_Flat.index
-  refiner:
+  augmentor:
     type: noop
     system_prompt_template: "Answer the question based on the given document. \
     Only give me the answer and do not output any other words. \

@@ -23,7 +23,7 @@ rag:
         encode_kwargs:
           normalize_embeddings: false
       index_path: /data/indexes/e5_Flat.index
-  refiner:
+  augmentor:
     type: noop
     system_prompt_template: |-
       You serve as an intelligent assistant, adept at facilitating users through complex, multi-hop reasoning across multiple documents. This task is illustrated through demonstrations, each consisting of a document set paired with a relevant question and its multi-hop reasoning thoughts. Your task is to generate one thought for current step, DON\'T generate the whole thoughts at once! If you reach what you believe to be the final step, start with "So the answer is:".

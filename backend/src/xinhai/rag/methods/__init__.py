@@ -11,11 +11,11 @@ import logging
 import os
 from abc import abstractmethod
 
+from xinhai.rag.augmentor import AUGMENTOR_REGISTRY
 from xinhai.rag.generator import GENERATOR_REGISTRY
-from xinhai.rag.refiner import REFINER_REGISTRY
 from xinhai.rag.retriever import RETRIEVER_REGISTRY
 from xinhai.rag.retriever import XinHaiRAGRetrieverBase
-from xinhai.types.rag import XinHaiRAGMethodTypes, XinHaiRAGRetrieverTypes, XinHaiRAGRefinerTypes, \
+from xinhai.types.rag import XinHaiRAGMethodTypes, XinHaiRAGRetrieverTypes, XinHaiRAGAugmentorTypes, \
     XinHaiRAGGeneratorTypes
 
 logger = logging.getLogger(__name__)
@@ -71,10 +71,10 @@ class XinHaiRAGMethodBase:
         generator_type = XinHaiRAGGeneratorTypes(config['generator'].pop('type'))
         self.generator = GENERATOR_REGISTRY[generator_type](config['generator'])
 
-        self.refiner_type = XinHaiRAGRefinerTypes(config['refiner'].pop('type'))
-        self.refiner = REFINER_REGISTRY[self.refiner_type](config['refiner'])
-        if self.refiner.share_generator:
-            self.refiner.generator = self.generator
+        self.augmentor_type = XinHaiRAGAugmentorTypes(config['augmentor'].pop('type'))
+        self.augmentor = AUGMENTOR_REGISTRY[self.augmentor_type](config['augmentor'])
+        if self.augmentor.share_generator:
+            self.augmentor.generator = self.generator
 
     @abstractmethod
     async def __call__(self, *args, **kwargs):

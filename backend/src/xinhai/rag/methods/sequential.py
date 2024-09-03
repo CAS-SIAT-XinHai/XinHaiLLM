@@ -29,7 +29,7 @@ class XinHaiRAGSequentialMethod(XinHaiRAGMethodBase):
         logger.debug(retrieval_results)
 
         logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        augmented_results = self.refiner.refine(query, retrieval_results.documents)
+        augmented_results = self.augmentor.augment(query, retrieval_results.documents)
         logger.debug(augmented_results)
 
         logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")

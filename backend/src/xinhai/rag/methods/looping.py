@@ -45,7 +45,7 @@ class XinHaiRAGIterativeMethod(XinHaiRAGLoopingMethod):
             logger.debug(retrieval_results)
 
             logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-            augmented_results = self.refiner.refine(document.text, retrieval_results)
+            augmented_results = self.augmentor.augment(document.text, retrieval_results)
             logger.debug(augmented_results)
 
             logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
@@ -108,7 +108,7 @@ class XinHaiRAGIRCoTMethod(XinHaiRAGLoopingMethod):
                     doc_counter[doc_id] -= 1
 
             logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-            augmented_results = self.refiner.refine(query, retrieved_documents)
+            augmented_results = self.augmentor.augment(query, retrieved_documents)
             logger.debug(augmented_results)
 
             logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")

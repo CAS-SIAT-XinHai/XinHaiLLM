@@ -44,7 +44,7 @@ class XinHaiRAGRetrieverTypes(str, Enum):
     NOOP = 'noop'
 
 
-class XinHaiRAGRefinerTypes(str, Enum):
+class XinHaiRAGAugmentorTypes(str, Enum):
     ABSTRACTIVE = 'abstractive'
     EXTRACTIVE = 'extractive'
     KG_TRACE = 'kg_trace'
@@ -53,7 +53,7 @@ class XinHaiRAGRefinerTypes(str, Enum):
     NOOP = 'noop'
 
 
-class XinHaiRAGRefinedResult(BaseModel):
+class XinHaiRAGAugmentedResult(BaseModel):
     system_prompt: str
     user_prompt: str
 
