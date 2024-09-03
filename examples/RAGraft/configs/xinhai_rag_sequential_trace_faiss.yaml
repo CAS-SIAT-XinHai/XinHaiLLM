@@ -1,0 +1,138 @@
+dataset:
+  name: nq_samples
+  corpus_path: /data/indexes/nq_samples/general_knowledge.jsonl
+  path: /data/dataset/nq_samples
+  splits:
+    - test
+
+rag:
+  method: "sequential"
+  retriever:
+    type: "dense"
+    topk: 1
+    indexer:
+      type: faiss
+      faiss_type: Flat
+      embeddings:
+        type: huggingface
+        model_name: /data/pretrained_models/e5-base-v2
+        model_kwargs:
+          device: cuda
+        encode_kwargs:
+          normalize_embeddings: false
+      index_path: /data/indexes/e5_Flat.index
+  augmentor:
+    type: kg_trace
+    max_chain_length: 4
+    topk_triple_select: 5  # num of candidate triples
+    num_choices: 20
+    min_triple_prob: 1e-4
+    num_beams: 5  # number of selected prob at each step of constructing chain
+    num_chains: 20  # number of generated chains
+    n_context: 5  # number of used chains in generation
+    context_type: "triples"  # triples/triple-doc
+    triple_save_path: os.path.join(config["save_dir"], "save_triples.json"),
+    triple_load_path: None
+    triplets_extraction:
+      reference_path: /data/indexes/trace/triplets_extraction_hotpotqa_examples.jsonl
+      reference_for_index_template: |-
+        Title: ${title}
+        Text: ${text}
+      num_references: 3
+      indexer:
+        type: faiss
+        faiss_type: Flat
+        embeddings:
+          type: huggingface
+          model_name: /data/pretrained_models/e5-base-v2
+          model_kwargs:
+            device: cuda
+          encode_kwargs:
+            normalize_embeddings: false
+        index_path: /data/indexes/e5_Flat.index
+      system_prompt_template: |-
+        Given a title and a text, extract all the knowledge triples in the form of <title; relation; tail entity>, where title is the provided title, tail entity is a phrase in the text and relation denotes a description of the relation between the title and the tail entity.
+        
+        The followings are some examples:
+        
+        ${reference}
+      user_prompt_template: |-
+        Title: ${title}
+        Text: ${text}
+        Knowledge Triples:
+      reference_template: |-
+        Title: ${title}
+        Text: ${text}
+        Knowledge Triples: ${triples}
+      triplet_pattern: '<(?P<head>[^>]*);(?P<relation>[^;>]+);(?P<tail>[^;>]+)>'
+    reasoning_chain:
+      reference_reasoning_chain_path: /data/indexes/trace/reasoning_chain_hotpotqa_examples.jsonl
+      reference_reasoning_steps_path: /data/indexes/trace/reasoning_steps_hotpotqa_examples.jsonl
+      reference_for_index_template: |-
+        ${question}
+      num_references: 3
+      num_chains: 20
+      num_choices: 20
+      max_chain_length: 4
+      indexer:
+        type: faiss
+        faiss_type: Flat
+        embeddings:
+          type: huggingface
+          model_name: /data/pretrained_models/e5-base-v2
+          model_kwargs:
+            device: cuda
+          encode_kwargs:
+            normalize_embeddings: false
+        index_path: /data/indexes/e5_Flat.index
+      chain_template: |-
+        knowledge triples: {}
+        question: ${question}
+      system_prompt_template: |-
+        Select the next knowledge triple that extends an existing set of knowledge triples to form a coherent reasoning path capable of answering a specified question. 
+        If the current reasoning path is sufficient to answer the question, simply output A. Please only output the choice for the next knowledge triple. 
+        
+        The followings are some examples of coherent reasoning paths capable of answering the specified question and how the ${hop}-th knowledge triples in these paths are selected:
+
+        ${reference}
+      user_prompt_template: |-
+        The ${hop}-th triple in the reasoning path is selected as:
+        existing knowledge triples: ${existing_triplets}
+        
+        question: ${query}
+        candidate knowledge triples:
+        ${candidate_triplets}
+        the next possible triple is:
+      reference_template: |-
+        coherent reasoning path: ${chains}
+        question: ${question}
+        The ${hop}-th triple in the reasoning path is selected as:
+        existing knowledge triples: ${triples}
+        question: ${question}
+        candidate knowledge triples:
+        ${candidate_triples}
+        the next possible triple is: ${answer}
+    system_prompt_template: |-
+      Given some contexts and a question, please only output the answer to the question.
+    user_prompt_template: |-
+      Context:
+      ${context}
+      ${query}
+      The correct answer is:
+    reference_template:
+  generator:
+    type: API
+    api_base: http://localhost:5000/v1
+    api_key: Empty
+    model_name: Llama-3-8B-Instruct
+    generation_params:
+      max_tokens: 32
+
+evaluation:
+  metric_setting:
+    retrieval_recall_topk: 5
+    tokenizer_name: gpt-4
+  metrics:
+    - em
+    - f1
+    - sub_em
