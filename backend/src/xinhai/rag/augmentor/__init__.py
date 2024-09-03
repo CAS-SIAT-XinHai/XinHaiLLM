@@ -83,9 +83,9 @@ class XinHaiRAGAugmentorBase:
 
 
 # automatically import any Python files in the models/ directory
-refiner_dir = os.path.dirname(__file__)
-for file in os.listdir(refiner_dir):
-    path = os.path.join(refiner_dir, file)
+augmentor_dir = os.path.dirname(__file__)
+for file in os.listdir(augmentor_dir):
+    path = os.path.join(augmentor_dir, file)
     if (
             not file.startswith('_')
             and not file.startswith('.')
