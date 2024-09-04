@@ -6,12 +6,9 @@ services:
     volumes:
       - ./backend:/usr/share/xinhai/backend
       - ./configs:/usr/share/xinhai/configs
-      - ./related_repos:/usr/share/xinhai/related_repos
     ports:
       - 8080:8080
       - ${CONTROLLER_PORT}:${CONTROLLER_PORT}
-    environment:
-      PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
     command: python -m xinhai.controller --host ${CONTROLLER_HOST} --port ${CONTROLLER_PORT}
     healthcheck:
       test:
@@ -37,10 +34,8 @@ services:
     volumes:
       - ./backend:/usr/share/xinhai/backend
       - ./configs:/usr/share/xinhai/configs
-      - ./related_repos:/usr/share/xinhai/related_repos
       - pretrained_models:/usr/share/xinhai/pretrained_models
     environment:
-      PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
       CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
       MODEL_NAME: storage
       WORKER_ADDRESS: http://storage:${STORAGE_WORKER_PORT}
@@ -64,10 +59,8 @@ services:
     volumes:
       - ./backend:/usr/share/xinhai/backend
       - ./configs:/usr/share/xinhai/configs
-      - ./related_repos:/usr/share/xinhai/related_repos
       - pretrained_models:/usr/share/xinhai/pretrained_models
     environment:
-      PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
       CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
       MODEL_NAME: ${LLM_MODEL_NAME}
       WORKER_ADDRESS: http://llm:${LLM_WORKER_PORT}
@@ -89,17 +82,15 @@ services:
     volumes:
       - ./backend:/usr/share/xinhai/backend
       - ./configs:/usr/share/xinhai/configs
-      - ./related_repos:/usr/share/xinhai/related_repos
       - pretrained_models:/usr/share/xinhai/pretrained_models
     environment:
-      PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
       CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
       MODEL_NAME: ${MLLM_MODEL_NAME}
       MODEL_PATH: /usr/share/xinhai/pretrained_models/${MLLM_MODEL_PATH}
       WORKER_ADDRESS: http://mllm:${MLLM_WORKER_PORT}
       WORKER_HOST: 0.0.0.0
       WORKER_PORT: ${MLLM_WORKER_PORT}
-    command: python -m xinhai.workers.mllm
+    command: python -m xinhai.workers.mllm --model_name_or_path /usr/share/xinhai/pretrained_models/${MLLM_MODEL_PATH} --template ${MLLM_MODEL_TEMPLATE} --infer_backend vllm --vllm_enforce_eager --infer_dtype float16
     deploy:
       resources:
         reservations:
@@ -107,32 +98,57 @@ services:
             - driver: nvidia
               device_ids: [ '1' ]
               capabilities: [ gpu ]
-  bridge:
-    image: xinhai
-    depends_on:
-      - controller
-      - storage
-    volumes:
-      - ./backend:/usr/share/xinhai/backend
-      - ./configs:/usr/share/xinhai/configs
-      - ./related_repos:/usr/share/xinhai/related_repos
-    environment:
-      PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
-      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
-      MODEL_NAME: Qwen/Qwen2-7B-Instruct
-      WORKER_ADDRESS: http://bridge:${BRIDGE_WORKER_PORT}
-      WORKER_HOST: 0.0.0.0
-      WORKER_PORT: ${BRIDGE_WORKER_PORT}
-      API_KEY: ${BRIDGE_API_KEY}
-      API_BASE: ${BRIDGE_API_BASE}
-    command: python -m xinhai.workers.bridge
+#  infllm:
+#    image: xinhai
+#    depends_on:
+#      - controller
+#      - storage
+#    volumes:
+#      - ./backend:/usr/share/xinhai/backend
+#      - ./configs:/usr/share/xinhai/configs
+#      - ./related_repos:/usr/share/xinhai/related_repos
+#      - pretrained_models:/usr/share/xinhai/pretrained_models
+#    environment:
+#      PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
+#      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
+#      MODEL_NAME: ${INFLLM_MODEL_NAME}
+#      INFLLM_TYPE: ${INFLLM_TYPE}
+#      INFLLM_CONFIG_PATH: ${INFLLM_CONFIG_PATH}
+#      WORKER_ADDRESS: http://infllm:${INFLLM_WORKER_PORT}
+#      WORKER_HOST: 0.0.0.0
+#      WORKER_PORT: ${INFLLM_WORKER_PORT}
+#    command: python -m xinhai.workers.infllm --model_name_or_path /usr/share/xinhai/pretrained_models/${INFLLM_MODEL_PATH} --template ${INFLLM_MODEL_TEMPLATE}
+#    deploy:
+#      resources:
+#        reservations:
+#          devices:
+#            - driver: nvidia
+#              device_ids: [ '0' , '1' ]
+#              capabilities: [ gpu ]
+#  bridge:
+#    image: xinhai
+#    depends_on:
+#      - controller
+#      - storage
+#    volumes:
+#      - ./backend:/usr/share/xinhai/backend
+#      - ./configs:/usr/share/xinhai/configs
+#      - ./related_repos:/usr/share/xinhai/related_repos
+#    environment:
+#      PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
+#      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
+#      MODEL_NAME: Qwen/Qwen2-7B-Instruct
+#      WORKER_ADDRESS: http://bridge:${BRIDGE_WORKER_PORT}
+#      WORKER_HOST: 0.0.0.0
+#      WORKER_PORT: ${BRIDGE_WORKER_PORT}
+#      API_KEY: ${BRIDGE_API_KEY}
+#      API_BASE: ${BRIDGE_API_BASE}
+#    command: python -m xinhai.workers.bridge
 
 volumes:
   backend:
     driver: local
   configs:
-    driver: local
-  related_repos:
     driver: local
   pretrained_models:
     driver: local
