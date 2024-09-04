@@ -7,7 +7,7 @@ XinHai: Sea of Minds Framework for Multimodal Multi-agent Simulation and Evoluti
 
 Build a local docker image in `docker` directory.
 ```shell
-docker build --add-host raw.githubusercontent.com:185.199.108.133 -t xinhai .
+docker build --add-host raw.githubusercontent.com:185.199.108.133 --build-context root=.. -t xinhai .
 ```
 
 Modify env file
