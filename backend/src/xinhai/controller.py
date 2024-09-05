@@ -1019,7 +1019,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.post("/api/chat-completion")
 async def worker_api_chat_completion(request: XinHaiChatCompletionRequest):
     # params = await request.json()
-    generator = controller.worker_api_chat_completion(request)
+    generator = controller.worker_api_chat_completion_streaming(request)
     return StreamingResponse(generator)
 
 

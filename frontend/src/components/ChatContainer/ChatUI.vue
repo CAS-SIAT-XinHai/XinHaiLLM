@@ -97,15 +97,15 @@ export default {
       }
     }
 
-    function blobToBase64(blob) {
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      return new Promise(resolve => {
-        reader.onloadend = () => {
-          resolve(reader.result);
-        };
-      });
-    };
+    // function blobToBase64(blob) {
+    //   const reader = new FileReader();
+    //   reader.readAsDataURL(blob);
+    //   return new Promise(resolve => {
+    //     reader.onloadend = () => {
+    //       resolve(reader.result);
+    //     };
+    //   });
+    // };
 
     function updateFileProgress(messageId, fileUrl, progress) {
       const message = messages.value.find(message => message._id === messageId)
@@ -143,7 +143,7 @@ export default {
       window.open(file.file.url, '_blank')
     }
 
-    async function uploadFile({file, messageId, roomId}) {
+    async function uploadFile({file, messageId}) {
       return new Promise(resolve => {
         let type = file.extension || file.type
         if (type === 'svg' || type === 'pdf') {
@@ -163,6 +163,7 @@ export default {
           };
         }
         xhr.onerror = function error(e) {
+          console.log(e)
           resolve(false)
         };
         xhr.onload = function onload() {
@@ -191,7 +192,7 @@ export default {
       })
     }
 
-    async function sendMessage({content, roomId, files, replyMessage}) {
+    async function sendMessage({content, roomId, files}) {
       // {
       //   "content": "你好、",
       //   "files": null,
