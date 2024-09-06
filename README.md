@@ -35,3 +35,9 @@ xinhaillm_storage_1      xinhai       latest   ad1a7389388c   17.56 GB
 ```
 
 If you need to stop the services, use `docker-compose down`.
+
+## Acknowledgment
+XinHai learns a lot from the following repos:
+* [LLaMA-Factory](https://github.com/hiyouga/LLaMA-Factory)
+* [MGM](https://github.com/dvlab-research/MGM)
+* [FlashRAG](https://github.com/RUC-NLPIR/FlashRAG)
