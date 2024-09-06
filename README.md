@@ -38,6 +38,7 @@ If you need to stop the services, use `docker-compose down`.
 
 ## Acknowledgment
 XinHai learns a lot from the following repos:
+* [AgentVerse](https://github.com/OpenBMB/AgentVerse)
 * [LLaMA-Factory](https://github.com/hiyouga/LLaMA-Factory)
 * [MGM](https://github.com/dvlab-research/MGM)
 * [FlashRAG](https://github.com/RUC-NLPIR/FlashRAG)
