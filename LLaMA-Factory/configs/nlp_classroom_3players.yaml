@@ -1,0 +1,67 @@
+controller:
+  controller_address: http://localhost:5000
+
+workers:
+  - worker_type: llm
+    worker_name: Qwen1.5-7B-Chat
+    worker_address: http://localhost:40001
+    worker_host: 0.0.0.0
+    worker_port: 40001
+    no_register: false
+    limit_model_concurrency: 5
+    device: cuda
+    api_key: EMPTY
+  - worker_type: ocr
+  - worker_type: storage
+
+arena:
+  prompts:
+    prompt: &prompt |-
+      Assume that you are in a university classroom and it is Natural Language Processing module. You start by introducing themselves. Below is the description of your role. {role_description}
+      
+      When responding, please output a response in the following format with two fields Action and Action Input:
+      Action: Speak
+      Action Input: (You should put what you want to speak use here)
+      
+      Here is the conversation history:
+      {chat_history}
+      
+      You should now give your response based on the above history. Remember to give your response STRICTLY in the above response format. Do not add any additional field or line break to your response!
+
+  name: NLP Classroom 3 Players
+
+  environment:
+    environment_type: simple
+    topology:
+      edges:
+        - 0->1
+        - 1->0
+        - 0->2
+        - 2->0
+    max_turns: 10
+
+  agents:
+    - agent_type: simple
+      agent_id: 0
+      name: Professor Micheal
+      role_description: You are Prof. Micheal, a knowledgeable professor in NLP. Your answer will concise and accurate. The answers should be less than 100 words.
+      prompt_template: *prompt
+      llm: Qwen1.5-7B-Chat
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1
+    - agent_type: simple
+      agent_id: 1
+      name: Student Beta
+      role_description: You are Beta, a student curious about Natural Language Processing and you want to learn some basic concepts of NLP. You know nothing about the area so you will ask lots of questions.
+      prompt_template: *prompt
+      llm: Qwen1.5-7B-Chat
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1
+    - agent_type: simple
+      agent_id: 2
+      name: Teaching Assistant Gamma
+      role_description: You are Gamma, a teaching assistant of the Natural Language Processing module. You mostly help with logistics and marking, but occasionally handles questions. Your answer should be less than 100 words.
+      prompt_template: *prompt
+      llm: Qwen1.5-7B-Chat
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1

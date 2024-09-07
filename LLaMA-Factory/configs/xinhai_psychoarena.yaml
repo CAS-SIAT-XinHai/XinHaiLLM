@@ -1,0 +1,210 @@
+controller:
+  controller_address: &controller_addr
+    http://localhost:7000
+
+workers:
+  - worker_type: llm
+    worker_name: Qwen1.5-7B-Chat
+    worker_address: http://localhost:40001
+    worker_host: 0.0.0.0
+    worker_port: 40001
+    no_register: false
+    limit_model_concurrency: 5
+    device: cuda
+    api_key: EMPTY
+  - worker_type: ocr
+  - worker_type: storage
+
+arena:
+  allowed_routing_types: &allowed_routing_types
+    - "[Unicast]"
+    - "[Multicast]"
+  prompts:
+    routing_prompt: &routing_prompt |-
+      现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：
+      角色描述：
+        {role_description}
+      
+      环境状态：
+        {env_status}
+      
+      当前对话轮次：
+        {cnt_conv_turn}
+      
+      对话历史：
+        {chat_history}
+      
+      可通讯的智能体列表：
+        {agent_descriptions}
+      
+      可采用的通讯方式：
+        {routing_descriptions}
+      
+      请你根据当前的环境状态，基于你的角色描述和对话历史，从[可采用的通讯方式]中选出合适的通讯方式，从[可通讯的智能体列表]中选出通讯目标。
+
+      [样例]
+      {{"method": "[Multicast]", "target": [1]}}
+      
+      你的通讯策略是：
+    summary_prompt: &summary_prompt |-
+      请根据之前的对话摘要和新的对话内容，给出新的对话摘要。
+      新的对话摘要应当包含之前摘要的内容。
+      摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。
+      ####
+      以前的对话摘要：{chat_summary}
+      
+      ####
+      新的对话内容：{chat_history}
+      
+      ###Attention###
+      直接返回新的对话摘要内容，不要返回分析过程！
+    prompt_with_ref_info: &prompt_w_info |-
+      角色描述：
+        {role_description}
+      
+      环境状态：
+        {env_status}
+      
+      当前对话轮次：
+        {cnt_conv_turn}
+                  
+      对话历史：
+        {chat_history}
+      
+      参考信息：
+        {ref_info}
+      
+      现在，你正在以{routing}方式与以下智能体通信: {agents}
+      请你根据当前的环境状态，基于对话历史信息和参考信息，给出⼀条符合语境且遵循指令的回复。你想发出的消息内容是：
+  name: XinHai PsychoArena
+
+  environment:
+    environment_id: 20240722
+    environment_type: stage
+    controller_address: *controller_addr
+    topology:
+      learn:
+        status:
+          教室，用于开展心理学课程
+        edges:
+          - 0->1
+        start: 1
+        budget: 10
+        ref_info:
+          - 1->retrieve->ProDB[knowledge]->cross_turn_info
+      test:
+        status:
+          考场，用于进行心理学知识测试
+        edges:
+          - 0->2
+        start: 2
+        budget: 4
+        ref_info:
+          - 0->recall->long_term_memory[storage]->last_message
+          - 2->retrieve->CPsyExamDB[feedback]->cross_turn_info
+        iter_num: 2
+      schedule:
+        status:
+          教研室，用于讨论后续课程安排
+        edges:
+          - 1->2
+          - 2->3
+          - 3->1
+        start: 2
+        budget: 3
+        ref_info:
+          - 3->retrieve->Catalogs[knowledge]->[all]
+    max_turns: 10
+
+  agents:
+    - agent_type: school
+      agent_id: 0
+      name: 学生-李雷
+      role_description: |-
+        你是李雷，一名勤于思考的学生，正在名为PsySchool的心理培训学校进行活动，你需要根据所处环境执行不同的任务：
+        [任务描述1-开始]
+        当你身处[教室]，你需要跟随教师的指引进行心理学知识的学习。
+        [任务描述1-结束]
+        [任务描述2-开始]
+        当你身处[考场]，你需要：
+        - 在第1轮，你需要回答考官给出的心理学问题，你的回复需要包含如下形式的答案：{{"answer": "<your_choices>"}}。
+        - 在第2轮，你需要对考官给出的反馈进行思考。
+        [任务描述2-结束]
+      env_role: 李雷，一名对心理学感兴趣的学生。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt_w_info
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
+      llm: Qwen/Qwen2-72B-Instruct
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1
+    - agent_type: school
+      agent_id: 1
+      name: 教师-韩梅
+      role_description: |-
+        你是韩梅，一名经验丰富的心理学教师，正在名为PsySchool的心理培训学校进行活动，你需要根据所处环境执行不同的任务：
+        [任务描述1-开始]
+        当你身处[教室]，你需要根据提供的[教案]安排课堂内容。在课堂上，你需要教授学生具体的心理学知识，并逐步引导学生和你进行交流，以下的流程供你参考：
+        (1) 对教案中给出的概念、具体知识点和重要内容进行完整地传授。
+        (2) 引导学生对学习内容进行反思与提问，和学生就问题进行讨论。
+        (3) 根据教案内容构建具体案例进行讲解，加深学生对知识点的理解。
+        (4) 总结本次课的内容作为结语。
+        注意：作为一名教师，你需要掌控课堂的节奏。尽量覆盖教案中的全部重要内容，并将一次课堂控制在5轮对话以内。
+        [任务描述1-结束]
+        [任务描述2-开始]
+        当你身处[教研室]，你需要和考官、导师一起讨论。你需要简要概括本次授课内容，再根据学生的具体情况商议决定接下来的课程安排。
+        [任务描述2-开始]
+      env_role: 韩梅，一名经验丰富的心理学教师。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt_w_info
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
+      llm: Qwen/Qwen2-72B-Instruct
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1  
+    - agent_type: school
+      agent_id: 2
+      name: 考官-张明
+      role_description: |-
+        你是张明，一名专业的心理学测试考官，正在名为PsySchool的心理培训学校进行活动，你需要根据所处环境执行不同的任务：
+        [任务描述1-开始]
+        当你身处[考场]，你需要：
+        - 在第1轮，将给定题目不经任何修改地、完整地呈现给学生，并引导他/她进行作答，不要进行答案提示或泄露任何解题线索。
+        - 在第2轮，收到学生的答案后，你要根据给定的标答判断学生是否作答正确。如果学生回答错误/不完整，你需要告知学生正确答案并根据题解进行分析。
+        [任务描述1-结束]
+        [任务描述2-开始]
+        当你身处[教研室]，你需要和教师、导师一起讨论，根据学生的考试情况决定接下来的课程安排。具体地，你需要分析学生的历史考试记录，并以此作为依据进行后续讨论：
+        - 如果学生有回答错误/不完全正确的题目，你需要根据相应问题和题解，总结学生缺乏的心理学知识，以丰富后续讨论。
+        - 如果学生正确回答了本次考试的全部题目，你必须如实反映学生情况。
+        注意：在分析考生考试结果时，你需要严格对照标准答案和学生给出的答案做出判断，不应虚构内容。
+        [任务描述2-结束]
+      env_role: 张明，一名专业的心理学知识测试考官。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt_w_info
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
+      llm: Qwen/Qwen2-72B-Instruct
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1
+    - agent_type: school
+      agent_id: 3
+      name: 导师-王浩
+      role_description: |-
+        你是王浩，一名经验丰富的课程导师，擅长根据学生的个人情况制定课程学习计划，正在名为PsySchool的心理培训学校进行活动，你需要根据所处环境执行不同的任务：
+        [任务描述1-开始]
+        当你身处[教研室]，你需要和教师、导师一起讨论，根据学生个人的学习、考试情况决定接下来的课程安排：
+        - 如果学生仍有不足，你会根据学生现有的不足从给定课程大纲中找出最匹配的章节，以帮助学生弥补自身不足，提升心理学知识水平。
+        - 如果学生正确应答了本次考试的全部内容，你会从给定课程大纲中选出一些教师未讲授过的重要章节，以帮助学生扩充知识面，提升心理学知识水平。
+        [任务描述1-结束]
+      env_role: 王浩，一名经验丰富的课程导师。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt_w_info
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
+      llm: Qwen/Qwen2-72B-Instruct
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1
