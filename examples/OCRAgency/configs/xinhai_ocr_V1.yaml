@@ -1,0 +1,131 @@
+controller:
+  controller_address: http://localhost:5000
+
+workers:
+  - worker_type: mllm
+    worker_name: internvl_chat
+    worker_address: http://localhost:40001
+    worker_host: 0.0.0.0
+    worker_port: 40001
+    no_register: false
+    limit_model_concurrency: 5
+    device: cuda
+    api_key: EMPTY
+  - worker_type: llm
+    worker_name: Qwen1.5-7B-Chat
+    worker_address: http://localhost:40002
+    worker_host: 0.0.0.0
+    worker_port: 40002
+    no_register: false
+    limit_model_concurrency: 5
+    device: cuda
+    api_key: EMPTY
+  - worker_type: OCRTools
+    worker_name: paddleocr
+    worker_address: http://localhost:40004
+    worker_host: 0.0.0.0
+    worker_port: 40004
+    no_register: false
+    limit_model_concurrency: 5
+    device: cuda
+    api_key: EMPTY
+  - worker_type: ocr
+  - worker_type: storage
+
+arena:
+  allowed_routing_types: &allowed_routing_types
+    - "[Unicast]"
+
+  prompts:
+    routing_prompt: 123
+    answer_template: &answer_template |-
+      {"字符识别":""}
+    Verify_prompt: &Verify_prompt |-
+      你是一个{role_description}。
+      现在用户有一个图片信息抽取问题，然后已经分别由mllm_agent和ocr_agent来回答。
+      已知信息如下：
+      （1）用户文本问题：
+          {user_question}
+      （2）图片信息抽取输出格式要求和指定字段：
+          {answer_template}
+      （3）ocr_agent的回答：
+          {ocr_agent_answer}
+      （4）mllm_agent的回答：
+          {mllm_agent_answer}
+      （5）你的任务：
+          请判断ocr_agent和mllm_agent_answer的语义内容是否相同。若：
+          1.两个agent的回答内容大致相同，那么就按图片信息抽取输出格式要求输出一个完全符合格式的答案。
+          2.两个agent的回答内容有很大的差异，那么就选出你认为最正确，最符合用户问题的一个回答，并且要按图片信息抽取输出格式要求输出一个完全符合格式的答案。
+
+    mllm_prompt: &mllm_prompt |-
+      现在，你是{role_description}。已知信息如下：
+      （1）用户问题：
+          {user_question}
+      （2）回答模板：
+          {answer_template}
+      请按回答模板回答用户的问题。
+    Answer_Refactoring_Template: &Answer_Refactoring_Template |-
+      你是一个{role_description}现在基于一个图片的VQA问题，信息有：
+      （1）用户的文本问题:
+          {user_question}
+      （2）图片信息抽取输出格式要求和指定字段：
+          {answer_template}
+      （3）ocr_tool_answer(负责识别出图片中的全部文字):
+          '''{ocr_tool_answer}'''
+      现在，你需要整理以上信息，从ocr_tool_answer中抽取整理信息来回答用户的问题，并且问题的回答格式要符合图片信息抽取输出格式要求。
+
+
+
+  name: XinHai OCR
+
+  environment:
+    environment_type: simple
+    environment_id: xinhai_ocr_simulation_4
+    controller_address: http://localhost:5000
+    user_question: 请依据图片填充以下信息抽取字段的值。
+    image_path: /home/whh/project/Xinhai/examples/OCRAgencyV1/evaluation/OCRBench_Images/IIIT5K/test/918_1.png
+    topology:
+      edges:
+        - 0->1
+        - 0->2
+        - 1->0
+        - 2->0
+    max_turns: 5
+
+  agents:
+    - agent_type: verify_agent
+      agent_id: 0
+      name: verify_agent
+      role_description: verify_agent,基于用户的问题和需求，对比以下agent的回答是否正确并且进行格式验证。
+      Verify_prompt_template: *Verify_prompt
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
+      answer_template: *answer_template
+      llm: Qwen1.5-7B-Chat
+      api_key: EMPTY
+      api_base: http://localhost:40002/v1
+
+    - agent_type: mllm_agent
+      agent_id: 1
+      name: mllm_agent
+      role_description: mllm_agent,需要依据图片回答用户问题，并且要符合要求的回答模板
+      mllm_prompt_template: *mllm_prompt
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
+      answer_template: *answer_template
+      llm: internvl_chat
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1
+
+    - agent_type: ocr_agent
+      agent_id: 2
+      name: ocr_agent
+      role_description: 问题回答助手。
+      Answer_Refactoring_Template: *Answer_Refactoring_Template
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
+      answer_template: *answer_template
+      llm: Qwen1.5-7B-Chat
+      api_key: EMPTY
+      api_base: http://localhost:40002/v1
+
