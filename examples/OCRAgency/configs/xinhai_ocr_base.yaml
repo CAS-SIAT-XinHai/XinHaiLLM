@@ -1,0 +1,151 @@
+controller:
+  controller_address: http://localhost:5000
+
+workers:
+  - worker_type: mllm
+    worker_name: internvl_chat
+    worker_address: http://localhost:40001
+    worker_host: 0.0.0.0
+    worker_port: 40001
+    no_register: false
+    limit_model_concurrency: 5
+    device: cuda
+    api_key: EMPTY
+  - worker_type: llm
+    worker_name: Qwen1.5-7B-Chat
+    worker_address: http://localhost:40002
+    worker_host: 0.0.0.0
+    worker_port: 40002
+    no_register: false
+    limit_model_concurrency: 5
+    device: cuda
+    api_key: EMPTY
+  - worker_type: OCRModelWorker
+    worker_name: paddleocr
+    worker_address: http://localhost:40004
+    worker_host: 0.0.0.0
+    worker_port: 40004
+    no_register: false
+    limit_model_concurrency: 5
+    device: cuda
+    api_key: EMPTY
+  - worker_type: ocr
+  - worker_type: storage
+
+arena:
+  allowed_routing_types: &allowed_routing_types
+    - "[Unicast]"
+  muti_allowed_routing_types: &muti_allowed_routing_types
+    - "[Unicast]"
+    - "[endcast]"
+  prompts:
+    routing_prompt: &routing_prompt |-
+      现在，你是一个工具使用的决策者，你需要基于图片和以下用户提出的问题，选择合适的解决该问题的工具。已知信息如下：
+      
+      （1）问题：
+          {user_question}
+      
+      （2）已经使用过的工具，以及该工具生成的回答：
+          {chat_history}
+      
+      （3）你可以使用的工具列表：
+          {agent_descriptions}
+      
+      （4）可以采用的通讯方式有：
+          {routing_descriptions}
+      
+      基于当前情况，选择合适的通讯目标和通讯方式。
+      
+      [样例]
+      {{"method": "[endcast]", "target": [0]}}
+      现在，基于以上信息，你的Routing策略是什么？
+    summary_prompt: &summary_prompt |-
+      请根据之前的对话摘要和新的对话内容，给出新的对话摘要。
+      新的对话摘要应当包含之前摘要的内容。
+      摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。
+      ####
+      以前的对话摘要：{chat_summary}
+      
+      ####
+      新的对话内容：{chat_history}
+      
+      ###Attention###
+      仅返回新的对话摘要内容，不要返回分析过程！
+    consultant_prompt: &consultant_prompt |-
+      现在，你是一个{role_description}。已知信息如下：
+      （1）用户问题：
+          {user_question}
+      （2）已经使用过的工具，以及该工具生成的回答：
+          {chat_history}
+      
+      为了解决（1）中用户提出的问题，你现在需要求助工具：{agents}。给出你想向这个这个工具询问的信息。
+      注意：如果该工具的名字和你一样，那么请你结合以上信息精确无误的回答用户问题。
+    prompt: &prompt |-
+      现在，你是一个智能体，名字为：{role_description}。已知信息如下：
+      （1）用户问题：
+          {user_question}
+      （2）你与其他智能体的历史回答：
+          {chat_history}
+      
+      {agents}。他需要解决该用户问题,但对用户的问题理解能力可能不行，可能理解不了用户问题的深层需求，请你基于以上信息帮助他，给出更好的用户问题描述以帮助{agents}来解决此问题，你自己没必要回答该问题，且模仿以下的回答格式给出回答。
+      
+      [回答样例]
+      用户问题："面馆旁边的人性别是什么？"
+      你的回答："回答此问题需要以下步骤：1，找到面馆的位置。2，找到面馆旁边最近的人。3，判断该人的性别。"
+      
+
+
+  name: XinHai OCR
+
+  environment:
+    environment_type: simple
+    environment_id: xinhai_ocr_simulation_3
+    controller_address: http://localhost:5000
+    image_path: /home/whh/project/Xinhai/static/piture.png
+    topology:
+      edges:
+        - 0->1
+        - 0->2
+
+    max_turns: 5
+
+  agents:
+    - agent_type: mllm_agent
+      agent_id: 0
+      name: VQA_Master
+      role_description: VQA_Master，既有图片理解能力，又有语言生成能力。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *consultant_prompt
+      locale: zh
+      allowed_routing_types: *muti_allowed_routing_types
+      llm: internvl_chat
+      api_key: EMPTY
+      api_base: http://localhost:40001/v1
+      user_question: 该图片是什么颜色构成的？
+    - agent_type: llm_agent
+      agent_id: 1
+      name: Language_Master
+      role_description: Language_Master，语言理解专家，擅长于分析用户的问题，挖掘用户的潜在需求，但无法识别图像。当前的问题是一个基于图像问答的问题，所以Language_Master的任务是将用户的问题重述一遍给Dialogue_Master,使得Dialogue_Master更容易理解用户的需求。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
+      llm: Qwen1.5-7B-Chat
+      api_key: EMPTY
+      api_base: http://localhost:40002/v1
+      user_question: 该图片是什么颜色构成的？
+    - agent_type: ocr_agent
+      agent_id: 2
+      name: Tool_Master
+      role_description: Tool_Master，图像处理专家，擅长于一些困难的图像文字识别工作，但无法理解图片的其他方面，只能对图像中的文字进行识别。
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *prompt
+      locale: zh
+      allowed_routing_types: *allowed_routing_types
+      llm: paddleocr
+      api_key: EMPTY
+      api_base: http://localhost:40003/v1
+      user_question: 该图片是什么颜色构成的？
