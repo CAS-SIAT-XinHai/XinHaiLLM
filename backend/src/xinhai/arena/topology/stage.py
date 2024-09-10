@@ -40,14 +40,21 @@ class StageTopology(BaseTopology):
             ref_info = {}
             if 'ref_info' in value:
                 for r in value['ref_info']:
-                    ref_target, ref_method, ref_source, ref_query = r.split('->')
+                    ref_target, ref_method, ref_source, ref_query, use_ref_cache = r.split('->')
                     ref_worker = re.findall(r'\[(.*?)\]', ref_source)[0]
                     ref_source = ref_source.split(ref_worker)[0].strip('[').strip(']')
+                    if use_ref_cache == "use_cache":
+                        use_ref_cache = True
+                    elif use_ref_cache == "no_cache":
+                        use_ref_cache = False
+                    else:
+                        raise NotImplementedError
                     ref_info[int(ref_target)] = {
                         "ref_method": ref_method,
                         "ref_worker": ref_worker,
                         "ref_source": ref_source,
-                        "ref_query": ref_query
+                        "ref_query": ref_query,
+                        "use_ref_cache": use_ref_cache
                     }
             iter_num = value['iter_num'] if 'iter_num' in value else 1
             config_in_each_stage.append((stage_name, status, nx.DiGraph(edges), start, budget, ref_info, iter_num))

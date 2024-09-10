@@ -47,10 +47,10 @@ class BaseAgent:
     prompt_template: str
 
     def __init__(self, name, agent_id, role_description, llm, api_key, api_base,
-                 routing_prompt_template, summary_prompt_template, prompt_template,
+                 routing_prompt_template, summary_prompt_template, prompt_template, 
                  environment_id, controller_address, locale,
-                 allowed_routing_types, static_routing=False,
-                 max_retries=4):
+                 allowed_routing_types, static_routing=False, 
+                 id_template=None, max_retries=4):
         self.name = name
         self.agent_id = agent_id
         self.role_description = role_description
@@ -63,6 +63,7 @@ class BaseAgent:
         self.routing_prompt_template = routing_prompt_template
         self.summary_prompt_template = summary_prompt_template
         self.prompt_template = prompt_template
+        self.id_template = id_template if id_template else "{id:d}"
 
         # self.memory = []  # memory of current agent
         # self.messages = {}  # messages between current agent and other agents
@@ -88,12 +89,12 @@ class BaseAgent:
     def generate_message_id(self):
         messages = self.memory.short_term_memory.messages
         index_id = 0 if len(messages) == 0 else int(messages[-1].indexId)
-        return index_id + 1
+        return self.id_template.format(id=index_id+1)
 
     def generate_summary_id(self):
         summaries = self.memory.long_term_memory.summaries
         index_id = 0 if len(summaries) == 0 else int(summaries[-1].indexId)
-        return index_id + 1
+        return self.id_template.format(id=index_id+1)
 
     def get_summary(self):
         summaries = self.memory.long_term_memory.summaries
