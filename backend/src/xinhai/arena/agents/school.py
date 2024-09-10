@@ -38,16 +38,17 @@ class SchoolAgent(BaseAgent):
     env_role: str
 
     def __init__(self, name, agent_id, role_description, env_role, llm, api_key, api_base, routing_prompt_template,
-                 summary_prompt_template, reflect_prompt_template, prompt_template, summary_mode, environment_id, controller_address, locale,
+                 summary_prompt_template, reflect_prompt_template, prompt_template, id_template, summary_mode, environment_id, controller_address, locale,
                  allowed_routing_types, static_routing):
         super().__init__(name, agent_id, role_description, llm, api_key, api_base,
                          routing_prompt_template, summary_prompt_template, prompt_template,
                          environment_id, controller_address, locale, 
                          allowed_routing_types, static_routing,
-                         max_retries=5)
+                         id_template, max_retries=5)
         self.env_role = env_role
         self.last_message = None
         self.ref_info_cache = []
+        self.message_mask_list = []
         self.cnt_conv_turn = 0
 
         self.reflect_prompt_template = reflect_prompt_template
@@ -58,13 +59,28 @@ class SchoolAgent(BaseAgent):
         self.ref_info_cache = []
         self.cnt_conv_turn = 0
 
-    def reset_iter(self):
+    def reset_iter(self, stage_conv_budget):
         self.cnt_conv_turn = 0
+
+        mask_len = stage_conv_budget
+        mask_end_index = len(self.memory.short_term_memory.messages)
+        mask_start_index = mask_end_index - mask_len
+        self.message_mask_list += range(mask_start_index,mask_end_index)
+    
+    def reset_stage(self):
+        self.message_mask_list.clear()
+
+    # def generate_message_id(self):
+    #     return len(self.memory.short_term_memory.messages) + 1
+
+    # def generate_summary_id(self):
+    #     return len(self.memory.long_term_memory.summaries) + 1
 
     def get_history(self):
         dialogue_context = []
         for i, message in enumerate(self.memory.short_term_memory.messages):
-            dialogue_context.append(f"{message.senderId}: {message.content}")
+            if i not in self.message_mask_list:
+                dialogue_context.append(f"{message.senderId}: {message.content}")
         return dialogue_context
 
     def agent_descriptions(self, candidate_agents: List[Self]):
@@ -109,18 +125,24 @@ class SchoolAgent(BaseAgent):
         )
 
     def get_ref_info(self, ref_info_config: Dict):
+        use_ref_cache = ref_info_config["use_ref_cache"]
         if self.ref_info_cache:
-            return self.ref_info_cache[0]
+            if use_ref_cache:
+                return self.ref_info_cache[0]
+            else:
+                self.pop_ref_info_cache()
 
         method = ref_info_config["ref_method"]
         source = ref_info_config["ref_source"]
         worker = ref_info_config["ref_worker"]
+        query_var = ref_info_config["ref_query"]
 
-        if ref_info_config["ref_query"] == "cross_turn_info":
+
+        if query_var == "cross_turn_info":
             query = self.environment.cross_turn_info
-        elif ref_info_config["ref_query"] == "last_message":
+        elif query_var == "last_message":
             query = self.last_message.content
-        elif ref_info_config["ref_query"] == "[all]":
+        elif query_var == "[all]":
             query = None
         else:
             raise NotImplementedError
@@ -160,7 +182,7 @@ class SchoolAgent(BaseAgent):
     def update_short_term_memory(self, messages: List[XinHaiChatMessage]):
         # flush new memories to short-term chat history
         self.last_message = messages[-1]
-        self.memory = self.retrieve_memory()
+        # self.memory = self.retrieve_memory()  ## 为了不影响masked_memory所作的暂时修改
 
         for m in messages:
             m.indexId = str(self.generate_message_id())
@@ -217,7 +239,7 @@ class SchoolAgent(BaseAgent):
 
         logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
         logger.debug(f"Adding {stored_long_term_mem} to Agent {self.agent_id}")
-        self.memory.long_term_memory.summaries.extend(stored_long_term_mem)
+        self.memory.long_term_memory.summaries.append(stored_long_term_mem)
 
         return r.json()
 
@@ -251,9 +273,10 @@ class SchoolAgent(BaseAgent):
             content = chat_history
         elif summary_mode == "summary":
             messages = [
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user",
-                 "content": self.summary_prompt_template.format(chat_history=chat_history)},
+                {
+                    "role": "user",
+                    "content": self.summary_prompt_template.format(chat_history=chat_history)
+                },
             ]
             content = self.chat_completion(client=self.client, model=self.llm, agent_id=self.agent_id,
                                            messages=messages)
@@ -262,6 +285,16 @@ class SchoolAgent(BaseAgent):
                 {
                     "role": "user",
                     "content": self.reflect_prompt_template.format(chat_history=chat_history)
+                },
+            ]
+            content = self.chat_completion(client=self.client, model=self.llm, agent_id=self.agent_id,
+                                           messages=messages)      
+        elif summary_mode == "reflect_w_exp":
+            past_exp = self.recall_from_memory(query=chat_history)[0]
+            messages = [
+                {
+                    "role": "user",
+                    "content": self.reflect_prompt_template.format(chat_history=chat_history, past_exp=past_exp)
                 },
             ]
             content = self.chat_completion(client=self.client, model=self.llm, agent_id=self.agent_id,
@@ -276,8 +309,8 @@ class SchoolAgent(BaseAgent):
         )
 
     def recall_from_memory(self, query) -> List[XinHaiChatSummary]:
-        top_k = 2
-        threshold = 2
+        top_k = 3
+        threshold = 50
         recall_request = XinHaiRecallMemoryRequest(storage_key=self.storage_key, query=query, top_k=top_k,
                                                    threshold=threshold)
 
@@ -304,13 +337,20 @@ class SchoolAgent(BaseAgent):
             with open("../../examples/PsyTraArena/resources/ProDB_Catalogs.txt", 'r', encoding='utf-8') as f:
                 tmp_res = f.read()
             return [tmp_res]
-
-        params_for_query_search = {
-            "user_query": query,
-            "source": source,
-            "top_k": top_k,
-            "exclude": self.environment.excluded_ids
-        }
+        elif source == "ProDB":
+            params_for_query_search = {
+                "user_query": query,
+                "source": source,
+                "top_k": 5,
+                "exclude": self.environment.excluded_knowledge_ids
+            }
+        elif source == "CPsyExamDB":
+            params_for_query_search = {
+                "user_query": query,
+                "source": source,
+                "collections": ["kg_collection","ca_collection"],
+                "top_k": [3,2],
+            }
 
         try:
             call_func = "query-search-meta" if worker == "knowledge" else "query-search"
@@ -354,9 +394,9 @@ class SchoolAgent(BaseAgent):
         doc_key = "rag_pro_knowledge_docs"
         meta_key = "rag_pro_knowledge_metas"
 
-        retrieved_ids = [c["id"] for c in retrieved_res[meta_key]]
-        self.environment.retrieved_ids = retrieved_ids
-        self.environment.excluded_ids += retrieved_ids
+        retrieved_knowledge_ids = [c["id"] for c in retrieved_res[meta_key]]
+        self.environment.retrieved_knowledge_ids = retrieved_knowledge_ids
+        self.environment.excluded_knowledge_ids += retrieved_knowledge_ids
         
         for item in retrieved_res[doc_key]:
             prompt = prompt + f"#{i}\n" + item +"\n"
@@ -369,6 +409,7 @@ class SchoolAgent(BaseAgent):
         construct k prompts with top-k documents
         """
         prompts = []
+        retrieved_qa_ids = []
         for r in retrieved_res:
             text_option = ""
             dict_r = eval(r)
@@ -379,15 +420,19 @@ class SchoolAgent(BaseAgent):
                 else:
                     break
             dict_r["options"] = text_option
-            prompt = "<问题>\n{question}\n<选项>\n{options}\n<标答>\n{answer}\n<题解>\n{explanation}\n".format(**dict_r)
+            prompt = "<问题>\n{question}\n<问题结束>\n<选项>\n{options}\n<选项结束><标准答案>\n{answer}\n<标准答案结束><题解>\n{explanation}\n<题解结束>".format(**dict_r)
             prompts.append(prompt)
+            retrieved_qa_ids.append(dict_r["id"])
+        
+        self.environment.retrieved_qa_ids = retrieved_qa_ids
+
         return prompts
 
     def prompt_for_experience(self, recalled_memory):
         prompt = ""
         summaries = recalled_memory.long_term_memory.summaries
         if len(summaries) > 0:
-            prompt = "[可供参考的经验]\n"
+            prompt = "[可供参考的经验]\n以下经验可能对你有所帮助，请自行决定是否参考以做出回应。\n"
             i = 1
             for s in summaries:
                 prompt = prompt + f"#{i}\n" + s.content + "\n"

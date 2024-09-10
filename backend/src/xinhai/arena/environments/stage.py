@@ -8,6 +8,7 @@ Authors: Renhao Li, Vimos Tan
 """
 import os
 import json
+import time
 import logging
 from typing import List
 
@@ -42,6 +43,7 @@ class StageEnvironment(BaseEnvironment):
 
     async def step(self):
         """Run one step of the environment"""
+        print(f"Turn {self.cnt_turn} simulation is underway...")
         for stage_indx in range(0, len(self.stages)):
             logger.debug(f"************Current Stage: [{self.stages[stage_indx]}]************")
             self.__step_in_one_stage(stage_indx)
@@ -54,17 +56,23 @@ class StageEnvironment(BaseEnvironment):
         self.__dump_var_to_cache()
         
         self.message_cache = []
+        print(f"Turn {self.cnt_turn} simulation is done!")
+
         self.cnt_turn += 1
+        time.sleep(30)
 
     def reset(self) -> None:
         """Reset the environment"""
-        self.cnt_turn = 0
         for agent in self.agents:
             agent.reset()
 
-    def reset_iter(self) -> None:
+    def reset_iter(self, stage_conv_budget) -> None:
         for agent in self.agents:
-            agent.reset_iter()
+            agent.reset_iter(stage_conv_budget)
+    
+    def reset_stage(self) -> None:
+        for agent in self.agents:
+            agent.reset_stage()
 
     def is_done(self) -> bool:
         """Check if the environment is done"""
@@ -121,7 +129,9 @@ class StageEnvironment(BaseEnvironment):
                         break
             
             self.cnt_iter += 1
-            self.reset_iter()
+            self.reset_iter(stage_conv_budget)
+        
+        self.reset_stage()
 
     def __load_var_from_cache(self):
         cache_folder_path = "../../examples/PsyTraArena/cache/"
@@ -134,23 +144,34 @@ class StageEnvironment(BaseEnvironment):
             tmp = []
             with open(self.records_path, 'w') as f:
                 json.dump(tmp, f)
+            self.cnt_turn = 0
             self.cross_turn_info = "认知行为疗法"
-            self.retrieved_ids = []
-            self.excluded_ids = []
+            self.retrieved_knowledge_ids = []
+            self.excluded_knowledge_ids = []
+            self.retrieved_qa_ids = []
         else:
             with open(self.records_path, 'r', encoding="utf-8") as f:
                 records = json.load(f)
-            last_record = records[-1]
-            self.cnt_turn = last_record["cnt_turn"] + 1
-            
-            self.cross_turn_info = last_record["cross_turn_info"]
-            self.retrieved_ids = []
-            self.excluded_ids = sum([r["retrieved_ids"] for r in records], [])
+            if records:
+                last_record = records[-1]
+                self.cnt_turn = last_record["cnt_turn"] + 1
+                
+                self.cross_turn_info = last_record["cross_turn_info"]
+                self.retrieved_knowledge_ids = []
+                self.excluded_knowledge_ids = sum([r["retrieved_knowledge_ids"] for r in records], [])
+                self.retrieved_qa_ids = []
+            else:
+                self.cnt_turn = 0
+                self.cross_turn_info = "认知行为疗法"
+                self.retrieved_knowledge_ids = []
+                self.excluded_knowledge_ids = []
+                self.retrieved_qa_ids = []
 
     def __dump_var_to_cache(self):
         new_record = {
             "cnt_turn": self.cnt_turn,
-            "retrieved_ids": self.retrieved_ids,
+            "retrieved_knowledge_ids": self.retrieved_knowledge_ids,
+            "retrieved_qa_ids": self.retrieved_qa_ids,
             "cross_turn_info": self.cross_turn_info,
         }
         with open(self.records_path, 'r', encoding="utf-8") as f:

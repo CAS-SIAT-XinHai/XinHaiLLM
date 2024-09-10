@@ -49,7 +49,8 @@ def heart_beat_worker(controller):
 class FeedbackWorker:
     def __init__(self):
         self.feedback_client = chromadb.PersistentClient(path=QA_BANK_DB_PATH)
-        self.feedback_collection = self.feedback_client.get_or_create_collection(name="KG_train", embedding_function=embedding_fn)
+        self.kg_collection = self.feedback_client.get_or_create_collection(name="KG_train", embedding_function=embedding_fn)
+        self.ca_collection = self.feedback_client.get_or_create_collection(name="CA_train", embedding_function=embedding_fn)
         self.embedding_fn = embedding_fn
         self.reranker_model = CrossEncoder(RERANKER_MODEL_PATH, max_length=512)
 
@@ -106,9 +107,9 @@ class FeedbackWorker:
             "queue_length": self.get_queue_length(),
         }
 
-    def initial_retrieval(self, query):
+    def initial_retrieval(self, query, collection):
         n_results = 50 if query else None
-        res_chunks = list(self.feedback_collection.query(query_texts=query, n_results=n_results)['documents'][0])
+        res_chunks = list(collection.query(query_texts=query, n_results=n_results)['documents'][0])
         return res_chunks
 
     def get_sentence_pairs(self, query, chunks):
@@ -128,15 +129,25 @@ class FeedbackWorker:
     def query_search(self, params):
         source = params.get('source')
         query = params.get('user_query')
+
+        collections = [getattr(self, name, None) for name in params.get('collections')]
+        if None in collections:
+            raise NotImplementedError
+        
         top_k = params.get('top_k')
-        res_chunks = self.initial_retrieval(query)
-        if query:
-            sentence_pairs = self.get_sentence_pairs(query, res_chunks)
-            top_k_index = self.reranker_top_k(sentence_pairs, top_k)
-            res = [res_chunks[indx] for indx in top_k_index]
-        else:
-            res = res_chunks
-        return res
+        if isinstance(top_k, int):
+            top_k = [top_k] * len(collections)
+        assert len(collections)==len(top_k), "The number of top_k configs should be the same with collections"
+        
+        final_res = []
+        for c in zip(collections, top_k):
+            retr_chunks = self.initial_retrieval(query, c[0])
+            sentence_pairs = self.get_sentence_pairs(query, retr_chunks)
+            top_k_index = self.reranker_top_k(sentence_pairs, c[1])
+            res = [retr_chunks[indx] for indx in top_k_index]
+            final_res += res
+        
+        return final_res
 
 
 app = FastAPI()
