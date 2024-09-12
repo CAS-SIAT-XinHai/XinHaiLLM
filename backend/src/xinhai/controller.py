@@ -33,6 +33,8 @@ from .config import CONTROLLER_HEART_BEAT_EXPIRATION, LOG_DIR, STATIC_PATH
 from .types.message import XinHaiChatCompletionRequest
 from .utils import build_logger, server_error_msg
 
+from xinhai.types.message import XinHaiMMRequest, XinHaiMMResponse, XinHaiMMResult
+
 logger = build_logger("controller", "controller.log", LOG_DIR)
 
 
@@ -909,6 +911,27 @@ class Controller:
 
         logger.error(r.text)
         return r.json()
+    
+
+    def stub_function(request_data: XinHaiMMRequest) -> XinHaiMMResponse:
+        
+        prompts = request_data.prompts
+        default_results = [
+            XinHaiMMResult(name=prompt.name, value="default_ocr_result") 
+            for prompt in prompts
+        ]
+        
+
+        response = XinHaiMMResponse(
+            id=request_data.id,
+            type=request_data.type,
+            result=default_results,
+            version=request_data.version,
+            model=request_data.model
+        )
+        
+        return response
+        
 
 
 app = FastAPI()
@@ -1115,6 +1138,7 @@ async def worker_api_query_search_meta(worker: str, request: Request):
 async def worker_api_search_chat(worker: str, request: Request):
     params = await request.json()
     return controller.worker_api_search_chat(worker, params)
+
 
 
 if __name__ == "__main__":

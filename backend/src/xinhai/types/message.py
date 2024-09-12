@@ -17,7 +17,7 @@ from typing import List
 
 from more_itertools import split_when
 from pydantic import BaseModel
-from prompt import XinHaiPrompt
+from prompt import XinHaiMMPrompt
 
 from llamafactory.api.protocol import MultimodalInputItem, ImageURL
 
@@ -164,8 +164,18 @@ class XinHaiChatCompletionRequest(BaseModel):
 class XinHaiMMRequest(BaseModel):
     id: str
     type: str
-    prompts: List[XinHaiPrompt]
+    prompts: List[XinHaiMMPrompt]
     version: str
     model: str
     image: str
     
+class XinHaiMMResult(BaseModel):
+    name: str # the same as XinHaiMMPrompt.name
+    value: str # the OCR result   
+
+class XinHaiMMResponse(BaseModel):
+    id: str
+    type: str
+    result:list[XinHaiMMResult]
+    version: str
+    model: str

@@ -29,7 +29,7 @@ class XinHaiPromptTypeMixin:
     description: Dict[XinHaiI18NLocales, List[str]]
     
     
-class XinHaiPrompt:
+class XinHaiMMPrompt:
     name: str
     prompt: str
 
