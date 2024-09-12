@@ -27,6 +27,11 @@ else:
 class XinHaiPromptTypeMixin:
     prompt_name: str
     description: Dict[XinHaiI18NLocales, List[str]]
+    
+    
+class XinHaiMMPrompt:
+    name: str
+    prompt: str
 
 
 class XinHaiPromptType(XinHaiPromptTypeMixin, Enum):

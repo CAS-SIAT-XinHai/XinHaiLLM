@@ -33,6 +33,8 @@ from .config import CONTROLLER_HEART_BEAT_EXPIRATION, LOG_DIR, STATIC_PATH
 from .types.message import XinHaiChatCompletionRequest
 from .utils import build_logger, server_error_msg
 
+from xinhai.types.message import XinHaiMMRequest, XinHaiMMResponse, XinHaiMMResult
+
 logger = build_logger("controller", "controller.log", LOG_DIR)
 
 
@@ -208,8 +210,7 @@ class Controller:
             logger.info(f"no worker: {request.model}")
             ret = {
                 "text": server_error_msg,
-                "error_code": 2,
-            }
+                "error_code": 2,            }
             yield json.dumps(ret).encode() + b"\0"
 
         if isinstance(request, XinHaiChatCompletionRequest):
@@ -909,6 +910,27 @@ class Controller:
 
         logger.error(r.text)
         return r.json()
+    
+    def mock_worker_api_MM_OCR(self, request:XinHaiMMRequest) -> XinHaiMMResponse:
+
+        prompts = request.prompts
+        print(prompts)
+        default_results = [XinHaiMMResult(
+            name=pr.name,
+            value='default'
+        ) for pr in prompts]
+
+        response_data = XinHaiMMResponse(
+            id=request.id,
+            type=request.type,
+            result=default_results,
+            version=request.version,
+            model=request.model,
+        )
+
+        return response_data
+
+        
 
 
 app = FastAPI()
@@ -1116,6 +1138,10 @@ async def worker_api_search_chat(worker: str, request: Request):
     params = await request.json()
     return controller.worker_api_search_chat(worker, params)
 
+
+@app.post("/api/MM_OCR")
+async def worker_api_MM_OCR(request: XinHaiMMRequest):
+    return controller.mock_worker_api_MM_OCR(request)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
