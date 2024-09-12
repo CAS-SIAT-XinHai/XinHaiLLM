@@ -8,28 +8,199 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from threading import Thread
-from typing import Sequence, Dict, Optional, List, Generator, AsyncGenerator, Any, Annotated, Tuple
-
+from typing import Sequence, Dict, Optional, List, Generator, AsyncGenerator, Any, Annotated, Tuple, AsyncIterator
+import torch
 import requests
 import uvicorn
-from PIL import Image
+
 from fastapi import FastAPI, HTTPException, status, Depends
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sse_starlette import EventSourceResponse
-
+from transformers import AutoTokenizer
+from vllm import LLM, SamplingParams
+from vllm.assets.image import ImageAsset
+from PIL import Image
 from llamafactory.api.protocol import Role, ModelList, ModelCard, ChatCompletionResponse, ChatCompletionRequest, \
     Function, \
     ChatCompletionMessage, FunctionCall, Finish, ChatCompletionResponseChoice, ChatCompletionResponseUsage, \
-    ChatCompletionStreamResponse, ScoreEvaluationResponse, ScoreEvaluationRequest, ChatCompletionStreamResponseChoice
-from llamafactory.chat.hf_engine import HuggingfaceEngine
-from llamafactory.chat.vllm_engine import VllmEngine
+    ChatCompletionStreamResponse, ChatCompletionStreamResponseChoice
+from llamafactory.chat.base_engine import Response
 from llamafactory.data import Role as DataRole
 from llamafactory.extras.misc import torch_gc
-from llamafactory.hparams import get_infer_args
 from xinhai.config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
 from xinhai.utils import build_logger, pretty_print_semaphore
+
+# Input image and question
+image = ImageAsset("cherry_blossom").pil_image.convert("RGB")
+question = "What is the content of this image?"
+
+# LLaVA-1.5
+def run_llava(model_name_or_path):
+    prompt = "USER: <image>\n{question}\nASSISTANT:"
+
+    llm = LLM(
+        model=model_name_or_path,
+        dtype="float16"
+    )
+    stop_token_ids = None
+    return llm, prompt, stop_token_ids
+
+# LLaVA-1.6/LLaVA-NeXT
+def run_llava_next(model_name_or_path):
+    prompt = "[INST] <image>\n{question} [/INST]"
+    llm = LLM(
+        model=model_name_or_path,
+        dtype="float16"
+    )
+    stop_token_ids = None
+    return llm, prompt, stop_token_ids
+
+# Fuyu
+def run_fuyu(model_name_or_path):
+    prompt = "{question}\n"
+    llm = LLM(
+        model=model_name_or_path,
+        dtype="float16"
+    )
+    stop_token_ids = None
+    return llm, prompt, stop_token_ids
+
+
+# Phi-3-Vision
+def run_phi3v(model_name_or_path):
+    prompt = "<|user|>\n<|image_1|>\n{question}<|end|>\n<|assistant|>\n"  # noqa: E501
+    # Note: The default setting of max_num_seqs (256) and
+    # max_model_len (128k) for this model may cause OOM.
+    # You may lower either to run this example on lower-end GPUs.
+
+    # In this example, we override max_num_seqs to 5 while
+    # keeping the original context length of 128k.
+    llm = LLM(
+        model=model_name_or_path,
+        dtype="float16",
+        trust_remote_code=True,
+        max_num_seqs=5,
+    )
+    stop_token_ids = None
+    return llm, prompt, stop_token_ids
+
+
+# PaliGemma
+def run_paligemma(model_name_or_path):
+    # PaliGemma has special prompt format for VQA
+    prompt = "caption en"
+    llm = LLM(
+        model=model_name_or_path,
+        dtype="float16"
+    )
+    stop_token_ids = None
+    return llm, prompt, stop_token_ids
+
+
+# Chameleon
+def run_chameleon(model_name_or_path):
+    prompt = "{question}<image>"
+    llm = LLM(
+        model=model_name_or_path,
+        dtype="float16"
+    )
+    stop_token_ids = None
+    return llm, prompt, stop_token_ids
+
+
+# MiniCPM-V
+def run_minicpmv(model_name_or_path):
+    # 2.0
+    # The official repo doesn't work yet, so we need to use a fork for now
+    # For more details, please see: See: https://github.com/vllm-project/vllm/pull/4087#issuecomment-2250397630 # noqa
+    # model_name = "HwwwH/MiniCPM-V-2"
+
+    # 2.5
+    # model_name = "openbmb/MiniCPM-Llama3-V-2_5"
+
+    # 2.6
+    model_name = model_name_or_path
+    tokenizer = AutoTokenizer.from_pretrained(model_name,
+                                              trust_remote_code=True)
+    llm = LLM(
+        model=model_name,
+        dtype="float16",
+        trust_remote_code=True,
+    )
+    # NOTE The stop_token_ids are different for various versions of MiniCPM-V
+    # 2.0
+    # stop_token_ids = [tokenizer.eos_id]
+
+    # 2.5
+    stop_token_ids = [tokenizer.eos_id, tokenizer.eot_id]
+
+    # 2.6
+    #stop_tokens = ['<|im_end|>', '<|endoftext|>']
+    #stop_token_ids = [tokenizer.convert_tokens_to_ids(i) for i in stop_tokens]
+
+    messages = [{
+        'role': 'user',
+        'content': '(<image>./</image>)\n{question}'
+    }]
+    prompt = tokenizer.apply_chat_template(messages,
+                                           tokenize=False,
+                                           add_generation_prompt=True)
+    return llm, prompt, stop_token_ids
+
+# InternVL
+def run_internvl(model_name_or_path):
+    model_name = model_name_or_path
+
+    llm = LLM(
+        model=model_name,
+        dtype="float16",
+        trust_remote_code=True,
+        max_num_seqs=5,
+        max_model_len=61152
+    )
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name,
+                                              trust_remote_code=True)
+    messages = [{'role': 'user', 'content': "<image>\n{question}"}]
+    prompt = tokenizer.apply_chat_template(messages,
+                                           tokenize=False,
+                                           add_generation_prompt=True)
+
+    # Stop tokens for InternVL
+    # models variants may have different stop tokens
+    # please refer to the model card for the correct "stop words":
+    # https://huggingface.co/OpenGVLab/InternVL2-2B#service
+    stop_tokens = ["<|endoftext|>", "<|im_start|>", "<|im_end|>", "<|end|>"]
+    stop_token_ids = [tokenizer.convert_tokens_to_ids(i) for i in stop_tokens]
+    return llm, prompt, stop_token_ids
+
+
+# BLIP-2
+def run_blip2(model_name_or_path):
+    # BLIP-2 prompt format is inaccurate on HuggingFace model repository.
+    # See https://huggingface.co/Salesforce/blip2-opt-2.7b/discussions/15#64ff02f3f8cf9e4f5b038262 #noqa
+    prompt = "Question: {question} Answer:"
+    llm = LLM(
+        model=model_name_or_path,
+        dtype="float16"
+    )
+    stop_token_ids = None
+    return llm, prompt, stop_token_ids
+
+
+model_example_map = {
+    "llava": run_llava,
+    "llava-next": run_llava_next,
+    "fuyu": run_fuyu,
+    "phi3_v": run_phi3v,
+    "paligemma": run_paligemma,
+    "chameleon": run_chameleon,
+    "minicpmv": run_minicpmv,
+    "blip-2": run_blip2,
+    "internvl_chat": run_internvl,
+}
 
 GB = 1 << 30
 worker_id = str(uuid.uuid4())[:6]
@@ -41,7 +212,7 @@ WORKER_PORT = int(os.environ.get("WORKER_PORT", 7861))
 NO_REGISTER = os.environ.get("NO_REGISTER", False)
 MODEL_NAME = os.environ.get("MODEL_NAME", "MiniCPMV")
 LIMIT_MODEL_CONCURRENCY = int(os.environ.get("LIMIT_MODEL_CONCURRENCY", 5))
-MODEL_PATH = os.environ.get("MODEL_PATH", "/data/xuancheng/MiniCPM-V-2")
+MODEL_PATH = os.environ.get("MODEL_PATH", "/data/pretrained_models/InternVL2-2B")
 DEVICE = "cuda"
 model_semaphore = None
 api_key = os.environ.get("API_KEY", "EMPTY")
@@ -81,14 +252,11 @@ def _start_background_loop(loop: asyncio.AbstractEventLoop) -> None:
 
 
 class MLLMWorker:
-    def __init__(self, args: Optional[Dict[str, Any]] = None) -> None:
-        model_args, data_args, finetuning_args, generating_args = get_infer_args(args)
-        if model_args.infer_backend == "huggingface":
-            self.engine: "BaseEngine" = HuggingfaceEngine(model_args, data_args, finetuning_args, generating_args)
-        elif model_args.infer_backend == "vllm":
-            self.engine: "BaseEngine" = VllmEngine(model_args, data_args, finetuning_args, generating_args)
-        else:
-            raise NotImplementedError("Unknown backend: {}".format(model_args.infer_backend))
+    def __init__(self) -> None:
+        if MODEL_NAME not in model_example_map:
+            raise ValueError(f"Model type {MODEL_NAME} is not supported.")
+
+        self.llm, self.prompt, self.stop_token_ids = model_example_map[MODEL_NAME](MODEL_PATH)
 
         self._loop = asyncio.new_event_loop()
         self._thread = Thread(target=_start_background_loop, args=(self._loop,), daemon=True)
@@ -100,7 +268,56 @@ class MLLMWorker:
                 target=heart_beat_worker, args=(self,))
             self.heart_beat_thread.start()
 
-    def chat(
+    async def _generate(
+            self,
+            messages: Sequence[Dict[str, str]],
+            system: Optional[str] = None,
+            tools: Optional[str] = None,
+            image: Optional["NDArray"] = None,
+            **input_kwargs,
+    ) -> AsyncIterator["RequestOutput"]:
+        request_id = "chatcmpl-{}".format(uuid.uuid4().hex)
+        print(messages)
+        print(image)
+
+        sampling_params = SamplingParams(temperature=0.2,
+                                         max_tokens=2048,
+                                         stop_token_ids=self.stop_token_ids)
+
+        num_prompts = len(messages)
+
+        if num_prompts == 1:
+            # Single inference
+            if image:
+                inputs = {
+                    "prompt": self.prompt.format(question=messages[0]["content"]),
+                    "multi_modal_data": {
+                        "image": image
+                    },
+                }
+            else:
+                inputs = {
+                    "prompt": self.prompt.format(question=messages[0]["content"]),
+                }
+        else:
+            # Batch inference
+            inputs = [{
+                "prompt": self.prompt,
+                "multi_modal_data": {
+                    "image": image
+                },
+            } for _ in range(num_prompts)]
+
+        result_generator = self.llm.generate(
+            inputs,
+            sampling_params=sampling_params,
+            # request_id=request_id,
+            # lora_request=self.lora_request,
+        )
+        #return result_generator
+        for item in result_generator:
+            yield item
+    async def chat(
             self,
             messages: Sequence[Dict[str, str]],
             system: Optional[str] = None,
@@ -108,8 +325,42 @@ class MLLMWorker:
             image: Optional["NDArray"] = None,
             **input_kwargs,
     ) -> List["Response"]:
-        task = asyncio.run_coroutine_threadsafe(self.achat(messages, system, tools, image, **input_kwargs), self._loop)
-        return task.result()
+        final_output = None
+        # generator = await self._generate(messages, system, tools, image, **input_kwargs)
+        # for request_output in generator:
+        #     final_output = request_output
+        async for o in self._generate(messages, system, tools, image, **input_kwargs):
+            final_output = o.outputs[0].text
+
+        results = []
+        context=""
+        for output in final_output:
+            context+=output
+        results.append(
+            Response(
+                response_text=context,
+                response_length=len(context),
+                prompt_length=len(context),
+                finish_reason="stop",
+            )
+        )
+
+        return results
+
+    async def stream_chat(
+            self,
+            messages: Sequence[Dict[str, str]],
+            system: Optional[str] = None,
+            tools: Optional[str] = None,
+            image: Optional["NDArray"] = None,
+            **input_kwargs,
+    ) -> Generator[str, None, None]:
+        generated_text = ""
+        generator = await self._generate(messages, system, tools, image, **input_kwargs)
+        async for result in generator:
+            delta_text = result.outputs[0].text[len(generated_text):]
+            generated_text = result.outputs[0].text
+            yield delta_text
 
     async def achat(
             self,
@@ -119,23 +370,7 @@ class MLLMWorker:
             image: Optional["NDArray"] = None,
             **input_kwargs,
     ) -> List["Response"]:
-        return await self.engine.chat(messages, system, tools, image, **input_kwargs)
-
-    def stream_chat(
-            self,
-            messages: Sequence[Dict[str, str]],
-            system: Optional[str] = None,
-            tools: Optional[str] = None,
-            image: Optional["NDArray"] = None,
-            **input_kwargs,
-    ) -> Generator[str, None, None]:
-        generator = self.astream_chat(messages, system, tools, image, **input_kwargs)
-        while True:
-            try:
-                task = asyncio.run_coroutine_threadsafe(generator.__anext__(), self._loop)
-                yield task.result()
-            except StopAsyncIteration:
-                break
+        return await self.chat(messages, system, tools, image, **input_kwargs)
 
     async def astream_chat(
             self,
@@ -145,23 +380,8 @@ class MLLMWorker:
             image: Optional["NDArray"] = None,
             **input_kwargs,
     ) -> AsyncGenerator[str, None]:
-        async for new_token in self.engine.stream_chat(messages, system, tools, image, **input_kwargs):
+        async for new_token in self.stream_chat(messages, system, tools, image, **input_kwargs):
             yield new_token
-
-    def get_scores(
-            self,
-            batch_input: List[str],
-            **input_kwargs,
-    ) -> List[float]:
-        task = asyncio.run_coroutine_threadsafe(self.aget_scores(batch_input, **input_kwargs), self._loop)
-        return task.result()
-
-    async def aget_scores(
-            self,
-            batch_input: List[str],
-            **input_kwargs,
-    ) -> List[float]:
-        return await self.engine.get_scores(batch_input, **input_kwargs)
 
     def register_to_controller(self):
         logger.info("Register to controller")
@@ -287,7 +507,8 @@ def _process_request(
                     else:  # web uri
                         image_path = requests.get(image_url, stream=True).raw
 
-                    image = Image.open(image_path).convert("RGB")
+                    from io import BytesIO
+                    image = Image.open(image_path).convert('RGB').resize((800,600))
         else:
             input_messages.append({"role": ROLE_MAPPING[message.role], "content": message.content})
 
@@ -320,6 +541,10 @@ async def create_chat_completion_response(
 ) -> "ChatCompletionResponse":
     completion_id = "chatcmpl-{}".format(uuid.uuid4().hex)
     input_messages, system, tools, image = _process_request(request)
+    # print("input_messages:", input_messages)
+    # print("system:", system)
+    # print("tools:", tools)
+    # print("image:", image)
     responses = await chat_model.achat(
         input_messages,
         system,
@@ -402,16 +627,6 @@ async def create_stream_chat_completion_response(
     yield "[DONE]"
 
 
-async def create_score_evaluation_response(
-        request: "ScoreEvaluationRequest", chat_model: "ChatModel"
-) -> "ScoreEvaluationResponse":
-    if len(request.messages) == 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request")
-
-    scores = await chat_model.aget_scores(request.messages, max_length=request.max_length)
-    return ScoreEvaluationResponse(model=request.model, scores=scores)
-
-
 @app.get("/v1/models", response_model=ModelList)
 async def list_models():
     model_card = ModelCard(id="gpt-3.5-turbo")
@@ -427,52 +642,15 @@ async def verify_api_key(auth: Annotated[Optional[HTTPAuthorizationCredentials],
     "/v1/chat/completions",
     response_model=ChatCompletionResponse,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(verify_api_key)],
+    #dependencies=[Depends(verify_api_key)],
 )
 async def create_chat_completion(request: ChatCompletionRequest):
-    if not worker.engine.can_generate:
-        raise HTTPException(status_code=status.HTTP_405_METHOD_NOT_ALLOWED, detail="Not allowed")
-
-    if request.stream:
-        generate = create_stream_chat_completion_response(request, worker)
-        return EventSourceResponse(generate, media_type="text/event-stream")
-    else:
-        return await create_chat_completion_response(request, worker)
-
-
-async def stream_chat_completion(
-        messages: Sequence[Dict[str, str]], system: str, tools: str, request: ChatCompletionRequest
-):
-    choice_data = ChatCompletionStreamResponseChoice(
-        index=0, delta=ChatCompletionMessage(role=Role.ASSISTANT, content=""), finish_reason=None
-    )
-    chunk = ChatCompletionStreamResponse(model=request.model, choices=[choice_data])
-    yield jsonify(chunk)
-
-    async for new_token in worker.astream_chat(
-            messages,
-            system,
-            tools,
-            do_sample=request.do_sample,
-            temperature=request.temperature,
-            top_p=request.top_p,
-            max_new_tokens=request.max_tokens,
-    ):
-        if len(new_token) == 0:
-            continue
-
-        choice_data = ChatCompletionStreamResponseChoice(
-            index=0, delta=ChatCompletionMessage(content=new_token), finish_reason=None
-        )
-        chunk = ChatCompletionStreamResponse(model=request.model, choices=[choice_data])
-        yield jsonify(chunk)
-
-    choice_data = ChatCompletionStreamResponseChoice(
-        index=0, delta=ChatCompletionMessage(), finish_reason=Finish.STOP
-    )
-    chunk = ChatCompletionStreamResponse(model=request.model, choices=[choice_data])
-    yield jsonify(chunk)
-    yield "[DONE]"
+    # if request.stream:
+    #     generate = create_stream_chat_completion_response(request, worker)
+    #     return EventSourceResponse(generate, media_type="text/event-stream")
+    # else:
+    #只配置非流输出形式
+    return await create_chat_completion_response(request, worker)
 
 
 def release_model_semaphore(fn=None):

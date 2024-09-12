@@ -48,10 +48,12 @@ class Simulation:
     def run(self):
         """Run the environment from scratch until it is done."""
         self.environment.reset()
-        while not self.environment.is_done():
-            asyncio.run(self.environment.step())
+        user_question="请依据图片填充以下信息抽取字段的值。"
+        image_path=r"/home/wuhaihong/xinhai/static/output_image.jpg"
+        save_path=r"/home/wuhaihong/xinhai/examples/OCRAgency/result/result.json"
+        asyncio.run(self.environment.step(user_question,image_path,save_path))
         # self.environment.report_metrics()
-        print(json.dumps(self.agents[0].memory.model_dump_json(), indent=2))
+        #print(json.dumps(self.agents[0].memory.model_dump_json(), indent=2))
 
     def reset(self):
         self.environment.reset()
