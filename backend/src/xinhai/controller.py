@@ -210,8 +210,7 @@ class Controller:
             logger.info(f"no worker: {request.model}")
             ret = {
                 "text": server_error_msg,
-                "error_code": 2,
-            }
+                "error_code": 2,            }
             yield json.dumps(ret).encode() + b"\0"
 
         if isinstance(request, XinHaiChatCompletionRequest):
@@ -912,25 +911,25 @@ class Controller:
         logger.error(r.text)
         return r.json()
     
+    def mock_worker_api_MM_OCR(self, request:XinHaiMMRequest) -> XinHaiMMResponse:
 
-    def stub_function(request_data: XinHaiMMRequest) -> XinHaiMMResponse:
-        
-        prompts = request_data.prompts
-        default_results = [
-            XinHaiMMResult(name=prompt.name, value="default_ocr_result") 
-            for prompt in prompts
-        ]
-        
+        prompts = request.prompts
+        print(prompts)
+        default_results = [XinHaiMMResult(
+            name=pr.name,
+            value='default'
+        ) for pr in prompts]
 
-        response = XinHaiMMResponse(
-            id=request_data.id,
-            type=request_data.type,
+        response_data = XinHaiMMResponse(
+            id=request.id,
+            type=request.type,
             result=default_results,
-            version=request_data.version,
-            model=request_data.model
+            version=request.version,
+            model=request.model,
         )
-        
-        return response
+
+        return response_data
+
         
 
 
@@ -1140,6 +1139,9 @@ async def worker_api_search_chat(worker: str, request: Request):
     return controller.worker_api_search_chat(worker, params)
 
 
+@app.post("/api/MM_OCR")
+async def worker_api_MM_OCR(request: XinHaiMMRequest):
+    return controller.mock_worker_api_MM_OCR(request)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
