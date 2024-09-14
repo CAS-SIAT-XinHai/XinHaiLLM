@@ -17,7 +17,7 @@ from typing import List
 
 from more_itertools import split_when
 from pydantic import BaseModel
-from prompt import XinHaiMMPrompt
+from xinhai.types.prompt import XinHaiMMPrompt
 
 from llamafactory.api.protocol import MultimodalInputItem, ImageURL
 
@@ -160,6 +160,9 @@ class XinHaiChatCompletionRequest(BaseModel):
                 messages.append(ms[0].to_chat(static_path))
         return messages
     
+class XinHaiMMPrompt(BaseModel):
+    name: str
+    prompt: str 
     
 class XinHaiMMRequest(BaseModel):
     id: str
