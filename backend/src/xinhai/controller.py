@@ -10,7 +10,7 @@ import re
 import threading
 import time
 from enum import Enum, auto
-from typing import List, Union
+from typing import List, Union, Optional
 
 import aiofiles
 import numpy as np
@@ -27,7 +27,7 @@ from fastapi.staticfiles import StaticFiles
 from more_itertools import sliced
 from openai import OpenAI, OpenAIError
 from sse_starlette import EventSourceResponse
-
+from pydantic import ValidationError
 from llamafactory.api.protocol import ChatCompletionResponse, ChatCompletionRequest
 from .config import CONTROLLER_HEART_BEAT_EXPIRATION, LOG_DIR, STATIC_PATH
 from .types.message import XinHaiChatCompletionRequest
@@ -910,27 +910,75 @@ class Controller:
 
         logger.error(r.text)
         return r.json()
-    
-    def mock_worker_api_MM_OCR(self, request:XinHaiMMRequest) -> XinHaiMMResponse:
 
-        prompts = request.prompts
-        print(prompts)
-        default_results = [XinHaiMMResult(
-            name=pr.name,
-            value='default'
-        ) for pr in prompts]
 
-        response_data = XinHaiMMResponse(
-            id=request.id,
-            type=request.type,
-            result=default_results,
-            version=request.version,
-            model=request.model,
-        )
+    async def worker_api_MM_OCR(self, request:Union[XinHaiMMRequest]) -> Optional[XinHaiMMResponse]:
+        worker_addr = self.get_worker_address(request.model)
+        logger.info(f"Worker {request.model}: {worker_addr} , {request}")
+        if not worker_addr:
+            logger.info(f"no worker: {request.model}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            return ret
 
-        return response_data
+        #第一种是用openai接口传，但是要转变成Chatrequest,所以注释掉了
+        # prompts=request.prompts
+        # image=request.image
+        # #messages的类型是messages: List[ChatMessage]，
+        # #则构建message
+        # messages=[]
+        # from llamafactory.api.protocol import MultimodalInputItem,ImageURL
+        # #messages第一个参数是图片
+        # messages.append(MultimodalInputItem(type="image_url", image_url=ImageURL(url=image)))
+        # #接下来是参数对，第一是prompt，第二是name
+        # for xinhaiPrompt in prompts:
+        #     prompt = MultimodalInputItem(type="text", text=xinhaiPrompt.prompt)
+        #     name=MultimodalInputItem(type="text", text=xinhaiPrompt.name)
+        #     messages.append(prompt.dict())
+        #     messages.append(name.dict())
+        # messages=[{
+        #     "role": "user",
+        #     "content": messages
+        # }]
+        #
+        # openai_api_key = "EMPTY"  # OPENAI_API_KEY
+        #openai_api_base = f"{worker_addr}/v1/"
 
-        
+        # client = OpenAI(
+        #     api_key=openai_api_key,
+        #     base_url=openai_api_base,
+        # )
+
+        # logger.info(f"Sending messages: {messages}!")
+        # #以下形式需要一个ChatCompletionRequest类型。返回的是ChatCompletionRespone类型。
+        # response = client.chat.completions.create(
+        #     model=request.model,
+        #     messages=messages
+        # )
+        # content = response.choices[0].message.content
+
+        #第二种直接访问对应接口
+        import httpx
+        url = f"{worker_addr}/v1/chat/agent"
+        request_data = request.dict()
+        response = requests.post(url, json=request_data)
+            # 检查响应状态
+        if response.status_code == 200:
+            response_data = response.json()
+            try:
+                # 将响应数据转换为 XinHaiMMResponse 实例
+                xin_hai_mm_response = XinHaiMMResponse(**response_data)
+                return xin_hai_mm_response
+            except ValidationError as e:
+                print("Response data validation error:", e)
+                return None
+        else:
+            print(f"Request failed with status code {response.status_code}")
+            return None
+
+
 
 
 app = FastAPI()
@@ -1141,7 +1189,7 @@ async def worker_api_search_chat(worker: str, request: Request):
 
 @app.post("/api/MM_OCR")
 async def worker_api_MM_OCR(request: XinHaiMMRequest):
-    return controller.mock_worker_api_MM_OCR(request)
+    return await controller.worker_api_MM_OCR(request)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
