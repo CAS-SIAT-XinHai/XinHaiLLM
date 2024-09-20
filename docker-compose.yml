@@ -2,7 +2,7 @@ version: "2.2"
 
 services:
   controller:
-    image: xinhai
+    image: xinhai_backend
     volumes:
       - ./backend:/usr/share/xinhai/backend
       - ./configs:/usr/share/xinhai/configs
@@ -20,7 +20,7 @@ services:
       timeout: 10s
       retries: 120
   frontend:
-    image: xinhai
+    image: xinhai_frontend
     volumes:
       - ./frontend:/usr/share/xinhai/frontend
       - ./configs:/usr/share/xinhai/configs
@@ -28,7 +28,7 @@ services:
     working_dir: /usr/share/xinhai/frontend
     command: npm run serve
   storage:
-    image: xinhai
+    image: xinhai_backend
     depends_on:
       - controller
     volumes:
@@ -49,10 +49,34 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              device_ids: [ '0' ]
+              device_ids: [ '${LLM_DEVICE}' ]
+              capabilities: [ gpu ]
+  ocr:
+    image: xinhai_backend
+    depends_on:
+      - controller
+      - storage
+    volumes:
+      - ./backend:/usr/share/xinhai/backend
+      - ./configs:/usr/share/xinhai/configs
+      - pretrained_models:/usr/share/xinhai/pretrained_models
+    environment:
+      LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}
+      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
+      MODEL_NAME: ${OCR_MODEL_NAME}
+      WORKER_ADDRESS: http://ocr:${OCR_WORKER_PORT}
+      WORKER_HOST: 0.0.0.0
+      WORKER_PORT: ${OCR_WORKER_PORT}
+    command: python -m xinhai.workers.ocr
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: [ '${OCR_DEVICE}' ]
               capabilities: [ gpu ]
   llm:
-    image: xinhai
+    image: xinhai_backend
     depends_on:
       - controller
       - storage
@@ -75,7 +99,7 @@ services:
               device_ids: [ '0' ]
               capabilities: [ gpu ]
   mllm:
-    image: xinhai
+    image: xinhai_backend
     depends_on:
       - controller
       - storage
