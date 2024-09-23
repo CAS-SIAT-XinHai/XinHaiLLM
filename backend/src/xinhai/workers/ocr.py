@@ -1,6 +1,13 @@
 """
 A model worker executes the model.
 """
+
+
+import df2img
+import numpy as np
+import pandas as pd
+from paddleocr import PaddleOCR, draw_ocr
+from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL, STATIC_PATH
 import base64
 import io
 import json
@@ -8,20 +15,18 @@ import os
 import threading
 import time
 import uuid
-
-import df2img
-import numpy as np
-import pandas as pd
-import requests
 import torch
+import requests
 import uvicorn
+from fastapi import FastAPI, HTTPException, status, Depends
+from fastapi import Request
 from PIL import Image
-from fastapi import FastAPI, Request
-from paddleocr import PaddleOCR, draw_ocr
-
-from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL, STATIC_PATH
-from ..utils import build_logger, pretty_print_semaphore
-
+from llamafactory.api.protocol import Role, ModelList, ModelCard, ChatCompletionResponse, ChatCompletionRequest, \
+    Function, \
+    ChatCompletionMessage, FunctionCall, Finish, ChatCompletionResponseChoice, ChatCompletionResponseUsage, \
+    ChatCompletionStreamResponse, ChatCompletionStreamResponseChoice
+from xinhai.config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
+from xinhai.utils import build_logger, pretty_print_semaphore
 GB = 1 << 30
 
 worker_id = str(uuid.uuid4())[:6]
@@ -125,16 +130,26 @@ class OCRModelWorker:
 
     @torch.inference_mode()
     def ocr_image(self, params):
-        image_name = params.get("image", None)
-        image = Image.open(os.path.join(STATIC_PATH, image_name)).convert("RGB")
+        image_url = params.get("image", None)
+        if image_url.startswith("data:image"):  # base64 image
+            image_data = base64.b64decode(image_url.split(",", maxsplit=1)[1])
+            image_path = io.BytesIO(image_data)
+        elif os.path.isfile(image_url):  # local file
+            image_path = open(image_url, "rb")
+        else:  # web uri
+            image_path = requests.get(image_url, stream=True).raw
+        image = Image.open(image_path).convert("RGB")
         result = self.ocr_model.ocr(np.asarray(image), cls=True)
+        # print(result)
         str_in_image, img_b64_str = self.get_ocred_result(image, result)
-        return json.dumps({
-            "title": image_name,
+        print(str_in_image)
+        response={
+            "title": image_url,
             "description": str_in_image,
             "image": img_b64_str,
             "error_code": 0
-        })
+        }
+        return response
 
     @torch.inference_mode()
     def parse_file(self, params):

@@ -17,8 +17,8 @@ from typing import List
 
 from more_itertools import split_when
 from pydantic import BaseModel
-from xinhai.types.prompt import XinHaiMMPrompt
-
+from .prompt import XinHaiMMPrompt
+from pydantic import BaseModel, Field
 from llamafactory.api.protocol import MultimodalInputItem, ImageURL
 
 if sys.version_info >= (3, 11):
@@ -160,9 +160,6 @@ class XinHaiChatCompletionRequest(BaseModel):
                 messages.append(ms[0].to_chat(static_path))
         return messages
     
-class XinHaiMMPrompt(BaseModel):
-    name: str
-    prompt: str 
     
 class XinHaiMMRequest(BaseModel):
     id: str
@@ -171,14 +168,14 @@ class XinHaiMMRequest(BaseModel):
     version: str
     model: str
     image: str
-    
+
 class XinHaiMMResult(BaseModel):
     name: str # the same as XinHaiMMPrompt.name
     value: str # the OCR result   
 
 class XinHaiMMResponse(BaseModel):
-    id: str
-    type: str
-    result:list[XinHaiMMResult]
-    version: str
-    model: str
+    id: str = Field(default="1")
+    type: str = Field(default="key")
+    result: List[XinHaiMMResult] = Field(default_factory=list)
+    version: str = Field(default="1.0")
+    model: str = Field(default="default_model")
