@@ -289,6 +289,89 @@ class Controller:
             logger.warning("*****************************************")
             logger.warning(f"Error response from {model}: {e}")
 
+    def worker_api_storage_chat(self, params):
+
+        knowledge_worker_addr = self.get_worker_address(params["knowledge"])
+        logger.info(f"Worker {params['knowledge']}: {knowledge_worker_addr}")
+        if not knowledge_worker_addr:
+            logger.info(f"no worker: {params['knowledge']}")
+            ret = {
+                "text": server_error_msg,
+                "error_code": 2,
+            }
+            return ret
+        worker_addr = "https://api.siliconflow.cn"
+        # worker_addr = self.get_worker_address(params["model"])
+        openai_api_key = ""  # OPENAI_API_KEY
+        openai_api_base = f"{worker_addr}/v1/"
+        client = OpenAI(
+            api_key=openai_api_key,
+            base_url=openai_api_base
+        )
+        # content is the psychology test questions
+        content = params["question"]
+        try:
+            r = requests.post(knowledge_worker_addr + "/worker_rag_storage",
+                              json={
+                                  "user_query": content,
+                                  "top_k": 5
+                              },
+                              timeout=60)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Get status fails: {knowledge_worker_addr}, {e}")
+            return None
+
+        if r.status_code != 200:
+            logger.error(f"Get status fails: {knowledge_worker_addr}, {r}")
+            return None
+
+        knowledge_data = r.json()
+        if isinstance(knowledge_data, str):
+            knowledge_data = json.loads(knowledge_data)
+
+        logger.info(f"Get response from [knowledge]: {knowledge_data}")
+
+        rewriting_prompt = ("##任务\n你是一位心理学领域的资深专家，你需要为给出的心理学测评题目选择最符合心理学原理的选项。\n\n"
+                            #"##示例题目及回答\n如果以下给出的示例题目及回答对你的本次回答具有帮助，你可以将它们作为参考\n{history}\n\n"
+                            "##可供参考的知识和经验\n如果以下给出的知识和经验对你的本次回答具有帮助，你可以将它们作为参考\n{ProEK}\n\n"
+                            "##需要你回答的心理学题目\n{query}\n\n"
+                            "##注意\n请以JSON格式返回你的答案，不要添加任何分析和其他内容。你的输出仅限于候选选项的字母，例如：{{'ans':'A'}}\n\n你的答案是：")
+        # for llama use
+        # rewriting_prompt =("## Task\nYou are a seasoned expert in the field of psychology. Your task is to select the option that best aligns with psychological principles for the given psychology assessment question.\n\n"
+        #                    "## Sample Question and Answer\nIf the sample questions and answers provided below are helpful for your current response, you may refer to them as a reference.\n{history}\n\n"
+        #                    # "## Knowledge and Experience for Reference\nIf the knowledge and experience provided below are helpful for your current response, you may refer to them as a reference.\n{ProEK}\n\n"
+        #                    "## Psychology Question You Need to Answer\n{query}\n\n"
+        #                    "## Note\nPlease return your answer in JSON format without adding any analysis or other content. Your output should be limited to the letter of the chosen option, for example: {{'ans':'A'}}\n\nYour answer is:")
+
+        answer_form = '```json{"ans": "(options)"}```'
+
+        history = []
+
+        for m in params["messages"]:
+            history.append(f"{m['role']}: {m['content']}")
+
+        messages = [{
+            "role": "user",
+            "content": rewriting_prompt.format(
+                history="\n".join(history),
+                query=content,
+                ProEK=knowledge_data["topk_chunks"],
+            ) + answer_form,
+        }]
+
+        while True:
+            logger.info(f"Sending messages to worker: {messages}")
+            content = self.chat_completion(client, model=params['model'], messages=messages)
+            if content:
+                try:
+                    json_string = re.search(r"\s*(\{.*?\})\s*", content, re.DOTALL).group(1)
+                    rr = json.loads(json_string)
+                    if rr["ans"]:
+                        logger.info(f"Returning response from worker: {rr}")
+                        return rr
+                except Exception as e:
+                    logger.error(f"Returning response error:{content}")
+
     def worker_api_rag_chat(self, params):
 
         knowledge_worker_addr = self.get_worker_address(params["knowledge"])
@@ -819,8 +902,8 @@ class Controller:
 
         try:
             r = requests.post(worker_addr + "/worker_rag_query",
-                            json=params,
-                            timeout=60)        
+                              json=params,
+                              timeout=60)
         except requests.exceptions.RequestException as e:
             logger.error(f"Get status fails: {worker_addr}, {e}")
             return None
@@ -835,7 +918,7 @@ class Controller:
 
         logger.info(f"Get response from [{worker}]: {knowledge_data}")
         return knowledge_data
-    
+
     def worker_api_query_search_meta(self, worker, params):
         worker_addr = self.get_worker_address(worker)
         logger.info(f"Worker {worker}: {worker_addr}")
@@ -1069,6 +1152,12 @@ async def worker_api_rag_streaming(request: Request):
     params = await request.json()
     generator = controller.worker_api_rag_streaming(params)
     return StreamingResponse(generator)
+
+
+@app.post("/api/storage-chat-completion")
+async def worker_api_storage_chat(request: Request):
+    params = await request.json()
+    return controller.worker_api_storage_chat(params)
 
 
 @app.post("/api/audit-gists")

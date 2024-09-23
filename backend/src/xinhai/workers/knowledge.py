@@ -132,7 +132,7 @@ class RAGWorker:
         docs = query_res["documents"][0]
         metas = query_res["metadatas"][0]
         return docs, metas
-    
+
     def get_sentence_pairs(self, query, chunks):
         sentence_pairs = [[query, chunks[i]] for i in range(len(chunks))]
         return sentence_pairs
@@ -154,9 +154,12 @@ class RAGWorker:
         for i, score in enumerate(scores):
             sort_scores[i] = score
         scores_ = sorted(sort_scores.items(), key=lambda item: item[1], reverse=True)
+        # make sure top_k does not exceed the number of available scores
+        top_k = min(top_k, len(scores_))
         topk_indx = [scores_[i][0] for i in range(top_k)]
         return topk_indx
-        
+
+
     def rag(self, params):
         ### metadatas的格式：[{"source": "Human"}, {"source": "AI"}]
         ### documents格式: ['one', 'tow']
@@ -186,7 +189,7 @@ class RAGWorker:
         #     if not os.path.exists(cache_folder_path):
         #         os.makedirs(cache_folder_path)
         #     rids_path = os.path.join(cache_folder_path, cache_file_path)
-            
+
         #     if not os.path.exists(rids_path):
         #         tmp_list = []
         #         with open(rids_path, 'w') as f:
@@ -213,6 +216,20 @@ class RAGWorker:
             "rag_pro_knowledge_metas": topk_metas
         }, ensure_ascii=False)
 
+    def rag_storage(self, params):
+        query = params.get('user_query')
+        top_k = params.get('top_k', 5)
+        pro_collection = self.pro_client.get_or_create_collection(name="psyschool_4p_zh_20240908-0_summary",
+                                                                  embedding_function=embedding_fn)
+        pro_chunks = [i for i in pro_collection.query(query_texts=query, n_results=70)['documents'][0]]
+        pro_sentence_pairs = self.get_sentence_pairs(query, pro_chunks)
+        topk_indx = self.reranker_topk(pro_sentence_pairs, top_k)
+        topk_chunks = [pro_chunks[indx] for indx in topk_indx]
+
+        return json.dumps({
+            "topk_chunks": topk_chunks
+        }, ensure_ascii=False)
+
 
 app = FastAPI()
 
@@ -233,6 +250,12 @@ async def rag_query(request: Request):
 async def rag_query_meta(request: Request):
     params = await request.json()
     return worker.rag_meta(params)
+
+
+@app.post("/worker_rag_storage")
+async def rag_storage(request: Request):
+    params = await request.json()
+    return worker.rag_storage(params)
 
 
 @app.post("/worker_get_status")
