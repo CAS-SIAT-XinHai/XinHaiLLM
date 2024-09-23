@@ -4,8 +4,7 @@ Licensed under the CC0-1.0 license.
 
 XinHai stands for [Sea of Minds].
 
-Authors: Vimos Tan
-         yangdi
+Authors:wuhaihong
 Date: 2024-07-19 17:22:57
 LastEditTime: 2024-07-19 17:28:20
 """
@@ -75,7 +74,6 @@ class OCR_AGENT(BaseAgent):
             logger.warning(f"Error response from Agent-{agent_id}: {e}")
 
     def complete_conversation(self, prompt, num_retries=5):
-
         messages = [{
             "role": "user",
             "content": prompt,
@@ -89,7 +87,7 @@ class OCR_AGENT(BaseAgent):
                 chat_response = str(chat_response)
                 #rr = format_pattern.search(chat_response)
                 # 由于整个匹配的字符串并不会以子组形式返回，所以需要手动提取整个匹配部分
-                json_pattern = re.compile(r'\{.*?\}', re.DOTALL)  # re.DOTALL 允许 . 匹配换行符
+                json_pattern = re.compile(r'\{\s*"question_answer":\s*"(.*?)"\s*\}', re.DOTALL)  # re.DOTALL 允许 . 匹配换行符
                 rr = json_pattern.search(chat_response)
                 if rr:
                     json_str = rr.group(0)  # 提取 JSON 字符串
@@ -124,11 +122,11 @@ class OCR_AGENT(BaseAgent):
             role, content = self.ocr_conversation(image_url)
         except Exception as e:
             role, content="",""
-            print("ocr工具出错！")
-        ocr_tool_answer = "OCR Tool对图片进行了OCR文字识别,识别出的文字内容如下:" + content
+            logger.warning("ocr工具出错！")
+        ocr_tool_answer = "OCR Tool performs OCR text recognition on the image, and the recognized text content is as follows:" + content
         prompt = self.Answer_Refactoring_Template.format(role_description=self.role_description,
                                                     user_question=user_question,
-                                                    answer_template='{{' + self.answer_template[1:-1] + '}}',
+                                                    answer_template='{' + self.answer_template[1:-1] + '}',
                                                     ocr_tool_answer=ocr_tool_answer,
                                                     )
 

@@ -4,7 +4,7 @@ Licensed under the CC0-1.0 license.
 
 XinHai stands for [Sea of Minds].
 
-Authors: Vimos Tan
+Authors: wuhaihong
 """
 from typing import Any, List
 

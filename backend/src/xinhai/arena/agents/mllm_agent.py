@@ -4,8 +4,7 @@ Licensed under the CC0-1.0 license.
 
 XinHai stands for [Sea of Minds].
 
-Authors: Vimos Tan
-         yangdi
+Authors:wuhaihong
 Date: 2024-07-19 17:22:57
 LastEditTime: 2024-07-19 17:28:20
 """
@@ -92,32 +91,37 @@ class MLLM_AGENT(BaseAgent):
         txt = MultimodalInputItem(type="text", text=prompt)
         pie = MultimodalInputItem(type="image_url",
                                   image_url=ImageURL(url=image_url))
-
         messages =[{
         "role": "user",
         "content": [txt.dict(),pie.dict()]
     }]
         format_pattern = re.compile(r'\{(?:\s*"(.*?)"\s*:\s*"(.*?)"\s*,?)*\}')
 
-        while True:
+        attempts = 0  # 初始化计数器
+        max_attempts = 5  # 最大尝试次数
+        rr=[]
+        chat_response="no answer"
+        while attempts < max_attempts:  # 设置循环条件为尝试次数不超过 5 次
             logger.debug(messages)
             chat_response = self.chat_completion(self.client, model=self.llm, agent_id=self.agent_id, messages=messages)
             if chat_response:
                 rr = format_pattern.findall(chat_response)
                 if rr:
                     break
+            attempts += 1
+        if rr==[]:
+            rr=['({},{})'.format("key",chat_response)]
+
         last_match = rr[-1]
-
-        # last_match 是一个元组，包含多个键值对，如 ('对象1', '值1', '对象2', '值2', ...)
-        # 需要将这些元素重新组合成所需的字符串格式
-
         formatted_parts = []
         for i in range(0, len(last_match), 2):
-            key = last_match[i]
-            value = last_match[i + 1]
-            if key and value:  # 确保 key 和 value 都存在
-                formatted_parts.append('"{}":"{}"'.format(key, value))
-
+            try:
+                key = last_match[i]
+                value = last_match[i + 1]
+                if key and value:  # 确保 key 和 value 都存在
+                    formatted_parts.append('"{}":"{}"'.format(key, value))
+            except Exception as e:
+                    formatted_parts.append('"{}":"{}"'.format("key", "value"))
         # 将这些格式化后的部分组合成最终字符串
         formatted_string = '{' + ','.join(formatted_parts) + '}'
 

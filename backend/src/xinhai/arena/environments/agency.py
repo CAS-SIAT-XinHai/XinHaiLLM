@@ -16,7 +16,6 @@ from xinhai.types.message import XinHaiChatMessage
 
 logger = logging.getLogger(__name__)
 
-
 @register_environment(XinHaiArenaEnvironmentTypes.AGENCY)
 class AgencyEnvironment(BaseEnvironment):
     """

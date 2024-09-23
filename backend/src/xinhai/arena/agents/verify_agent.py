@@ -4,8 +4,7 @@ Licensed under the CC0-1.0 license.
 
 XinHai stands for [Sea of Minds].
 
-Authors: Vimos Tan
-         yangdi
+Authors: wuhaihong
 Date: 2024-07-19 17:22:57
 LastEditTime: 2024-07-19 17:28:20
 """
@@ -90,13 +89,13 @@ class VERIFY_AGENT(BaseAgent):
                 #提取出json部分
                 if rr:
                     response=rr[0].strip()
-                    json_pattern = re.compile(r'\{.*?\}', re.DOTALL)  # re.DOTALL 允许 . 匹配换行符
+                    json_pattern = re.compile(r'\{\s*"question_answer":\s*"(.*?)"\s*\}', re.DOTALL)   # re.DOTALL 允许 . 匹配换行符
                     response = json_pattern.search(response)
                     if response:
                         json_str = response.group(0)  # 提取 JSON 字符串
                         try:
                             response_data = json.loads(json_str)  # 将 JSON 字符串转换为字典
-                            print(response_data)
+                            #print(response_data)
                             break
                         except json.JSONDecodeError as e:
                             print(f"JSON 解码失败: {e}")

@@ -4,7 +4,7 @@ Licensed under the CC0-1.0 license.
 
 XinHai stands for [Sea of Minds].
 
-Authors: Vimos Tan
+Authors: wuhaihong`
 """
 import json
 import logging
@@ -17,7 +17,7 @@ from xinhai.types.arena import XinHaiArenaAgentTypes, XinHaiArenaEnvironmentType
 from xinhai.types.message import XinHaiChatMessage
 
 
-from llamafactory.chat.base_engine import BaseEngine, Response
+from llamafactory.chat.base_engine import  Response
 logger = logging.getLogger(__name__)
 
 @register_environment(XinHaiArenaEnvironmentTypes.OCRAGENCY)
@@ -58,7 +58,7 @@ class AgencyEnvironment(BaseEnvironment):
                    num_return_sequences):
 
         user_question, image_path=self.extract_text_and_images(input_messages)
-        print("image_path:" + str(image_path))
+        #print("image_path:" + str(image_path))
         # 上传图片到内存IO中
         # url = f"{self.controller_address}/api/upload-file"
         # with open(image_path, "rb") as file:
@@ -78,23 +78,23 @@ class AgencyEnvironment(BaseEnvironment):
             image_url=image_path,
             user_question=user_question
         ).content
-        # ocr_agent_message = ocr_agent.step(
-        #     routing=routing,
-        #     agents=agents,
-        #     image_url=image_path,
-        #     user_question=user_question
-        # ).content
-        # verify_agent_message = verify_agent.step(
-        #     routing=routing,
-        #     agents=agents,
-        #     ocr_agent_answer=ocr_agent_message,
-        #     mllm_agent_answer=mllm_agent_message,
-        #     user_question=user_question
-        # ).content
+        ocr_agent_message = ocr_agent.step(
+            routing=routing,
+            agents=agents,
+            image_url=image_path,
+            user_question=user_question
+        ).content
+        verify_agent_message = verify_agent.step(
+            routing=routing,
+            agents=agents,
+            ocr_agent_answer=ocr_agent_message,
+            mllm_agent_answer=mllm_agent_message,
+            user_question=user_question
+        ).content
 
 
         # 存进一个result文件里面
-        result_message=mllm_agent_message
+        result_message=verify_agent_message
         results=[]
         results.append(
             Response(

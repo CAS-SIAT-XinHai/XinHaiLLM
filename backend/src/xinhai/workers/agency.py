@@ -260,7 +260,7 @@ async def create_stream_chat_completion_response(
     })
 
 
-def to_ChatCompletionRequests(
+def to_chat_completion_requests(
         request: XinHaiMMRequest,
 )->List[ChatCompletionRequest]:
     prompts = request.prompts
@@ -297,7 +297,7 @@ def to_ChatCompletionRequests(
         requests.append(request)
     return requests
 
-def to_XinHaiMMResponse(
+def to_xinhai_mm_response(
         request:XinHaiMMRequest,responses:List[ChatCompletionResponse]
 )->XinHaiMMResponse:
     model=""
@@ -360,12 +360,12 @@ async def create_chat_completion(request: ChatCompletionRequest):
     #dependencies=[Depends(verify_api_key)],
 )
 async def create_chat_completion(xinhaimmrequest: XinHaiMMRequest):
-        requests=to_ChatCompletionRequests(xinhaimmrequest)
+        requests=to_chat_completion_requests(xinhaimmrequest)
         respones=[]
         for request in requests:
             respone=await create_chat_completion_response(request)
             respones.append(respone)
-        result=to_XinHaiMMResponse(xinhaimmrequest,respones)
+        result=to_xinhai_mm_response(xinhaimmrequest,respones)
         return result
 
 if __name__ == "__main__":

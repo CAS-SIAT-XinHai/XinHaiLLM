@@ -912,7 +912,7 @@ class Controller:
         return r.json()
 
 
-    async def worker_api_MM_OCR(self, request:Union[XinHaiMMRequest]) -> Optional[XinHaiMMResponse]:
+    async def worker_api_mm_ocr(self, request:Union[XinHaiMMRequest]) -> Optional[XinHaiMMResponse]:
         worker_addr = self.get_worker_address(request.model)
         logger.info(f"Worker {request.model}: {worker_addr} , {request}")
         if not worker_addr:
@@ -977,8 +977,6 @@ class Controller:
         else:
             print(f"Request failed with status code {response.status_code}")
             return None
-
-
 
 
 app = FastAPI()
@@ -1187,9 +1185,9 @@ async def worker_api_search_chat(worker: str, request: Request):
     return controller.worker_api_search_chat(worker, params)
 
 
-@app.post("/api/MM_OCR")
-async def worker_api_MM_OCR(request: XinHaiMMRequest):
-    return await controller.worker_api_MM_OCR(request)
+@app.post("/api/mm_ocr")
+async def worker_api_mm_ocr(request: XinHaiMMRequest):
+    return await controller.worker_api_mm_ocr(request)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

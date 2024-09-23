@@ -130,14 +130,21 @@ class OCRModelWorker:
 
     @torch.inference_mode()
     def ocr_image(self, params):
-        image_name = params.get("image", None)
-        image = Image.open(image_name).convert("RGB")
+        image_url = params.get("image", None)
+        if image_url.startswith("data:image"):  # base64 image
+            image_data = base64.b64decode(image_url.split(",", maxsplit=1)[1])
+            image_path = io.BytesIO(image_data)
+        elif os.path.isfile(image_url):  # local file
+            image_path = open(image_url, "rb")
+        else:  # web uri
+            image_path = requests.get(image_url, stream=True).raw
+        image = Image.open(image_path).convert("RGB")
         result = self.ocr_model.ocr(np.asarray(image), cls=True)
         # print(result)
         str_in_image, img_b64_str = self.get_ocred_result(image, result)
         print(str_in_image)
         response={
-            "title": image_name,
+            "title": image_url,
             "description": str_in_image,
             "image": img_b64_str,
             "error_code": 0

@@ -55,7 +55,7 @@ class XinHaiChatMessage(BaseModel):
     # seen: Optional[bool]
     # deleted: Optional[bool]
     # failure: Optional[bool]
-    # disableActions: Optio-nal[bool]
+    # disableActions: Optional[bool]
     # disableReactions: Optional[bool]
     files: List[XinHaiChatFile] = []
 
