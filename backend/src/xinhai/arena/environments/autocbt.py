@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 @register_environment("autocbt")
 class AutoCBTEnvironment(BaseEnvironment):
-
     async def step(self):
         """Run one step of the environment"""
         agent_queue = [self.agents[0]]
