@@ -79,43 +79,6 @@ def compute_score_from_dict():
         print(f"{file_path} -> {formatted_dict} -> Overall：{sum([float(v) for v in formatted_dict.values()]):.3f}")
         print("==========================================================")
 
-def gpt4(message: list):
-    model = os.environ.get("API_MODEL")
-    openai_api_key = os.environ.get("API_KEY")
-    openai_api_base = os.environ.get("API_BASE")
-    if "gpt" not in model:
-        client = OpenAI(api_key=openai_api_key, base_url=openai_api_base)
-    else:
-        client = OpenAI(api_key=openai_api_key)
-    completion = client.chat.completions.create(model=model, messages=message)
-    return completion.choices[0].message.content
-
-def single_qa_scoring(data_dict, read_file:str):
-    # 多轮的history和单轮qa的history可能不一样，按照你觉得合适的方法，组装这个history就行
-    if "psyqa" in read_file:
-        system_prompt = f'''# 角色：\n您是一位公正的评判员，熟悉心理学知识和心理咨询。\n\n## 注意：\n您的职责是评估AI心理咨询师对患者心理问题的回答质量。您的评估应参照历史对话内容，并仅根据评估标准打分。\n\n## 评估标准：\n### 共情 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的共情程度，即心理咨询师是否在回复内容中表达了对患者焦虑与痛苦的理解和同情，并是否为患者营造了自由表达焦虑与痛苦的安全感。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，是否正确理解了患者的提问意图？\n* 心理咨询师的回复内容中，是否对患者的焦虑与痛苦表示尊重、理解和同情？\n* 心理咨询师的回复内容中，是否为患者营造了自由表达焦虑与痛苦的安全感？\n\n### 信念 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的认知扭曲程度，即心理咨询师是否在回复内容中识别出了患者焦虑与痛苦背后错误扭曲的认知信念，深入探讨并帮助患者挑战自己错误扭曲的认知信念。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，是否识别到了患者错误扭曲的认知信念？\n* 心理咨询师的回复内容中，是否深入探讨了患者错误扭曲的认知信念？\n* 心理咨询师的回复内容中，是否帮助患者识别和挑战自己错误扭曲的认知信念？\n\n### 反思 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的反思程度，即心理咨询师是否在回复内容中提出了一些问题，来鼓励患者重新反思考虑他们的初始想法或错误扭曲的认知信念。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，是否提出了与患者的初始想法相关的问题？\n* 心理咨询师的回复内容中，是否提出了能帮助患者进行深入思考的问题？\n* 心理咨询师的回复内容中，是否提出了能反映患者错误扭曲的认知信念的问题？\n\n### 策略 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的策略可行性，即确定心理咨询师是否在回复内容中，提供了有益于缓解或解决患者当前焦虑与痛苦的策略或见解，来帮助患者解决当前遇到的情况。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，提供的策略或见解是否可行？\n* 心理咨询师的回复内容中，提供的策略或见解能否解决患者当前的问题？\n* 心理咨询师的回复内容中，提供的策略是否为专业的心理治疗方法？\n\n### 鼓励 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的鼓励程度，即心理咨询师是否在回复内容中鼓励患者采用相应的策略或见解，强调这只是开始，鼓励患者一步一步地改变现状。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，是否鼓励了患者采取行动应对当前的情况？\n* 心理咨询师的回复内容中，是否对患者未来执行策略遇到失败的可能性，进行提醒和分析？\n* 心理咨询师的回复内容中，是否对患者未来执行策略遇到的挫折与痛苦，进行鼓舞和安慰？\n\n### 相关性 (0-7分)：\n您需要确定咨询师的回答与患者的提问之间的相关性。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回答内容与患者的提问内容是否高度相关？\n* 心理咨询师的回答内容是否自然流畅？\n* 心理咨询师的回答是否涵盖了患者提问的主要问题或关注点？\n\n## 约束条件\n- 请您避免任何偏见，保持客观，并确保回答呈现的顺序不会影响您的判断；\n- 请不要让回答的长度影响您的评估；\n\n## 工作流程\n请根据以上六个评估指标，分析患者与心理咨询师之间的对话历史，然后给出您的评分。\n请以JSON格式返回评分。参考输出格式如下：\n* 您的分析内容。\n* {{"共情分数": "xx", "辨识分数": "xx", "反思分数": "xx", "策略分数": "xx", "鼓励分数": "xx", "相关性分数": "xx"}} \n\n下面将给出患者与心理咨询师之间具体的对话历史，让我们深呼吸，一步一步地思考！'''
-        history = f"用户提问=【{data_dict['question'] + data_dict['description']}】\n\n咨询师回复=【{data_dict['cbt_answer']}】"
-    else:
-        # 英文的system_prompt和history
-        system_prompt = ""
-        history = ""
-    message = [{"role": "system", "content": system_prompt}, {"role": "user", "content": history}]
-    result = gpt4(message)
-    data_dict["score"] = result
-    return data_dict
-def special_index_scoring(special_index:int, language='zh'):
-    read_file_list = read_json_files()
-    for read_file in read_file_list:
-        whole_path = f"{read_data_path}/{read_file}"
-        with open(whole_path, 'r', encoding='utf-8') as f:
-            json_list = json.load(f)
-
-        data_dict = json_list[special_index]
-        data_dict = single_qa_scoring(data_dict, read_file)
-        print(data_dict)
-        with open(f"{save_data_path}/special_index_scoring_{read_file}", 'w', encoding='utf-8') as f:
-            json.dump(data_dict, f, indent=4, ensure_ascii=False)
-
 def clear_old_score(read_file_list):
     if read_file_list is None:
         read_file_list = read_json_files()
@@ -130,81 +93,6 @@ def clear_old_score(read_file_list):
             result_list.append(data_dict)
         with open(f"{read_data_path}/{read_file}", 'w', encoding='utf-8') as f:
             json.dump(result_list, f, indent=4, ensure_ascii=False)
-
-def psyqa_auto_scoring(read_file_list=None):
-    if read_file_list is None:
-        read_file_list = read_json_files()
-    for read_file in read_file_list:
-        whole_path = f"{read_data_path}/{read_file}"
-        with open(whole_path, 'r', encoding='utf-8') as f:
-            json_list = json.load(f)
-        result_list = []
-        for index, data_dict in enumerate(json_list):
-            if "score" in data_dict.keys():
-                data_dict.pop("score")
-            data_dict = single_qa_scoring(data_dict, read_file)
-            result_list.append(data_dict)
-            print(f"============{index}：{data_dict['score']}==============================")
-            with open(f"{save_data_path}/{read_file}", 'w', encoding='utf-8') as f:
-                json.dump(result_list, f, indent=4, ensure_ascii=False)
-
-def psyqa_autocbt_scoring_fine(read_file_list=None):
-    if read_file_list is None:
-        read_file_list = read_json_files()
-    for read_file in read_file_list:
-        whole_path = f"{read_data_path}/{read_file}"
-        with open(whole_path, 'r', encoding='utf-8') as f:
-            json_list = json.load(f)
-        result_list = []
-        for _, data_dict in enumerate(json_list):
-            cbt_history = data_dict['cbt_history']
-            cbt_history_score = {}
-            for index, history_dict in enumerate(cbt_history):
-                if "咨询师" not in history_dict['message']['username']:
-                    continue
-                three_time_score_each_response = []
-                current_history_content = history_dict['message']['content']
-                system_prompt = f'''# 角色：\n您是一位公正的评判员，熟悉心理学知识和心理咨询。\n\n## 注意：\n您的职责是评估AI心理咨询师对患者心理问题的回答质量。您的评估应参照历史对话内容，并仅根据评估标准打分。\n\n## 评估标准：\n### 共情 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的共情程度，即心理咨询师是否在回复内容中表达了对患者焦虑与痛苦的理解和同情，并是否为患者营造了自由表达焦虑与痛苦的安全感。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，是否正确理解了患者的提问意图？\n* 心理咨询师的回复内容中，是否对患者的焦虑与痛苦表示尊重、理解和同情？\n* 心理咨询师的回复内容中，是否为患者营造了自由表达焦虑与痛苦的安全感？\n\n### 信念 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的认知扭曲程度，即心理咨询师是否在回复内容中识别出了患者焦虑与痛苦背后错误扭曲的认知信念，深入探讨并帮助患者挑战自己错误扭曲的认知信念。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，是否识别到了患者错误扭曲的认知信念？\n* 心理咨询师的回复内容中，是否深入探讨了患者错误扭曲的认知信念？\n* 心理咨询师的回复内容中，是否帮助患者识别和挑战自己错误扭曲的认知信念？\n\n### 反思 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的反思程度，即心理咨询师是否在回复内容中提出了一些问题，来鼓励患者重新反思考虑他们的初始想法或错误扭曲的认知信念。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，是否提出了与患者的初始想法相关的问题？\n* 心理咨询师的回复内容中，是否提出了能帮助患者进行深入思考的问题？\n* 心理咨询师的回复内容中，是否提出了能反映患者错误扭曲的认知信念的问题？\n\n### 策略 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的策略可行性，即确定心理咨询师是否在回复内容中，提供了有益于缓解或解决患者当前焦虑与痛苦的策略或见解，来帮助患者解决当前遇到的情况。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，提供的策略或见解是否可行？\n* 心理咨询师的回复内容中，提供的策略或见解能否解决患者当前的问题？\n* 心理咨询师的回复内容中，提供的策略是否为专业的心理治疗方法？\n\n### 鼓励 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的鼓励程度，即心理咨询师是否在回复内容中鼓励患者采用相应的策略或见解，强调这只是开始，鼓励患者一步一步地改变现状。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，是否鼓励了患者采取行动应对当前的情况？\n* 心理咨询师的回复内容中，是否对患者未来执行策略遇到失败的可能性，进行提醒和分析？\n* 心理咨询师的回复内容中，是否对患者未来执行策略遇到的挫折与痛苦，进行鼓舞和安慰？\n\n### 相关性 (0-7分)：\n您需要确定咨询师的回答与患者的提问之间的相关性。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回答内容与患者的提问内容是否高度相关？\n* 心理咨询师的回答内容是否自然流畅？\n* 心理咨询师的回答是否涵盖了患者提问的主要问题或关注点？\n\n## 约束条件\n- 请您避免任何偏见，保持客观，并确保回答呈现的顺序不会影响您的判断；\n- 请不要让回答的长度影响您的评估；\n\n## 工作流程\n请根据以上六个评估指标，分析患者与心理咨询师之间的对话历史，然后给出您的评分。\n请以JSON格式返回评分。参考输出格式如下：\n* 您的分析内容。\n* {{"共情分数": "xx", "辨识分数": "xx", "反思分数": "xx", "策略分数": "xx", "鼓励分数": "xx", "相关性分数": "xx"}} \n\n下面将给出患者与心理咨询师之间具体的对话历史，让我们深呼吸，一步一步地思考！'''
-                history = f"用户提问=【{data_dict['question'] + data_dict['description']}】\n\n咨询师回复=【{current_history_content}】"
-
-                message = [{"role": "system", "content": system_prompt}, {"role": "user", "content": history}]
-                for _ in range(3):
-                    print(f"---{_}/3次")
-                    result = gpt4(message)
-                    three_time_score_each_response.append(result)
-                    time.sleep(2)
-                cbt_history_score[str(index)] = three_time_score_each_response
-            data_dict["cbt_history_score"] = cbt_history_score
-            result_list.append(data_dict)
-            print(f'''============{_}：{data_dict['cbt_history_score']}==============================''')
-            with open(f"{save_data_path}/fine-score-three-time_{read_file}", 'w', encoding='utf-8') as f:
-                json.dump(result_list, f, indent=4, ensure_ascii=False)
-
-def psyqa_prompt_scoring_fine(read_file_list=None):
-    if read_file_list is None:
-        read_file_list = read_json_files()
-    for read_file in read_file_list:
-        whole_path = f"{read_data_path}/{read_file}"
-        with open(whole_path, 'r', encoding='utf-8') as f:
-            json_list = json.load(f)
-        result_list = []
-        for index, data_dict in enumerate(json_list):
-            three_time_score_each_response = []
-            system_prompt = f'''# 角色：\n您是一位公正的评判员，熟悉心理学知识和心理咨询。\n\n## 注意：\n您的职责是评估AI心理咨询师对患者心理问题的回答质量。您的评估应参照历史对话内容，并仅根据评估标准打分。\n\n## 评估标准：\n### 共情 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的共情程度，即心理咨询师是否在回复内容中表达了对患者焦虑与痛苦的理解和同情，并是否为患者营造了自由表达焦虑与痛苦的安全感。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，是否正确理解了患者的提问意图？\n* 心理咨询师的回复内容中，是否对患者的焦虑与痛苦表示尊重、理解和同情？\n* 心理咨询师的回复内容中，是否为患者营造了自由表达焦虑与痛苦的安全感？\n\n### 信念 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的认知扭曲程度，即心理咨询师是否在回复内容中识别出了患者焦虑与痛苦背后错误扭曲的认知信念，深入探讨并帮助患者挑战自己错误扭曲的认知信念。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，是否识别到了患者错误扭曲的认知信念？\n* 心理咨询师的回复内容中，是否深入探讨了患者错误扭曲的认知信念？\n* 心理咨询师的回复内容中，是否帮助患者识别和挑战自己错误扭曲的认知信念？\n\n### 反思 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的反思程度，即心理咨询师是否在回复内容中提出了一些问题，来鼓励患者重新反思考虑他们的初始想法或错误扭曲的认知信念。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，是否提出了与患者的初始想法相关的问题？\n* 心理咨询师的回复内容中，是否提出了能帮助患者进行深入思考的问题？\n* 心理咨询师的回复内容中，是否提出了能反映患者错误扭曲的认知信念的问题？\n\n### 策略 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的策略可行性，即确定心理咨询师是否在回复内容中，提供了有益于缓解或解决患者当前焦虑与痛苦的策略或见解，来帮助患者解决当前遇到的情况。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，提供的策略或见解是否可行？\n* 心理咨询师的回复内容中，提供的策略或见解能否解决患者当前的问题？\n* 心理咨询师的回复内容中，提供的策略是否为专业的心理治疗方法？\n\n### 鼓励 (0-7分)：\n您需要确定患者的提问与心理咨询师的回复之间的鼓励程度，即心理咨询师是否在回复内容中鼓励患者采用相应的策略或见解，强调这只是开始，鼓励患者一步一步地改变现状。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回复内容中，是否鼓励了患者采取行动应对当前的情况？\n* 心理咨询师的回复内容中，是否对患者未来执行策略遇到失败的可能性，进行提醒和分析？\n* 心理咨询师的回复内容中，是否对患者未来执行策略遇到的挫折与痛苦，进行鼓舞和安慰？\n\n### 相关性 (0-7分)：\n您需要确定咨询师的回答与患者的提问之间的相关性。您需要关注的点包括但不限于以下方面：\n* 心理咨询师的回答内容与患者的提问内容是否高度相关？\n* 心理咨询师的回答内容是否自然流畅？\n* 心理咨询师的回答是否涵盖了患者提问的主要问题或关注点？\n\n## 约束条件\n- 请您避免任何偏见，保持客观，并确保回答呈现的顺序不会影响您的判断；\n- 请不要让回答的长度影响您的评估；\n\n## 工作流程\n请根据以上六个评估指标，分析患者与心理咨询师之间的对话历史，然后给出您的评分。\n请以JSON格式返回评分。参考输出格式如下：\n* 您的分析内容。\n* {{"共情分数": "xx", "辨识分数": "xx", "反思分数": "xx", "策略分数": "xx", "鼓励分数": "xx", "相关性分数": "xx"}} \n\n下面将给出患者与心理咨询师之间具体的对话历史，让我们深呼吸，一步一步地思考！'''
-            history = f"用户提问=【{data_dict['question'] + data_dict['description']}】\n\n咨询师回复=【{data_dict['cbt_answer']}】"
-
-            message = [{"role": "system", "content": system_prompt}, {"role": "user", "content": history}]
-            for x in range(3):
-                print(f"---{x}/3次")
-                result = gpt4(message)
-                three_time_score_each_response.append(result)
-            print(f"XXXXX{index}结束")
-
-            data_dict["cbt_history_score"] = three_time_score_each_response
-            result_list.append(data_dict)
-            print(f'''============{index}：{data_dict['cbt_history_score']}==============================''')
-            with open(f"{save_data_path}/fine-score-three-time-prompt_{read_file}", 'w', encoding='utf-8') as f:
-                json.dump(result_list, f, indent=4, ensure_ascii=False)
 
 #计算平均总分
 def compute_autocbt_score_fine(read_file_list=None):
