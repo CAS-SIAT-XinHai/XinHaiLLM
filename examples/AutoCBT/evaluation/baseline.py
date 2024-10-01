@@ -1,8 +1,8 @@
-import json, datetime, pytz
+import json, datetime, pytz, os
 from openai import OpenAI
 
 # read_data_path = "/data/xuancheng/koenshen/data"
-read_data_path = "/data/yangmin/autocbt/data"
+read_data_path = "/mnt/c/koenshen/SVN/XinHaiLLM_data_and_db/data"
 save_data_path = f"{read_data_path}/result"
 beijing_tz = pytz.timezone('Asia/Shanghai')  # 创建北京时间（亚洲/上海）时区对象
 
@@ -17,9 +17,9 @@ def meta_llama31_8b_instruct(message: list):
 
 
 def ali_qwen(message: list):
-    model = 'Qwen1.5-7B-Chat'
-    openai_api_key = "EMPTY"
-    openai_api_base = "http://localhost:40001/v1"
+    model = os.environ.get("API_MODEL")
+    openai_api_key = os.environ.get("API_KEY")
+    openai_api_base = os.environ.get("API_BASE")
     client = OpenAI(api_key=openai_api_key, base_url=openai_api_base)
     completion = client.chat.completions.create(model=model, messages=message)
     return completion.choices[0].message.content
@@ -49,8 +49,7 @@ def generate_cbtllm_answer(file_path=f"{read_data_path}/psyqa_balanced.json",
             json.dump(qa_list, f, indent=4, ensure_ascii=False)
 
 
-def generate_cbt_zh_response_with_prompt(file_path=f"{read_data_path}/psyqa_balanced.json",
-                                         save_path=f"{save_data_path}/psyqa_balanced_qwen_prompt.json"):
+def generate_cbt_zh_response_with_prompt(file_path=f"{read_data_path}/psyqa_balanced.json", save_path=f"{save_data_path}/psyqa_balanced_qwen_prompt.json"):
     with open(file_path, 'r', encoding='utf-8') as f:
         qa_list = json.load(f)
     for index, top_dict in enumerate(qa_list):
@@ -75,19 +74,21 @@ def generate_cbt_zh_response(file_path=f"{read_data_path}/psyqa_balanced.json",
                              save_path=f"{save_data_path}/psyqa_balanced_qwen_pure.json"):
     with open(file_path, 'r', encoding='utf-8') as f:
         qa_list = json.load(f)
+    result_list = []
     for index, top_dict in enumerate(qa_list):
         message = [{"role": "user", "content": top_dict["question"] + top_dict["description"]}]
         answer = ali_qwen(message)
-        print(f"psyqa_balanced_qwen_pure-{index}，message={message}")
+        print(f"psyqa_balanced_qwen_pure-{index}，message={message}，answer={json.dumps(answer)}")
         top_dict["cbt_answer"] = answer
         top_dict["cbt_history"] = message
         top_dict["cbt_generate_time"] = datetime.datetime.now(beijing_tz).strftime('%Y-%m-%d %H:%M:%S')
+        result_list.append(top_dict)
         with open(save_path, 'w', encoding='utf-8') as f:
-            json.dump(qa_list, f, indent=4, ensure_ascii=False)
+            json.dump(result_list, f, indent=4, ensure_ascii=False)
 
 
 def generate_cbt_en_response_with_prompt(file_path=f"{read_data_path}/therapistqa_balanced.json",
-                                         save_path=f"{save_data_path}/therapistqa_balanced_llama_prompt.json"):
+                                         save_path=f"{save_data_path}/therapistqa_balanced_{os.environ.get('API_MODEL').split('/')[-1]}_prompt.json"):
     with open(file_path, 'r', encoding='utf-8') as f:
         qa_list = json.load(f)
     for index, top_dict in enumerate(qa_list):
@@ -99,8 +100,8 @@ def generate_cbt_en_response_with_prompt(file_path=f"{read_data_path}/therapistq
        4.Provide Strategy or Insight: Offer practical strategies or insights to help them deal with the current situation.
        5. Encouragement and Foresight: Encourage the patient to use the strategy, emphasizing that this is just the beginning and further support may be needed.'''},
                    {"role": "user", "content": top_dict["question"] + top_dict["description"]}]
-        answer = meta_llama31_8b_instruct(message)
-        print(f"therapistqa_balanced_llama_prompt-{index}，message={message}")
+        answer = ali_qwen(message)
+        print(f"therapistqa_balanced_llama_prompt-{index}，answer={answer}")
         top_dict["cbt_answer"] = answer
         top_dict["cbt_history"] = message
         top_dict["cbt_generate_time"] = datetime.datetime.now(beijing_tz).strftime('%Y-%m-%d %H:%M:%S')
@@ -109,13 +110,13 @@ def generate_cbt_en_response_with_prompt(file_path=f"{read_data_path}/therapistq
 
 
 def generate_cbt_en_response(file_path=f"{read_data_path}/therapistqa_balanced.json",
-                             save_path=f"{save_data_path}/therapistqa_balanced_llama_pure.json"):
+                             save_path=f"{save_data_path}/therapistqa_balanced_{os.environ.get('API_MODEL').split('/')[-1]}_pure.json"):
     with open(file_path, 'r', encoding='utf-8') as f:
         qa_list = json.load(f)
     for index, top_dict in enumerate(qa_list):
         message = [{"role": "user", "content": top_dict["question"] + top_dict["description"]}]
-        answer = meta_llama31_8b_instruct(message)
-        print(f"therapistqa_balanced_llama_pure-{index}，message={message}")
+        answer = ali_qwen(message)
+        print(f"therapistqa_balanced_llama_pure-{index}，answer={answer}")
         top_dict["cbt_answer"] = answer
         top_dict["cbt_history"] = message
         top_dict["cbt_generate_time"] = datetime.datetime.now(beijing_tz).strftime('%Y-%m-%d %H:%M:%S')
@@ -124,5 +125,5 @@ def generate_cbt_en_response(file_path=f"{read_data_path}/therapistqa_balanced.j
 
 
 if __name__ == '__main__':
-    generate_cbt_en_response()
     generate_cbt_en_response_with_prompt()
+    generate_cbt_en_response()
