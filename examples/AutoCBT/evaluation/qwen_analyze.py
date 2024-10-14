@@ -236,7 +236,7 @@ def compute_autocbt_score_fine(read_file_list=None):
         print_result_str = ""
         for key, value in total_score_dict_pure.items():
             print_result_str += f"&{value} / 7 "
-        print(f"计算pure分数结果={print_result_str}")
+        print(f"计算pure分数结果=\n{print_result_str}")
         print("===========================================================")
 
 
@@ -271,44 +271,100 @@ def compute_autocbt_score_fine(read_file_list=None):
         print_result_str = ""
         for key, value in total_score_dict_prompt.items():
             print_result_str += f"&{value} / 7 "
-        print(f"计算prompt分数结果={print_result_str}")
+        print(f"计算prompt分数结果=\n{print_result_str}")
         print("===========================================================")
+
+        # 计算论文的初始autocbt路由分数结果
+        if language_is_chinese:
+            total_score_dict_autocbt_draft_response = {'共情分数': 0, '辨识分数': 0, '反思分数': 0, '策略分数': 0, '鼓励分数': 0, '相关性分数': 0, '总分数': 0}
+            for index, json_dict in enumerate(json_list):
+                cbt_history_average_score = json_dict['cbt_history_average_score']
+                start_response_score = cbt_history_average_score[0]
+                total_score_dict_autocbt_draft_response["共情分数"] += float(start_response_score["共情分数"])
+                total_score_dict_autocbt_draft_response["辨识分数"] += float(start_response_score["辨识分数"])
+                total_score_dict_autocbt_draft_response["反思分数"] += float(start_response_score["反思分数"])
+                total_score_dict_autocbt_draft_response["策略分数"] += float(start_response_score["策略分数"])
+                total_score_dict_autocbt_draft_response["鼓励分数"] += float(start_response_score["鼓励分数"])
+                total_score_dict_autocbt_draft_response["相关性分数"] += float(start_response_score["相关性分数"])
+                total_score_dict_autocbt_draft_response["总分数"] += float(start_response_score["总分数"])
+
+        if not language_is_chinese:
+            total_score_dict_autocbt_draft_response = {'Empathy_Score': 0, 'Belief_Score': 0, 'Reflection_Score': 0, 'Strategy_Score': 0, 'Encouragement_Score': 0, 'Relevance_Score': 0, '总分数': 0}
+            for index, json_dict in enumerate(json_list):
+                cbt_history_average_score = json_dict['cbt_history_average_score']
+                start_response_score = cbt_history_average_score[0]
+                total_score_dict_autocbt_draft_response["Empathy_Score"] += float(start_response_score["Empathy_Score"])
+                total_score_dict_autocbt_draft_response["Belief_Score"] += float(start_response_score["Belief_Score"])
+                total_score_dict_autocbt_draft_response["Reflection_Score"] += float(start_response_score["Reflection_Score"])
+                total_score_dict_autocbt_draft_response["Strategy_Score"] += float(start_response_score["Strategy_Score"])
+                total_score_dict_autocbt_draft_response["Encouragement_Score"] += float(start_response_score["Encouragement_Score"])
+                total_score_dict_autocbt_draft_response["Relevance_Score"] += float(start_response_score["Relevance_Score"])
+                total_score_dict_autocbt_draft_response["总分数"] += float(start_response_score["总分数"])
+
+        for key, value in total_score_dict_autocbt_draft_response.items():
+            total_score_dict_autocbt_draft_response[key] = f"{(value / 100):.3f}"
+        print(f"autocbt sub field score={total_score_dict_autocbt_draft_response}")
+        print_result_str = ""
+        for key, value in total_score_dict_autocbt_draft_response.items():
+            print_result_str += f"&{value} / 7 "
+        print(f"计算初始autocbt结果=\n{print_result_str}")
+        print("===========================================================")
+
+
 
         # 计算最终论文的autocbt路由分数结果
         if language_is_chinese:
-            total_score_dict_autocbt = {'共情分数': 0, '辨识分数': 0, '反思分数': 0, '策略分数': 0, '鼓励分数': 0, '相关性分数': 0, '总分数': 0}
+            total_score_dict_autocbt_final_response = {'共情分数': 0, '辨识分数': 0, '反思分数': 0, '策略分数': 0, '鼓励分数': 0, '相关性分数': 0, '总分数': 0}
             for index, json_dict in enumerate(json_list):
                 cbt_history_average_score = json_dict['cbt_history_average_score']
                 start_response_score = cbt_history_average_score[-1]
-                total_score_dict_autocbt["共情分数"] += float(start_response_score["共情分数"])
-                total_score_dict_autocbt["辨识分数"] += float(start_response_score["辨识分数"])
-                total_score_dict_autocbt["反思分数"] += float(start_response_score["反思分数"])
-                total_score_dict_autocbt["策略分数"] += float(start_response_score["策略分数"])
-                total_score_dict_autocbt["鼓励分数"] += float(start_response_score["鼓励分数"])
-                total_score_dict_autocbt["相关性分数"] += float(start_response_score["相关性分数"])
-                total_score_dict_autocbt["总分数"] += float(start_response_score["总分数"])
+                total_score_dict_autocbt_final_response["共情分数"] += float(start_response_score["共情分数"])
+                total_score_dict_autocbt_final_response["辨识分数"] += float(start_response_score["辨识分数"])
+                total_score_dict_autocbt_final_response["反思分数"] += float(start_response_score["反思分数"])
+                total_score_dict_autocbt_final_response["策略分数"] += float(start_response_score["策略分数"])
+                total_score_dict_autocbt_final_response["鼓励分数"] += float(start_response_score["鼓励分数"])
+                total_score_dict_autocbt_final_response["相关性分数"] += float(start_response_score["相关性分数"])
+                total_score_dict_autocbt_final_response["总分数"] += float(start_response_score["总分数"])
 
         if not language_is_chinese:
-            total_score_dict_autocbt = {'Empathy_Score': 0, 'Belief_Score': 0, 'Reflection_Score': 0, 'Strategy_Score': 0, 'Encouragement_Score': 0, 'Relevance_Score': 0, '总分数': 0}
+            total_score_dict_autocbt_final_response = {'Empathy_Score': 0, 'Belief_Score': 0, 'Reflection_Score': 0, 'Strategy_Score': 0, 'Encouragement_Score': 0, 'Relevance_Score': 0, '总分数': 0}
             for index, json_dict in enumerate(json_list):
                 cbt_history_average_score = json_dict['cbt_history_average_score']
                 start_response_score = cbt_history_average_score[-1]
-                total_score_dict_autocbt["Empathy_Score"] += float(start_response_score["Empathy_Score"])
-                total_score_dict_autocbt["Belief_Score"] += float(start_response_score["Belief_Score"])
-                total_score_dict_autocbt["Reflection_Score"] += float(start_response_score["Reflection_Score"])
-                total_score_dict_autocbt["Strategy_Score"] += float(start_response_score["Strategy_Score"])
-                total_score_dict_autocbt["Encouragement_Score"] += float(start_response_score["Encouragement_Score"])
-                total_score_dict_autocbt["Relevance_Score"] += float(start_response_score["Relevance_Score"])
-                total_score_dict_autocbt["总分数"] += float(start_response_score["总分数"])
+                total_score_dict_autocbt_final_response["Empathy_Score"] += float(start_response_score["Empathy_Score"])
+                total_score_dict_autocbt_final_response["Belief_Score"] += float(start_response_score["Belief_Score"])
+                total_score_dict_autocbt_final_response["Reflection_Score"] += float(start_response_score["Reflection_Score"])
+                total_score_dict_autocbt_final_response["Strategy_Score"] += float(start_response_score["Strategy_Score"])
+                total_score_dict_autocbt_final_response["Encouragement_Score"] += float(start_response_score["Encouragement_Score"])
+                total_score_dict_autocbt_final_response["Relevance_Score"] += float(start_response_score["Relevance_Score"])
+                total_score_dict_autocbt_final_response["总分数"] += float(start_response_score["总分数"])
 
-        for key, value in total_score_dict_autocbt.items():
-            total_score_dict_autocbt[key] = f"{(value/100):.3f}"
-        print(f"autocbt sub field score={total_score_dict_autocbt}")
+        for key, value in total_score_dict_autocbt_final_response.items():
+            total_score_dict_autocbt_final_response[key] = f"{(value/100):.3f}"
+        print(f"autocbt sub field score={total_score_dict_autocbt_final_response}")
         print_result_str = ""
-        for key, value in total_score_dict_autocbt.items():
+        for key, value in total_score_dict_autocbt_final_response.items():
             print_result_str += f"&{value} / 7 "
-        print(f"计算autocbt结果={print_result_str}")
+        print(f"计算最终autocbt结果=\n{print_result_str}")
         print("===========================================================")
+
+        # 计算初始autocbt与最终autocbt在6个维度上的增幅
+        for key,draft_value in total_score_dict_autocbt_draft_response.items():
+            final_score = total_score_dict_autocbt_final_response[key]
+            difference_score = float(final_score) - float(draft_value)
+            print(f"计算初始autocbt与最终autocbt在{key}维度上的增幅 = {difference_score:.3f}")
+        print("===========================================================")
+
+        # 计算初始autocbt与PromptCBT在6个维度上的增幅
+        for key,draft_value in total_score_dict_autocbt_draft_response.items():
+            prompt_score = total_score_dict_prompt[key]
+            difference_score = float(prompt_score) - float(draft_value)
+            print(f"计算初始autocbt与PromptCBT在{key}维度上的增幅 = {difference_score:.3f}")
+        print("===========================================================")
+
+
+
+
 
 def compute_prompt_score_fine(read_file_list=None):
     if read_file_list is None:
@@ -379,5 +435,6 @@ if __name__ == '__main__':
     # psyqa_auto_scoring(read_file_list)  # 先让GPT打分，保存GPT的返回信息
     # special_index_scoring(39)
     # compute_score_from_dict_fine()  # 本地根据GPT信息，做二次处理
-    compute_autocbt_score_fine(["fine-score-three-time_therapistqa_balanced_Qwen2.5-72B-Instruct_autocbt.json"])
+    compute_autocbt_score_fine(["fine-score-three-time_psyqa_balanced_autocbt.json"])
+    # compute_autocbt_score_fine(["fine-score-three-time_therapistqa_balanced_Qwen2.5-72B-Instruct_autocbt.json"])
     # compute_prompt_score_fine(["fine-score-three-time-prompt_therapistqa_balanced_Qwen2.5-72B-Instruct_prompt.json"])

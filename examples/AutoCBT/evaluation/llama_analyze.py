@@ -3,7 +3,7 @@ import time
 from openai import OpenAI
 
 read_data_path = "/mnt/c/koenshen/SVN/XinHaiLLM_data_and_db/data/result"
-save_data_path = "/mnt/c/koenshen/SVN/XinHaiLLM_data_and_db/data/score"
+save_data_path = "/mnt/c/koenshen/SVN/XinHaiLLM_data_and_db/data/score/temprature_0.98"
 
 # 计算autocbt的平均分
 def compute_autocbt_single_score(json_list: list):
@@ -56,7 +56,7 @@ def analyze_autocbt_score_fine():
 
     json_list = []
     for json_dict in json_list_temp:
-        if json_dict['questionID'] not in refuse_response_questionid:
+        if json_dict['questionID'] not in refused_answer_questionid_list:
             json_list.append(json_dict)
 
     json_list = compute_autocbt_single_score(json_list)
@@ -150,29 +150,65 @@ def analyze_autocbt_score_fine():
     print_result_str = ""
     for key, value in total_score_dict_prompt.items():
         print_result_str += f"&{value} / 7 "
-    print(f"计算prompt分数结果={print_result_str}")
+    print(f"计算prompt分数结果=\n{print_result_str}")
+    print("===========================================================")
+
+    # 计算最初论文的autocbt路由分数结果
+    total_score_dict_autocbt_draft_response = {'Empathy_Score': 0, 'Belief_Score': 0, 'Reflection_Score': 0, 'Strategy_Score': 0, 'Encouragement_Score': 0, 'Relevance_Score': 0, '总分数': 0}
+    for index, json_dict in enumerate(json_list):
+        cbt_history_average_score = json_dict['cbt_history_average_score']
+        start_response_score = cbt_history_average_score[0]
+        total_score_dict_autocbt_draft_response["Empathy_Score"] += float(start_response_score["Empathy_Score"])
+        total_score_dict_autocbt_draft_response["Belief_Score"] += float(start_response_score["Belief_Score"])
+        total_score_dict_autocbt_draft_response["Reflection_Score"] += float(start_response_score["Reflection_Score"])
+        total_score_dict_autocbt_draft_response["Strategy_Score"] += float(start_response_score["Strategy_Score"])
+        total_score_dict_autocbt_draft_response["Encouragement_Score"] += float(start_response_score["Encouragement_Score"])
+        total_score_dict_autocbt_draft_response["Relevance_Score"] += float(start_response_score["Relevance_Score"])
+        total_score_dict_autocbt_draft_response["总分数"] += float(start_response_score["总分数"])
+
+    for key, value in total_score_dict_autocbt_draft_response.items():
+        total_score_dict_autocbt_draft_response[key] = f"{(value/len(json_list)):.3f}"
+    print(f"autocbt sub field score={total_score_dict_autocbt_draft_response}")
+    print_result_str = ""
+    for key, value in total_score_dict_autocbt_draft_response.items():
+        print_result_str += f"&{value} / 7 "
+    print(f"计算autocbt最初结果=\n{print_result_str}")
     print("===========================================================")
 
     # 计算最终论文的autocbt路由分数结果
-    total_score_dict_autocbt = {'Empathy_Score': 0, 'Belief_Score': 0, 'Reflection_Score': 0, 'Strategy_Score': 0, 'Encouragement_Score': 0, 'Relevance_Score': 0, '总分数': 0}
+    total_score_dict_autocbt_final_response = {'Empathy_Score': 0, 'Belief_Score': 0, 'Reflection_Score': 0, 'Strategy_Score': 0, 'Encouragement_Score': 0, 'Relevance_Score': 0, '总分数': 0}
     for index, json_dict in enumerate(json_list):
         cbt_history_average_score = json_dict['cbt_history_average_score']
         start_response_score = cbt_history_average_score[-1]
-        total_score_dict_autocbt["Empathy_Score"] += float(start_response_score["Empathy_Score"])
-        total_score_dict_autocbt["Belief_Score"] += float(start_response_score["Belief_Score"])
-        total_score_dict_autocbt["Reflection_Score"] += float(start_response_score["Reflection_Score"])
-        total_score_dict_autocbt["Strategy_Score"] += float(start_response_score["Strategy_Score"])
-        total_score_dict_autocbt["Encouragement_Score"] += float(start_response_score["Encouragement_Score"])
-        total_score_dict_autocbt["Relevance_Score"] += float(start_response_score["Relevance_Score"])
-        total_score_dict_autocbt["总分数"] += float(start_response_score["总分数"])
+        total_score_dict_autocbt_final_response["Empathy_Score"] += float(start_response_score["Empathy_Score"])
+        total_score_dict_autocbt_final_response["Belief_Score"] += float(start_response_score["Belief_Score"])
+        total_score_dict_autocbt_final_response["Reflection_Score"] += float(start_response_score["Reflection_Score"])
+        total_score_dict_autocbt_final_response["Strategy_Score"] += float(start_response_score["Strategy_Score"])
+        total_score_dict_autocbt_final_response["Encouragement_Score"] += float(start_response_score["Encouragement_Score"])
+        total_score_dict_autocbt_final_response["Relevance_Score"] += float(start_response_score["Relevance_Score"])
+        total_score_dict_autocbt_final_response["总分数"] += float(start_response_score["总分数"])
 
-    for key, value in total_score_dict_autocbt.items():
-        total_score_dict_autocbt[key] = f"{(value/len(json_list)):.3f}"
-    print(f"autocbt sub field score={total_score_dict_autocbt}")
+    for key, value in total_score_dict_autocbt_final_response.items():
+        total_score_dict_autocbt_final_response[key] = f"{(value/len(json_list)):.3f}"
+    print(f"autocbt sub field score={total_score_dict_autocbt_final_response}")
     print_result_str = ""
-    for key, value in total_score_dict_autocbt.items():
+    for key, value in total_score_dict_autocbt_final_response.items():
         print_result_str += f"&{value} / 7 "
-    print(f"计算autocbt结果={print_result_str}")
+    print(f"计算autocbt结果=\n{print_result_str}")
+    print("===========================================================")
+
+    # 计算初始autocbt与最终autocbt在6个维度上的增幅
+    for key, draft_value in total_score_dict_autocbt_draft_response.items():
+        final_score = total_score_dict_autocbt_final_response[key]
+        difference_score = float(final_score) - float(draft_value)
+        print(f"计算初始autocbt与最终autocbt在{key}维度上的增幅 = {difference_score:.3f}")
+    print("===========================================================")
+
+    # 计算初始autocbt与PromptCBT在6个维度上的增幅
+    for key, draft_value in total_score_dict_autocbt_draft_response.items():
+        prompt_score = total_score_dict_prompt[key]
+        difference_score = float(prompt_score) - float(draft_value)
+        print(f"计算初始autocbt与PromptCBT在{key}维度上的增幅 = {difference_score:.3f}")
     print("===========================================================")
 
 def compute_prompt_score_fine():
@@ -182,7 +218,7 @@ def compute_prompt_score_fine():
 
     json_list = []
     for json_dict in json_list_temp:
-        if json_dict['questionID'] not in refuse_response_questionid:
+        if json_dict['questionID'] not in refused_answer_questionid_list:
             json_list.append(json_dict)
     result_dict = {}
 
@@ -232,7 +268,7 @@ def compute_pure_score_fine():
 
     json_list = []
     for json_dict in json_list_temp:
-        if json_dict['questionID'] not in refuse_response_questionid:
+        if json_dict['questionID'] not in refused_answer_questionid_list:
             json_list.append(json_dict)
     result_dict = {}
 
@@ -275,25 +311,64 @@ def compute_pure_score_fine():
         result_dict[json_dict['questionID']] = total_score_dict
     return result_dict
 
-def watching_data_if_have_cannot_word(read_file=""):
+
+def get_qwen_same_questionid(read_file="", questionID=""):
+    if "pure" in read_file:
+        read_file = "fine-score-three-time-prompt_therapistqa_balanced_Qwen2.5-72B-Instruct_pure.json"
+    if "prompt" in  read_file:
+        read_file = "fine-score-three-time-prompt_therapistqa_balanced_Qwen2.5-72B-Instruct_prompt.json"
+    if "autocbt" in read_file:
+        read_file = "fine-score-three-time_therapistqa_balanced_Qwen2.5-72B-Instruct_autocbt.json"
+    file_path = f"{save_data_path}/{read_file}"
+    with open(file_path, 'r', encoding='utf-8') as f:
+        json_list = json.load(f)
+    print("======")
+    result_dict = {}
+    for a, json_dict in enumerate(json_list):
+        if json_dict["questionID"] == questionID:
+            result_dict = json_dict
+    return result_dict
+def watching_autocbt_data_if_have_cannot_word(read_file=""):
     file_path = f"{save_data_path}/{read_file}"
     with open(file_path, 'r', encoding='utf-8') as f:
         json_list = json.load(f)
     print("======")
     refuse_response_list = []
+    qwen_same_response_list = []
     for a, json_dict in enumerate(json_list):
         cbt_history = json_dict['cbt_history']
         for b, cbt_history_dict in enumerate(cbt_history):
             if cbt_history_dict['message']['content'].startswith("I cannot"):
                 refuse_response_list.append(json_dict)
                 print(f'''第{a}条：{cbt_history_dict['message']['content']}''')
+                qwen_same_response_list.append(get_qwen_same_questionid(read_file=read_file, questionID=json_dict["questionID"]))
                 break
     return [temp_dict['questionID'] for temp_dict in refuse_response_list]
 
+def watching_prompt_data_if_have_cannot_word(read_file=""):
+    file_path = f"{save_data_path}/{read_file}"
+    with open(file_path, 'r', encoding='utf-8') as f:
+        json_list = json.load(f)
+    print("======")
+    refuse_response_list = []
+    qwen_same_response_list = []
+    for a, json_dict in enumerate(json_list):
+        if json_dict['cbt_answer'].startswith("I cannot"):
+            refuse_response_list.append(json_dict)
+            print(f'''第{a}条：{json_dict['cbt_answer']}''')
+            qwen_same_response_list.append(get_qwen_same_questionid(read_file=read_file, questionID=json_dict["questionID"]))
+    return [temp_dict['questionID'] for temp_dict in refuse_response_list]
 
 if __name__ == '__main__':
     autocbt_file = "fine-score-three-time_therapistqa_balanced_Meta-Llama-3.1-70B-Instruct_autocbt.json"
     prompt_file = "fine-score-three-time-prompt_therapistqa_balanced_Meta-Llama-3.1-70B-Instruct_prompt.json"
     pure_file = "fine-score-three-time-prompt_therapistqa_balanced_Meta-Llama-3.1-70B-Instruct_pure.json"
-    refuse_response_questionid = watching_data_if_have_cannot_word(autocbt_file)
+    refuse_response_questionid_autocbt = watching_autocbt_data_if_have_cannot_word(autocbt_file)
+    refuse_response_questionid_prompt = watching_prompt_data_if_have_cannot_word(prompt_file)
+    refuse_response_questionid_pure = watching_prompt_data_if_have_cannot_word(pure_file)
+    # 使用集合求交集
+    refused_answer_questionid_set = set(refuse_response_questionid_autocbt).union(refuse_response_questionid_prompt, refuse_response_questionid_pure)
+    # 转换回列表形式（如果需要）
+    refused_answer_questionid_list = list(refused_answer_questionid_set)
+    print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
     analyze_autocbt_score_fine()
