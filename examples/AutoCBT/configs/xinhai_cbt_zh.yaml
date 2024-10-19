@@ -3,14 +3,14 @@ controller:
 
 workers:
   - worker_type: llm
-    worker_name: Qwen1.5-7B-Chat
+    worker_name: Qwen/Qwen2.5-72B-Instruct
     worker_address: http://localhost:40001
     worker_host: 0.0.0.0
     worker_port: 40001
     no_register: false
     limit_model_concurrency: 5
     device: cuda
-    api_key: EMPTY
+    api_key: sk-xxxxx
   - worker_type: ocr
   - worker_type: storage
 
@@ -21,70 +21,48 @@ arena:
     - "[Broadcast]"
   prompts:
     routing_prompt: &routing_prompt |-
-      现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：
-      （1）角色描述：
-          {role_description}
+      ## 现在，你正在扮演虚拟世界中的{agent_name}。你需要基于自己和其他人物的关联关系做出反应。目前，已知的信息如下：
       
-      （2）对话历史摘要：
-          {chat_summary}
+      ### 你作为{agent_name}的角色描述：
+      {role_description}
       
-      （3）最新对话历史：
-          {chat_history}
+      ### 你作为{agent_name}与其他人物的历史对话摘要：
+      {chat_summary}
       
-      （4）可以进行交互的智能体列表：
-          {agent_descriptions}
+      ### 你作为{agent_name}与其他人物的最新对话历史：
+      {chat_history}
       
-      （5）可以采用的通讯方式有：
-          {routing_descriptions}
+      ### 你作为{agent_name}可以与之进行交互的人物列表：
+      {agent_descriptions}
       
-      基于当前情况，选择合适的通讯目标和通讯方式。
+      ### 你作为{agent_name}可以采用的通讯方式有：
+      {routing_descriptions}
       
-      [样例]
-      {{"method": "[Multicast]", "target": [1]}}
-      
-      现在，基于以上信息，你的Routing策略是什么？
+      ## 基于当前情况，请你选择合适的通讯目标和通讯方式。如果你不知道怎么处理输出，请参考如下的输出格式，输出你的Routing策略：
+      {{"method": "[Multicast]", "target": [2,3,4,5,6]}}
+      {{"method": "[Unicast]", "target": [0]}}
 
-    therapist_routing_prompt: &therapist_routing_prompt |-
-      现在，你正在扮演虚拟世界中的一个智能体，名字是咨询师。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：
-      （1）角色描述：
-          {role_description}
-
-      （2）对话历史摘要：
-          {chat_summary}
-
-      （3）最新对话历史：
-          {chat_history}
-
-      （4）可以进行交互的智能体列表：
-          {agent_descriptions}
-
-      （5）可以采用的通讯方式有：
-          {routing_descriptions}
-
-      基于当前情况，选择合适的通讯目标和通讯方式。请注意，如果你选择了「咨询者」作为通讯目标，那么「督导师」不能一起作为你的通讯目标；同理如果「督导师」成为了你的通讯目标，那么「咨询者」不能一起作为你的通讯目标。也就是说，「督导师」和「咨询者」不能同时出现在你的通讯目标中！
-
-      [样例]
-      {{"method": "[Multicast]", "target": [0]}}
-
-      现在，基于以上信息，你的Routing策略是什么？
+      ##Attention##
+      现在，基于以上信息和参考输出格式，你的Routing策略是什么？
     summary_prompt: &summary_prompt |-
-      请根据之前的对话摘要和新的对话内容，给出新的对话摘要。
-      新的对话摘要应当包含之前摘要的内容。
-      摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。
-      ####
-      以前的对话摘要：{chat_summary}
+      ## 请根据之前的对话摘要和新的对话内容，给出新的对话摘要。 新的对话摘要应当包含之前摘要的内容。 摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。目前，已知的信息如下：
       
-      ####
-      新的对话内容：{chat_history}
+      ### 以前的对话摘要：
+      {chat_summary}
       
-      ###Attention###
+      ### 新的对话内容：
+      {chat_history}
+      
+      ##Attention##
       仅返回新的对话摘要内容，不要返回分析过程！
     consultant_prompt: &consultant_prompt |-
-      你正在扮演虚拟世界中的一个智能体，你的身份是一名被心理问题所苦恼的咨询者。以下是你所苦恼的具体的心理问题：
-          {role_description}
+      ## 你正在扮演虚拟世界中一名被心理问题所苦恼的咨询者，你在向面前的心理咨询师请求帮助。以下是你所苦恼的具体的心理问题：
+      {role_description}
       
-      现在，请你原封不动地、详尽地、向心理咨询师复述上述的心理问题。
+      ##Attention##
+      现在，你基于一名被心理问题苦恼的咨询者的身份，为了寻求心理咨询师的帮助，请原封不动地、详尽地、向心理咨询师讲述你的心理问题。
     prompt: &prompt |-
+      ##Attention##
       请你基于咨询者的信息，给出一条专业的，富有同情心和具有助益性的回复。确保你的回复在保持以下认知行为疗法回答结构的基础上，尤其是识别关键思维或信念部分，流畅地将各部分内容相互连接：
       1. 验证和共情：对患者的情感或问题表示理解和同情，创建安全感。
       2. 识别关键思维或信念：通过问题描述，找出可能的认知扭曲或核心信仰。
@@ -92,29 +70,34 @@ arena:
       4. 提供策略或见解：提供实用策略或见解，以帮助他们处理当前情况。
       5. 鼓励与前瞻：鼓励患者使用策略，强调这只是开始，并可能需要进一步的支持。
       
-      角色描述：{role_description}
+      ### 待改进的回复内容：
+      {draft_response}
       
-      对话历史摘要：
-          {chat_summary}
+      ### 督导师的修改建议：
+      {revise_of_draft}
       
-      最新对话历史：
-          {chat_history}
-      
-      现在，你选择了以{routing}方式与{agents}通信，请问你想发出的消息内容是什么？注意请以自然流畅地文本输出一整个自然段地内容，不要分点逐个输出、也不要以markdown语法输出！
+      ### 咨询者的信息如下：
+      {original_question_of_user}
+
+
 
     supervisor_prompt: &supervisor_prompt |-
-      你正在扮演虚拟世界中的一个智能体，你的身份是一名督导、检查「心理咨询者与心理咨询师」之间对话的督导师。你需要按照如下的角色描述和对话历史，针对咨询师的回复提出一些修改意见，告诉咨询师，让咨询师根据你的修改意见重新生成他的回复。
-      角色描述：{role_description}
+      ## 你正在扮演虚拟世界中一名与心理咨询师结伴的、检查「心理咨询者与心理咨询师」之间对话的{agent_name}。咨询师将会根据咨询者的信息和认知行为疗法准则，生成一段回复。你作为督导师，需要按照你自己的角色描述，针对咨询师的回复提出一些修改意见给咨询师，让咨询师根据你的修改意见，完善生成他的回复。目前，已知的信息如下：
       
-      对话历史摘要：
-          {chat_summary}
+      ### 你作为{agent_name}的角色描述：
+      {role_description}
       
-      最新对话历史：
-          {chat_history}
+      ### 你作为{agent_name}，看到来自患者的咨询：
+      {original_question_of_user}
       
-      现在，你选择了以{routing}方式与{agents}通信，请问你想发出的消息内容是什么？注意请以自然流畅地文本输出一整个自然段地内容，不要分点逐个输出、也不要以markdown语法输出！
-
-
+      ### 你作为{agent_name}，看到心理咨询师针对患者的咨询生成的待修改的回复：
+      {draft_response}
+      
+      ## 现在，你选择了以{routing}方式与如下人物通信：
+      {agents}
+      
+      ##Attention##
+      请你以{agent_name}的身份，用【心理咨询师你好】作为你想发送的消息内容的开头，输出你想给心理咨询师的修改建议！
   name: XinHai CBT
 
   environment:
@@ -138,87 +121,87 @@ arena:
     max_turns: 16
 
   agents:
-    - agent_type: simple
+    - agent_type: autocbt
       agent_id: 0
       name: 咨询者
-      role_description: 咨询者，面临以下心理问题：“察觉到一种模式，我总喜欢自己检讨、批评自己？”，具体如下：“我和我妈妈讲话会陷入一种很恶心的模式。我只要说遇到的烦恼她是无动于衷的，但是我一旦开始批评自我检讨，她就面露喜色。我觉得我已经不好办了，回想发现见人就自我检讨，觉得自己不是这里不足就是那里不足，再假假的夸两句别人，已经成为我的一种模式了，但这不正常的，苦恼”
+      role_description: 一位被如下心理问题困扰的咨询者：
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *consultant_prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40001/v1
-    - agent_type: simple
+      llm: Qwen/Qwen2.5-72B-Instruct
+      api_key: sk-xxxxx
+      api_base: https://localhost/v1
+    - agent_type: autocbt
       agent_id: 1
-      name: 咨询师
-      role_description: 咨询师，直接和咨询者进行对话，并希望实践认知行为疗法，习惯向心理督导师求助，以使得咨询过程符合行为认知疗法的准则。
-      routing_prompt_template: *therapist_routing_prompt
+      name: 心理咨询师
+      role_description: 心理咨询师，可以根据咨询者的提问和行为认知疗法准则，生成一段流畅自然的回复内容。然后心理咨询师可以选择与咨询者对话，回答他的心理问题，结束本次对话；也可以选择与督导师对话寻求改进建议，根据督导师的建议完善回复内容，再回答咨询者。
+      routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40001/v1
-    - agent_type: simple
+      llm: Qwen/Qwen2.5-72B-Instruct
+      api_key: sk-xxxxx
+      api_base: https://localhost/v1
+    - agent_type: autocbt
       agent_id: 2
-      name: 督导师1
-      role_description: 督导师1，专注于验证和共情，能够对患者的情感或问题表示理解和同情，创建安全感。这位督导师1能够根据咨询师生成的回复，判断这条回复的共情与同情程度，然后给出咨询师相关的改进建议。
+      name: 共情督导师
+      role_description: 共情督导师，专注于帮助心理咨询师在与患者的互动中提升共情能力。他的主要职责是仔细分析患者的心理提问与咨询师的回复，评估回复是否正确理解了患者的意图，并且是否充分表达了对患者焦虑与痛苦的尊重和理解。他敏锐地观察心理咨询师的语言是否能够为患者营造一个安全的空间，使患者感到可以自由表达自己的情绪和困扰。在每次评估中，督导师都会深入考察咨询师的回应是否表现出足够的同情心，以及是否帮助患者感到被倾听和被接纳。他不仅关注内容的准确性，还注重咨询师与患者之间的情感连接，力求通过细致的反馈，帮助咨询师更好地回应患者的心理需求，从而提升整个咨询过程的效果和深度。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40001/v1
-    - agent_type: simple
+      llm: Qwen/Qwen2.5-72B-Instruct
+      api_key: sk-xxxxx
+      api_base: https://localhost/v1
+    - agent_type: autocbt
       agent_id: 3
-      name: 督导师2
-      role_description: 督导师2，擅长识别关键思维或信念，能够通过问题描述，找出可能的认知扭曲或核心信仰。这位督导师2能够根据咨询师生成的回复，判断这条回复中的认知扭曲或和核心信仰程度，然后给出咨询师相关的改进建议。
+      name: 信念督导师
+      role_description: 信念督导师，专注于协助心理咨询师更好地识别并处理患者的认知扭曲。作为一名经验丰富的督导师，他的主要任务是仔细分析心理咨询师对患者提问的回复，评估其中是否准确识别出患者焦虑与痛苦背后可能存在的认知扭曲。通过细致入微的指导，他帮助心理咨询师更深入地探讨患者内在的错误信念，确保咨询过程中不只是表面安慰，而是通过结构化的方式挑战患者的负性思维模式。他关注咨询师是否有效地引导患者质疑和反思这些认知扭曲，并鼓励患者通过新的视角重新审视问题，从而逐步缓解心理痛苦并实现认知的正向调整。信念督导师始终致力于提升咨询师的技巧，使他们能够在临床工作中更敏锐地捕捉到患者的潜在认知偏差，并协助患者打破这些信念的束缚，迈向更健康的心理状态。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40001/v1
-    - agent_type: simple
+      llm: Qwen/Qwen2.5-72B-Instruct
+      api_key: sk-xxxxx
+      api_base: https://localhost/v1
+    - agent_type: autocbt
       agent_id: 4
-      name: 督导师3
-      role_description: 督导师3，善于提出挑战或反思，通过提出开放性问题，鼓励患者重新考虑或反思其初始思维或信仰。这位督导师3能够根据咨询师生成的回复，寻找这条回复中的挑战或反思程度，然后给出咨询师相关的改进建议。
+      name: 反思督导师
+      role_description: 反思督导师，专注于帮助心理咨询师提升其对患者的引导与反思能力。他的主要任务是仔细倾听患者提出的心理问题，并分析心理咨询师对这些问题的回复，评估回复内容的有效性和反思深度。他特别关注心理咨询师是否通过回复引导患者提出与其初始想法相关的问题，帮助患者深入思考自己的认知和情感体验，以及是否能够识别和挑战患者潜在的认知扭曲。作为一名细致且敏锐的督导师，他致力于确保心理咨询师的回应能够不仅解答患者的问题，还能激发患者的自我反思，从而促进他们更深入地理解自己的内心世界。通过这样的指导，他帮助心理咨询师不断提升其技巧，让患者在治疗过程中获得更有成效的心理探索与成长。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40001/v1
-    - agent_type: simple
+      llm: Qwen/Qwen2.5-72B-Instruct
+      api_key: sk-xxxxx
+      api_base: https://localhost/v1
+    - agent_type: autocbt
       agent_id: 5
-      name: 督导师4
-      role_description: 督导师4，善于提供策略或见解，通过提供实用策略或见解，以帮助他们处理当前情况。这位督导师4能够根据咨询师生成的回复，寻找这条回复中的实用策略或见解程度，然后给出咨询师相关的改进建议。
+      name: 策略督导师
+      role_description: 策略督导师，专注于心理咨询过程中的策略分析与提升。在与心理咨询师结伴工作的过程中，他的主要任务是通过细致的倾听与分析，确保心理咨询师对患者的回复内容不仅具有同理心和支持性，还能够提供有效且可行的策略来应对患者的心理困扰。他着重关注心理咨询师是否在回复中提供了切实可行的策略或见解，评估这些策略是否能够真正帮助患者缓解当前的焦虑与痛苦。此外，他还会判断心理咨询师的回复是否基于专业的心理治疗方法，确保所有建议都符合心理健康行业的标准和实践。他的核心目标是帮助咨询师不断优化回复策略，以更好地引导患者应对心理挑战并促进其心理健康的提升。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40001/v1
-    - agent_type: simple
+      llm: Qwen/Qwen2.5-72B-Instruct
+      api_key: sk-xxxxx
+      api_base: https://localhost/v1
+    - agent_type: autocbt
       agent_id: 6
-      name: 督导师5
-      role_description: 督导师5，负责鼓励与前瞻，鼓励患者使用策略，强调这只是开始，并可能需要进一步的支持。这位督导师5能够根据咨询师生成的回复，寻找这条回复中的鼓励程度，然后给出咨询师相关的改进建议。
+      name: 鼓励督导师
+      role_description: 鼓励督导师，专注于帮助心理咨询师提升他们在与患者互动时的鼓励性反馈。在患者提问与咨询师回复之间，他仔细分析回复内容，重点关注心理咨询师是否以建设性、支持性的方式引导患者采取积极的应对策略。他会评估咨询师是否鼓励患者相信改变的可能性，并让他们意识到每一个小进步的重要性。同时，他还会分析咨询师是否对患者未来执行这些策略可能遇到的挑战或失败进行了合理的提醒，并为患者提供心理上的准备与支持。他注重咨询师是否能够在患者面对挫折时给予适时的鼓舞，帮助他们理解失败是成长的一部分。通过这些反馈，督导师协助心理咨询师打造更具同理心和支持性的咨询体验，最终帮助患者更好地应对困境、实现自我提升。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
-      api_key: EMPTY
-      api_base: http://localhost:40001/v1
+      llm: Qwen/Qwen2.5-72B-Instruct
+      api_key: sk-xxxxx
+      api_base: https://localhost/v1

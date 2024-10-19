@@ -3,14 +3,14 @@ controller:
 
 workers:
   - worker_type: llm
-    worker_name: meta-llama/Meta-Llama-3.1-8B-Instruct
+    worker_name: meta-llama/Meta-Llama-3.1-70B-Instruct
     worker_address: http://localhost:40001
     worker_host: 0.0.0.0
     worker_port: 40001
     no_register: false
     limit_model_concurrency: 5
     device: cuda
-    api_key: EMPTY
+    api_key: sk-xxxxx
   - worker_type: ocr
   - worker_type: storage
 
@@ -21,102 +21,83 @@ arena:
     - "[Broadcast]"
   prompts:
     routing_prompt: &routing_prompt |-
-      Now, you are playing the role of an intelligent agent in a virtual world named {agent_name}. You need to react based on your own and other agents' relationships. Currently, the known information is as follows:
-      (1) Role description:
+      ## Now, you are playing the role of {agent_name} in the virtual world. You need to react based on your own association with other roles. At present, the known information is as follows:
+      
+      ### Your role description as {agent_name}:
       {role_description}
       
-      (2) Summary of conversation history:
+      ### Summary of historical conversations between you as {agent_name} and other roles:
       {chat_summary}
       
-      (3) Latest conversation history:
+      ### Your latest conversation history with other roles as {agent_name}:
       {chat_history}
       
-      (4) List of interactable agents:
+      ### List of roles that you, as {agent_name}, can interact with:
       {agent_descriptions}
       
-      (5) Communication methods available:
+      ### The communication methods you can use as {agent_name} are:
       {routing_descriptions}
       
-      Based on the current situation, choose the appropriate communication targets and method.
+      ## Based on the current situation, please choose a suitable communication target and communication method. If you don't know how to handle the output, please refer to the following output format and output your routing strategy:
+      {{"method": "[Multicast]", "target": [2,3,4,5,6]}}
+      {{"method": "[Unicast]", "target": [0]}}
       
-      [Example]
-      {{"method": "[Multicast]", "target": [1]}}
-      
-      Now, based on the above information, what is your routing strategy?
-
-    therapist_routing_prompt: &therapist_routing_prompt |-
-      Now, you are playing the role of an intelligent agent in a virtual world named therapist. You need to react based on your own and other agents' relationships. Currently, the known information is as follows:
-      (1) Role description:
-      {role_description}
-
-      (2) Summary of conversation history:
-      {chat_summary}
-
-      (3) Latest conversation history:
-      {chat_history}
-
-      (4) List of interactable agents:
-      {agent_descriptions}
-
-      (5) Communication methods available:
-      {routing_descriptions}
-
-      Based on the current situation, choose the appropriate communication targets and method. Please note that if you have selected "user" as your communication target, then "Supervisor" cannot be your communication target together; Similarly, if the 'supervisor' becomes your communication target, then the 'user' cannot be your communication target together. That is to say, 'supervisor' and 'user' cannot appear in your communication target at the same time!
-
-      [Example]
-      {{"method": "[Multicast]", "target": [1]}}
-
-      Now, based on the above information, what is your routing strategy?
+      ##Attention##
+      Now, based on the above information and reference output format, what is your routing strategy?
     summary_prompt: &summary_prompt |-
-      Please provide a new conversation summary based on the previous conversation summary and the new conversation content.
-      The new dialogue summary should include the content of the previous summary.
-      The length of the abstract should not be too long or too short, and should be determined based on the previous conversation summary and content.
-      ####
-      Previous conversation summary: {chat_summary}
+      ## Please provide a new conversation summary based on the previous conversation summary and the new conversation content. The new dialogue summary should include the content of the previous summary. The length of the abstract should not be too long or too short, and should be determined based on the previous conversation summary and content.
       
-      ####
-      New conversation content: {chat_history}
+      #### Previous conversation summary: 
+      {chat_summary}
+      
+      #### New conversation content: 
+      {chat_history}
       
       ###Attention###
       Only return the new conversation summary content, do not return the analysis process!
     consultant_prompt: &consultant_prompt |-
-      You are playing the role of an intelligent agent in a virtual world, and your identity is a user troubled by psychological issues. Here are the specific psychological issues you are troubled by:
+      ## You are playing the role of a patient in a virtual world who is troubled by psychological issues, and you are requesting help from the counselor in front of you. Here are the specific psychological issues you are troubled by:
       {role_description}
       
-      Now, please rephrase the above psychological issues to the counselor in detail and without alteration.
+      ##Attention##
+      Now, based on your identity as a patient troubled by psychological issues, in order to seek the help of the counselor, please explain your psychological problems to the counselor in detail and without alteration.
     prompt: &prompt |-
-      Then based on the following users' question and users' description, please provide a professional, compassionate, and helpful response. Ensure your response adheres to the structure of Cognitive Behavioral Therapy (CBT) responses, especially in identifying the key thought or belief, and seamlessly integrates each part:
-       1. Validation and Empathy: Show understanding and sympathy for the patient's feelings or issues, creating a sense of safety.
-       2. Identify Key Thought or Belief: Through the problem description, identify potential cognitive distortions or core beliefs.
-       3. Pose Challenge or Reflection: Raise open-ended questions, encouraging the patient to reconsider or reflect on their initial thoughts or beliefs.
-       4.Provide Strategy or Insight: Offer practical strategies or insights to help them deal with the current situation.
-       5. Encouragement and Foresight: Encourage the patient to use the strategy, emphasizing that this is just the beginning and further support may be needed.
+      ##Attention##
+      Then based on the following question and its description, please provide a professional, compassionate, and helpful response. Ensure your response adheres to the structure of Cognitive Behavioral Therapy (CBT) responses, especially in identifying the key thought or belief, and seamlessly integrates each part:
+      1. Validation and Empathy: Show understanding and sympathy for the patient's feelings or issues, creating a sense of safety.
+      2. Identify Key Thought or Belief: Through the problem description, identify potential cognitive distortions or core beliefs.
+      3. Pose Challenge or Reflection: Raise open-ended questions, encouraging the patient to reconsider or reflect on their initial thoughts or beliefs.
+      4. Provide Strategy or Insight: Offer practical strategies or insights to help them deal with the current situation.
+      5. Encouragement and Foresight: Encourage the patient to use the strategy, emphasizing that this is just the beginning and further support may be needed.
       
-      Role description：
-      {role_description}
+      ### Response content to be improved:
+      {draft_response}
       
-      Summary of conversation history：
-      {chat_summary}
+      ### Supervisor's revision suggestions:
+      {revise_of_draft}
       
-      Latest conversation history：
-      {chat_history}
+      ### The information of the patient is as follows:
+      {original_question_of_user}
       
-      Now that you have chosen to communicate with {agents} through {routing}, may I ask what message content you would like to send? Please output a whole natural paragraph of content in a natural and smooth manner, without dividing it into points or using markdown syntax!
+      
 
     supervisor_prompt: &supervisor_prompt |-
-      You are playing the role of an intelligent agent in the virtual world, and your identity is a supervisor who supervises and checks the dialogue between "user and therapist". You need to provide some modification suggestions for the consultant's response based on the following role description and dialogue history, and inform the therapist so that they can regenerate their response according to your modification suggestions.
-      Role description：
+      ## You are playing the role of {agent_name} in a virtual world, accompanying the counselor and examining the conversation between the patient and the counselor. The counselor will generate a response based on the patient's information and cognitive-behavioral therapy guidelines. As a supervisor, you need to provide some revision suggestions based on your own role description to the counselor's response, so that the counselor can improve and generate their response according to your revision suggestions. At present, the known information is as follows:
+      
+      ### Your role description as {agent_name}:
       {role_description}
       
-      Summary of conversation history：
-      {chat_summary}
+      ### As {agent_name}, you saw a consultation from a patient:
+      {original_question_of_user}
       
-      Latest conversation history：
-      {chat_history}
+      ### As {agent_name}, you have seen the response to the patient's consultation generated by the counselor that needs to be modified:
+      {draft_response}
       
-      Now that you have chosen to communicate with {agents} through {routing}, may I ask what message content you would like to send? Please output a whole natural paragraph of content in a natural and smooth manner, without dividing it into points or using markdown syntax!
-
-
+      ## Now, you have chosen to communicate with the following roles through {routing}:
+      {agents}
+      
+      ##Attention##
+      Please use 'Hello counselor' as the beginning content of your response that you will send to {agent_name} and provide your revision suggestions to the counselor!
   name: XinHai CBT
 
   environment:
@@ -140,87 +121,87 @@ arena:
     max_turns: 16
 
   agents:
-    - agent_type: simple
+    - agent_type: autocbt
       agent_id: 0
-      name: user
-      role_description: User's role description, here will be replace with CBTBench question.
+      name: patient
+      role_description: A patient who is troubled by the following psychological issues, 
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *consultant_prompt
       locale: en
       allowed_routing_types: *allowed_routing_types
-      llm: meta-llama/Meta-Llama-3.1-8B-Instruct
-      api_key: EMPTY
-      api_base: http://localhost:40011/v1
-    - agent_type: simple
+      llm: meta-llama/Meta-Llama-3.1-70B-Instruct
+      api_key: sk-xxxxx
+      api_base: https://localhost/v1
+    - agent_type: autocbt
       agent_id: 1
-      name: therapist
-      role_description: Therapist, who directly engages in dialogue with the user and wishes to practice cognitive-behavioral therapy, is accustomed to seeking help from the supervisor to ensure that the counseling process conforms to the principles of cognitive-behavioral therapy.
-      routing_prompt_template: *therapist_routing_prompt
+      name: counselor
+      role_description: The counselor can generate a fluent and natural response based on the patient's questions and behavioral cognitive therapy guidelines. Then the counselor can choose to have a conversation with the patient, answer their psychological questions, and end the conversation; You can also choose to have a conversation with the supervisor to seek improvement suggestions, improve the response content based on the supervisor's advice, and then answer the patient.
+      routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
       locale: en
       allowed_routing_types: *allowed_routing_types
-      llm: meta-llama/Meta-Llama-3.1-8B-Instruct
-      api_key: EMPTY
-      api_base: http://localhost:40011/v1
-    - agent_type: simple
+      llm: meta-llama/Meta-Llama-3.1-70B-Instruct
+      api_key: sk-xxxxx
+      api_base: https://localhost/v1
+    - agent_type: autocbt
       agent_id: 2
-      name: supervisor1
-      role_description: Supervisor1 focuses on verification and empathy, able to express understanding and sympathy for patients' emotions or issues, and create a sense of security. This supervisor is able to assess the level of empathy and sympathy in the response generated by the consultant, and then provide improvement suggestions related to the consultant.
+      name: Empathy supervisor
+      role_description: Empathy supervisor, focus on analyzing the level of empathy displayed in interactions between patients and counselors. She carefully listens to the patient's psychological concerns and evaluates the counselor's responses to determine if they have correctly understood the patient's intent. Her role involves assessing whether the counselor expresses respect, understanding, and sympathy for the patient's anxiety and pain. Additionally, she ensures that the counselor creates a safe and supportive environment for the patient to freely express their feelings. Through her guidance, she provides constructive feedback to help the counselor improve their empathetic communication and enhance the therapeutic relationship.
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
       locale: en
       allowed_routing_types: *allowed_routing_types
-      llm: meta-llama/Meta-Llama-3.1-8B-Instruct
-      api_key: EMPTY
-      api_base: http://localhost:40011/v1
-    - agent_type: simple
+      llm: meta-llama/Meta-Llama-3.1-70B-Instruct
+      api_key: sk-xxxxx
+      api_base: https://localhost/v1
+    - agent_type: autocbt
       agent_id: 3
-      name: supervisor2
-      role_description: Supervisor2, proficient in identifying key thinking or beliefs, able to identify possible cognitive distortions or core beliefs through problem descriptions. This supervisor 2 can judge the cognitive distortion or core belief level in the response generated by the consultant, and then provide improvement suggestions related to the consultant.
+      name: Belief supervisor
+      role_description: Belief supervisor, focus on assessing the degree to which cognitive distortions are identified and addressed in the interactions between patients and counselors. He listens attentively to the patient's psychological concerns and analyzes the counselor's responses to determine whether the counselor recognizes and helps challenge the patient's distorted beliefs about anxiety and pain. His role involves evaluating if the counselor identifies these distorted beliefs, delves deeper into them, and assists the patient in acknowledging and confronting them. By providing constructive feedback on the counselor's approach, he aims to enhance the effectiveness of the therapeutic process and promote better outcomes for the patient.
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
       locale: en
       allowed_routing_types: *allowed_routing_types
-      llm: meta-llama/Meta-Llama-3.1-8B-Instruct
-      api_key: EMPTY
-      api_base: http://localhost:40011/v1
-    - agent_type: simple
+      llm: meta-llama/Meta-Llama-3.1-70B-Instruct
+      api_key: sk-xxxxx
+      api_base: https://localhost/v1
+    - agent_type: autocbt
       agent_id: 4
-      name: supervisor3
-      role_description: Supervisor3 is good at posting challenges or reflections, encouraging patients to reconsider or reflect on their initial thinking or beliefs by asking open-ended questions. This supervisor 3 is able to identify the level of challenge or reflection in the response generated by the consultant, and then provide relevant improvement suggestions for the consultant.
+      name: Reflection supervisor
+      role_description: Reflection supervisor, focus on evaluating the level of reflection between the patient's questions and the counselor's responses. The supervisor's role is to analyze whether the counselor posed questions that encourage the patient to reconsider their initial thoughts or distorted beliefs. This includes assessing if the counselor asked questions related to the patient's initial thoughts, facilitated deeper thinking, and addressed the patient's distorted beliefs through reflective inquiry. By providing constructive feedback on the counselor's responses, the supervisor aims to enhance the counselor's ability to foster meaningful reflection and growth in the patient.
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
       locale: en
       allowed_routing_types: *allowed_routing_types
-      llm: meta-llama/Meta-Llama-3.1-8B-Instruct
-      api_key: EMPTY
-      api_base: http://localhost:40011/v1
-    - agent_type: simple
+      llm: meta-llama/Meta-Llama-3.1-70B-Instruct
+      api_key: sk-xxxxx
+      api_base: https://localhost/v1
+    - agent_type: autocbt
       agent_id: 5
-      name: supervisor4
-      role_description: Supervisor4 is good at providing strategies or insights to help them deal with current situations by offering practical strategies or insights. This supervisor 4 is able to identify practical strategies or insights based on the response generated by the consultant, and then provide relevant improvement suggestions for the consultant.
+      name: Strategies supervisor
+      role_description: Strategies supervisor, focus on evaluating the effectiveness of the counselor's responses to patients' psychological concerns. He attentively listens to the patients' issues and carefully analyzes the counselor's strategies to determine their practicality and potential to alleviate or resolve the patients' anxiety and pain. By ensuring that the counselor's insights are grounded in professional psychological methods, he aims to enhance the quality of care provided and support the counselor's professional development.
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
       locale: en
       allowed_routing_types: *allowed_routing_types
-      llm: meta-llama/Meta-Llama-3.1-8B-Instruct
-      api_key: EMPTY
-      api_base: http://localhost:40011/v1
-    - agent_type: simple
+      llm: meta-llama/Meta-Llama-3.1-70B-Instruct
+      api_key: sk-xxxxx
+      api_base: https://localhost/v1
+    - agent_type: autocbt
       agent_id: 6
-      name: supervisor5
-      role_description: Supervisor5 is responsible for encouraging and foresight, encouraging patients to use strategies, emphasizing that this is just the beginning and may require further support. This supervisor 5 is able to find the level of encouragement in the response generated by the consultant, and then provide relevant improvement suggestions for the consultant.
+      name: Encouragement supervisor
+      role_description: Encouragement supervisor, focus on assessing the level of encouragement in the counselor's responses. This professional listens attentively to the patient's psychological concerns and meticulously analyzes how the counselor addresses these issues. The supervisor's main objective is to ensure that the counselor effectively motivates the patient to adopt the strategies and insights shared during sessions. Emphasizing that this is just the beginning of the patient's journey, the supervisor looks for ways the counselor encourages gradual change and action. They evaluate whether the counselor inspires the patient to take proactive steps, prepares them for potential challenges they might face while implementing new strategies, and offers comfort and reassurance in the face of setbacks. By providing insightful feedback, the encouragement supervisor helps the counselor enhance their support, ultimately fostering the patient's growth and resilience.
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
       locale: en
       allowed_routing_types: *allowed_routing_types
-      llm: meta-llama/Meta-Llama-3.1-8B-Instruct
-      api_key: EMPTY
-      api_base: http://localhost:40011/v1
+      llm: meta-llama/Meta-Llama-3.1-70B-Instruct
+      api_key: sk-xxxxx
+      api_base: https://localhost/v1
