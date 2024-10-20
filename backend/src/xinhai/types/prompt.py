@@ -38,7 +38,7 @@ class XinHaiPromptType(XinHaiPromptTypeMixin, Enum):
     FORMATPROMPT = "[FormatResponse]", {
         XinHaiI18NLocales.CHINESE: {
             "prompt": "生成的回复用 [回复] 和 [回复结束] 括起来。",
-            "regex": r"\[\s*回复\s*\](.*)\[\s*回复结束\s*\]"
+            "regex": r"\[?\s*回复\s*\]?(.*)\[?\s*回复结束\s*\]?"
         },
         XinHaiI18NLocales.ENGLISH: {
             "prompt": "The generated response should be enclosed by [Response] and [End of Response].",

@@ -1,34 +1,35 @@
 import asyncio
 import json
 import logging
+import os.path
 from argparse import ArgumentParser
-from typing import List
 
 import yaml
 
-from xinhai.arena.agents import AGENT_REGISTRY, BaseAgent
-from xinhai.arena.environments import ENVIRONMENT_REGISTRY, BaseEnvironment
+from xinhai.arena.agents import AGENT_REGISTRY
+from xinhai.arena.environments import ENVIRONMENT_REGISTRY
+from xinhai.arena.simulation import Simulation
 from xinhai.arena.topology import TOPOLOGY_REGISTRY
 
 logger = logging.getLogger(__name__)
 
 
-class Simulation:
-    def __init__(self, agents: List[BaseAgent], environment: BaseEnvironment):
-        self.agents = agents
-        self.environment = environment
+class AutoCBT(Simulation):
 
     @classmethod
-    def from_config(cls, config_path):
+    def from_config_with_role_description(cls, config_path, env_index, meta):
         config = yaml.safe_load(open(config_path))
 
         arena_config = config['arena']
         env_config = arena_config["environment"]
+        env_config['environment_id'] = f"{env_config['environment_id']}-{env_index}"
 
         # Build the agents
         agents = []
         for agent_configs in arena_config["agents"]:
             agent_type = agent_configs.pop("agent_type")
+            if agent_configs['name'] in ["咨询者", "patient"]:
+                agent_configs['role_description'] = meta['question'] + meta['description']
 
             agent = AGENT_REGISTRY[agent_type](**agent_configs,
                                                controller_address=env_config['controller_address'],
@@ -53,27 +54,15 @@ class Simulation:
         self.environment.reset()
         while not self.environment.is_done():
             asyncio.run(self.environment.step())
-        # self.environment.report_metrics()
+
         print(json.dumps(self.agents[0].memory.model_dump_json(), indent=2))
-
-    def reset(self):
-        self.environment.reset()
-        for agent in self.agents:
-            agent.reset()
-
-    def next(self, *args, **kwargs):
-        """Run the environment for one step and return the return message."""
-        return_message = asyncio.run(self.environment.step(*args, **kwargs))
-        return return_message
-
-    def update_state(self, *args, **kwargs):
-        """Run the environment for one step and return the return message."""
-        self.environment.update_state(*args, **kwargs)
 
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--config_path", type=str, default="configs/xinhai.yaml")
+    parser.add_argument("--data_path", type=str, default="configs/xinhai.yaml")
+    parser.add_argument("--language", type=str, default="zh")
     parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 
@@ -82,5 +71,11 @@ if __name__ == "__main__":
     else:
         logging.basicConfig(level=logging.INFO)
 
-    simulator = Simulation.from_config(args.config_path)
-    simulator.run()
+    # self.environment.report_metrics()
+    dataset_name = "psyqa_balanced" if args.language == "zh" else "therapistqa_balanced"
+
+    with open(os.path.join(args.data_path, f"{dataset_name}.json"), 'r', encoding='utf-8') as f:
+        for i, item in enumerate(json.load(f)):
+            simulator = AutoCBT.from_config_with_role_description(args.config_path, i, item)
+            simulator.run()
+            break

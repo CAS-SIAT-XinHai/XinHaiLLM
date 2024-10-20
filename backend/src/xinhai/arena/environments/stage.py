@@ -6,15 +6,14 @@ XinHai stands for [Sea of Minds].
 
 Authors: Renhao Li, Vimos Tan
 """
-import os
 import json
-import time
 import logging
+import os
+import time
 from typing import List
 
-from xinhai.arena.agents.base import BaseAgent
-from xinhai.arena.environments import register_environment
-from xinhai.arena.environments.base import BaseEnvironment
+from xinhai.arena.agents import BaseAgent
+from xinhai.arena.environments import register_environment, BaseEnvironment
 from xinhai.types.routing import XinHaiRoutingType
 
 logger = logging.getLogger(__name__)
@@ -32,12 +31,12 @@ class StageEnvironment(BaseEnvironment):
         stages: List of stage names
     """
 
-    def __init__(self, environment_id, agents: List[BaseAgent], topology, routing_method="static", max_turns=10,
+    def __init__(self, environment_id, agents: List[BaseAgent], topologies, routing_method="static", max_turns=10,
                  cnt_turn=0, controller_address=None):
-        super().__init__(environment_id, agents, topology, max_turns, cnt_turn, controller_address)
-        self.stages = topology.stages
+        super().__init__(environment_id, agents, topologies, max_turns, cnt_turn, controller_address)
+        self.stages = topologies.stages
         self.routing_method = routing_method
-        self.envolve_agents = list(set().union(*[set(nodes) for nodes in topology.nodes]))
+        self.envolve_agents = list(set().union(*[set(nodes) for nodes in topologies.nodes]))
         self.__load_var_from_cache()
         self.message_cache = []
 
@@ -54,7 +53,7 @@ class StageEnvironment(BaseEnvironment):
 
         self.cross_turn_info = self.message_cache[-1].content
         self.__dump_var_to_cache()
-        
+
         self.message_cache = []
         print(f"Turn {self.cnt_turn} simulation is done!")
 
@@ -69,7 +68,7 @@ class StageEnvironment(BaseEnvironment):
     def reset_iter(self, stage_conv_budget) -> None:
         for agent in self.agents:
             agent.reset_iter(stage_conv_budget)
-    
+
     def reset_stage(self) -> None:
         for agent in self.agents:
             agent.reset_stage()
@@ -79,12 +78,12 @@ class StageEnvironment(BaseEnvironment):
         return self.cnt_turn >= self.max_turns
 
     def __step_in_one_stage(self, stage_indx: int):
-        start_node = self.topology.start_nodes[stage_indx]
-        diagraph = self.topology.diagraph[stage_indx]
-        env_status = self.topology.env_status[stage_indx]
-        stage_conv_budget = self.topology.budget[stage_indx]
-        ref_info_config = self.topology.ref_info[stage_indx]
-        iter_num = self.topology.iter_num[stage_indx]
+        start_node = self.topologies.start_nodes[stage_indx]
+        diagraph = self.topologies.diagraph[stage_indx]
+        env_status = self.topologies.env_status[stage_indx]
+        stage_conv_budget = self.topologies.budget[stage_indx]
+        ref_info_config = self.topologies.ref_info[stage_indx]
+        iter_num = self.topologies.iter_num[stage_indx]
 
         self.cnt_iter = 0
         for _ in range(iter_num):
@@ -122,15 +121,15 @@ class StageEnvironment(BaseEnvironment):
                     agent.update_short_term_memory([message])
                     [a.update_short_term_memory([message]) for a in targets]
                     self.message_cache.append(message)
-                    
+
                     stage_conv_num += 1
                     if stage_conv_num >= stage_conv_budget:
                         [agent.pop_ref_info_cache() for agent in self.agents]
                         break
-            
+
             self.cnt_iter += 1
             self.reset_iter(stage_conv_budget)
-        
+
         self.reset_stage()
 
     def __load_var_from_cache(self):
@@ -155,7 +154,7 @@ class StageEnvironment(BaseEnvironment):
             if records:
                 last_record = records[-1]
                 self.cnt_turn = last_record["cnt_turn"] + 1
-                
+
                 self.cross_turn_info = last_record["cross_turn_info"]
                 self.retrieved_knowledge_ids = []
                 self.excluded_knowledge_ids = sum([r["retrieved_knowledge_ids"] for r in records], [])

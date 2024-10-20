@@ -12,12 +12,9 @@ LastEditTime: 2024-07-19 17:28:20
 import logging
 from datetime import datetime
 
-from xinhai.arena.agents import register_agent
-from xinhai.arena.agents.base import BaseAgent
-from xinhai.arena.topology.base import BaseTopology
+from xinhai.arena.agents import register_agent, BaseAgent
 from xinhai.types.arena import XinHaiArenaAgentTypes
 from xinhai.types.message import XinHaiChatMessage
-from xinhai.types.routing import XinHaiRoutingMessage, XinHaiRoutingType
 
 logger = logging.getLogger(__name__)
 

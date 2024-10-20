@@ -9,8 +9,7 @@ Authors: wuhaihong
 from typing import Any, List
 
 import networkx as nx
-from xinhai.arena.topology import register_topology
-from xinhai.arena.topology.base import BaseTopology
+from xinhai.arena.topology import register_topology, BaseTopology
 
 
 @register_topology("ocragency")

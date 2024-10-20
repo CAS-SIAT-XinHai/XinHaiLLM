@@ -9,8 +9,7 @@ Authors: Vimos Tan
 import logging
 from typing import List
 
-from xinhai.arena.agents import register_agent
-from xinhai.arena.agents.base import BaseAgent
+from xinhai.arena.agents import register_agent, BaseAgent
 from xinhai.types.arena import XinHaiArenaAgentTypes
 from xinhai.types.message import XinHaiChatMessage
 

@@ -1,24 +1,10 @@
-controller:
-  controller_address: http://localhost:5077
-
-workers:
-  - worker_type: llm
-    worker_name: Qwen/Qwen2.5-72B-Instruct
-    worker_address: http://localhost:40001
-    worker_host: 0.0.0.0
-    worker_port: 40001
-    no_register: false
-    limit_model_concurrency: 5
-    device: cuda
-    api_key: sk-xxxxx
-  - worker_type: ocr
-  - worker_type: storage
-
 arena:
   allowed_routing_types: &allowed_routing_types
     - "[Unicast]"
     - "[Multicast]"
     - "[Broadcast]"
+  id_template: &id_template |-
+    {id:016d}
   prompts:
     routing_prompt: &routing_prompt |-
       ## 现在，你正在扮演虚拟世界中的{agent_name}。你需要基于自己和其他人物的关联关系做出反应。目前，已知的信息如下：
@@ -103,22 +89,25 @@ arena:
   environment:
     environment_type: autocbt
     environment_id: xinhai_cbt_simulation_0
-    controller_address: http://localhost:5077
-    topology:
-      edges:
-        - 0->1
-        - 1->0
-        - 1->2
-        - 1->3
-        - 1->4
-        - 1->5
-        - 1->6
-        - 2->1
-        - 3->1
-        - 4->1
-        - 5->1
-        - 6->1
-    max_turns: 16
+    controller_address: http://controller:5000
+    topologies:
+      - type: autocbt
+        name: autocbt
+        start: 0
+        max_turns: 16
+        edges:
+          - 0->1
+          - 1->0
+          - 1->2
+          - 1->3
+          - 1->4
+          - 1->5
+          - 1->6
+          - 2->1
+          - 3->1
+          - 4->1
+          - 5->1
+          - 6->1
 
   agents:
     - agent_type: autocbt
@@ -128,11 +117,10 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *consultant_prompt
+      id_template: *id_template
       locale: zh
       allowed_routing_types: *allowed_routing_types
       llm: Qwen/Qwen2.5-72B-Instruct
-      api_key: sk-xxxxx
-      api_base: https://localhost/v1
     - agent_type: autocbt
       agent_id: 1
       name: 心理咨询师
@@ -140,11 +128,10 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
+      id_template: *id_template
       locale: zh
       allowed_routing_types: *allowed_routing_types
       llm: Qwen/Qwen2.5-72B-Instruct
-      api_key: sk-xxxxx
-      api_base: https://localhost/v1
     - agent_type: autocbt
       agent_id: 2
       name: 共情督导师
@@ -152,11 +139,10 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
+      id_template: *id_template
       locale: zh
       allowed_routing_types: *allowed_routing_types
       llm: Qwen/Qwen2.5-72B-Instruct
-      api_key: sk-xxxxx
-      api_base: https://localhost/v1
     - agent_type: autocbt
       agent_id: 3
       name: 信念督导师
@@ -164,11 +150,10 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
+      id_template: *id_template
       locale: zh
       allowed_routing_types: *allowed_routing_types
       llm: Qwen/Qwen2.5-72B-Instruct
-      api_key: sk-xxxxx
-      api_base: https://localhost/v1
     - agent_type: autocbt
       agent_id: 4
       name: 反思督导师
@@ -176,11 +161,10 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
+      id_template: *id_template
       locale: zh
       allowed_routing_types: *allowed_routing_types
       llm: Qwen/Qwen2.5-72B-Instruct
-      api_key: sk-xxxxx
-      api_base: https://localhost/v1
     - agent_type: autocbt
       agent_id: 5
       name: 策略督导师
@@ -188,11 +172,10 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
+      id_template: *id_template
       locale: zh
       allowed_routing_types: *allowed_routing_types
       llm: Qwen/Qwen2.5-72B-Instruct
-      api_key: sk-xxxxx
-      api_base: https://localhost/v1
     - agent_type: autocbt
       agent_id: 6
       name: 鼓励督导师
@@ -200,8 +183,7 @@ arena:
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *supervisor_prompt
+      id_template: *id_template
       locale: zh
       allowed_routing_types: *allowed_routing_types
       llm: Qwen/Qwen2.5-72B-Instruct
-      api_key: sk-xxxxx
-      api_base: https://localhost/v1

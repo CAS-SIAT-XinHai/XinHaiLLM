@@ -265,7 +265,8 @@ class Controller:
             model=request.model,
             messages=messages
         )
-        return response
+        logger.info(f"Getting response: {response}")
+        return ChatCompletionResponse(id=response.id, model=request.model, choices=response.choices)
 
     @staticmethod
     def chat_completion(client, model, messages):
