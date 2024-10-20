@@ -5,18 +5,17 @@ services:
     image: xinhai_backend
     volumes:
       - ../../backend:/usr/share/xinhai/backend
-      - ./configs:/usr/share/xinhai/configs
     ports:
-      - 8080:8080
-      - ${CONTROLLER_PORT}:${CONTROLLER_PORT}
+      - ${FRONTEND_PORT}:8080
+      - ${CONTROLLER_PORT}:5000
     environment:
       PYTHONPATH: /usr/share/xinhai/backend/src
-    command: python -m xinhai.controller --host ${CONTROLLER_HOST} --port ${CONTROLLER_PORT}
+    command: python -m xinhai.controller --host 0.0.0.0 --port 5000
     healthcheck:
       test:
         [
           "CMD", "curl", "--fail", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{}",
-          "http://localhost:${CONTROLLER_PORT}/api/list_models",
+          "http://localhost:5000/api/list_models",
         ]
       interval: 10s
       timeout: 10s
@@ -25,7 +24,6 @@ services:
     image: xinhai_frontend
     volumes:
       - ../../frontend:/usr/share/xinhai/frontend
-      - ./configs:/usr/share/xinhai/configs
     network_mode: service:controller
     working_dir: /usr/share/xinhai/frontend
     command: npm run serve
@@ -36,10 +34,9 @@ services:
         condition: service_healthy
     volumes:
       - ../../backend:/usr/share/xinhai/backend
-      - ./configs:/usr/share/xinhai/configs
       - pretrained_models:/usr/share/xinhai/pretrained_models
     environment:
-      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
+      CONTROLLER_ADDRESS: http://controller:5000
       MODEL_NAME: storage
       WORKER_ADDRESS: http://storage:${STORAGE_WORKER_PORT}
       WORKER_HOST: 0.0.0.0
@@ -72,10 +69,9 @@ services:
         condition: service_healthy
     volumes:
       - ../../backend:/usr/share/xinhai/backend
-      - ./configs:/usr/share/xinhai/configs
       - pretrained_models:/usr/share/xinhai/pretrained_models
     environment:
-      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
+      CONTROLLER_ADDRESS: http://controller:5000
       MODEL_NAME: ${LLM_MODEL_NAME}
       WORKER_ADDRESS: http://llm:${LLM_WORKER_PORT}
       WORKER_HOST: 0.0.0.0
@@ -129,7 +125,7 @@ services:
       - ../../backend:/usr/share/xinhai/backend
       - ./configs:/usr/share/xinhai/configs
     environment:
-      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
+      CONTROLLER_ADDRESS: http://controller:5000
       MODEL_NAME: ${AGENCY_NAME}
       WORKER_ADDRESS: http://cbt_agency:${AGENCY_WORKER_PORT}
       WORKER_HOST: 0.0.0.0
