@@ -16,19 +16,23 @@ RUN pip install python-multipart sse_starlette
 RUN pip install chromadb sentence_transformers
 
 RUN pip install vllm==0.6.1.post2
+# Install vLLM with CUDA 11.8.
+# ARG VLLM_VERSION=0.6.1.post2
+# ARG PYTHON_VERSION=311
+# RUN pip install https://github.com/vllm-project/vllm/releases/download/v${VLLM_VERSION}/vllm-${VLLM_VERSION}+cu121-cp${PYTHON_VERSION}-cp${PYTHON_VERSION}-manylinux1_x86_64.whl --extra-index-url https://download.pytorch.org/whl/cu121
 
 RUN pip install aiofiles peft trl datasets accelerate
 
 ARG WORK_DIR=/usr/share/xinhai
 
-RUN mkdir -p ${WORK_DIR}
+RUN mkdir -p ${WORK_DIR}/related_repos
 
 COPY --from=root related_repos/  ${WORK_DIR}/related_repos
 
-WORKDIR ${WORK_DIR}/related_repos/transformers
+WORKDIR ${WORK_DIR}/related_repos/LLaMA-Factory
 RUN pip install -e .
 
-WORKDIR ${WORK_DIR}/related_repos/LLaMA-Factory
+WORKDIR ${WORK_DIR}/related_repos/transformers
 RUN pip install -e .
 
 RUN pip install timm==0.9.10
