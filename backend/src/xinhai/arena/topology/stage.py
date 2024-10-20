@@ -6,11 +6,12 @@ XinHai stands for [Sea of Minds].
 
 Authors: Renhao Li
 """
-from typing import Any, List
 import re
+from typing import Any, List
+
 import networkx as nx
-from xinhai.arena.topology import register_topology
-from xinhai.arena.topology.base import BaseTopology
+
+from xinhai.arena.topology import register_topology, BaseTopology
 
 
 @register_topology("stage")
@@ -25,7 +26,7 @@ class StageTopology(BaseTopology):
         self.iter_num = [c[6] for c in config_in_each_stage]
 
         self.nodes = [c[2].nodes for c in config_in_each_stage]
-        
+
     @classmethod
     def from_config(cls, config: Any):
         config_in_each_stage = []

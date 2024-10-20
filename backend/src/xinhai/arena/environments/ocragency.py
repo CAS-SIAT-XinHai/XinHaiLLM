@@ -6,19 +6,14 @@ XinHai stands for [Sea of Minds].
 
 Authors: wuhaihong`
 """
-import json
 import logging
 
-import requests
-from llamafactory.api.protocol import Role
-from xinhai.arena.environments import register_environment
-from xinhai.arena.environments.base import BaseEnvironment
-from xinhai.types.arena import XinHaiArenaAgentTypes, XinHaiArenaEnvironmentTypes
-from xinhai.types.message import XinHaiChatMessage
+from llamafactory.chat.base_engine import Response
+from xinhai.arena.environments import register_environment, BaseEnvironment
+from xinhai.types.arena import XinHaiArenaEnvironmentTypes
 
-
-from llamafactory.chat.base_engine import  Response
 logger = logging.getLogger(__name__)
+
 
 @register_environment(XinHaiArenaEnvironmentTypes.OCRAGENCY)
 class AgencyEnvironment(BaseEnvironment):
@@ -33,7 +28,7 @@ class AgencyEnvironment(BaseEnvironment):
     """
 
     # 提取文字和图片 URL 的函数
-    def extract_text_and_images(self,input_messages):
+    def extract_text_and_images(self, input_messages):
         texts = []
         image_urls = []
 
@@ -57,8 +52,8 @@ class AgencyEnvironment(BaseEnvironment):
                    max_new_tokens,
                    num_return_sequences):
 
-        user_question, image_path=self.extract_text_and_images(input_messages)
-        #print("image_path:" + str(image_path))
+        user_question, image_path = self.extract_text_and_images(input_messages)
+        # print("image_path:" + str(image_path))
         # 上传图片到内存IO中
         # url = f"{self.controller_address}/api/upload-file"
         # with open(image_path, "rb") as file:
@@ -92,10 +87,9 @@ class AgencyEnvironment(BaseEnvironment):
             user_question=user_question
         ).content
 
-
         # 存进一个result文件里面
-        result_message=verify_agent_message
-        results=[]
+        result_message = verify_agent_message
+        results = []
         results.append(
             Response(
                 response_text=result_message,
@@ -105,7 +99,6 @@ class AgencyEnvironment(BaseEnvironment):
             )
         )
         return results
-
 
     def reset(self) -> None:
         """Reset the environment"""

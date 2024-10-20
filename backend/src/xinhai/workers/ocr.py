@@ -2,12 +2,6 @@
 A model worker executes the model.
 """
 
-
-import df2img
-import numpy as np
-import pandas as pd
-from paddleocr import PaddleOCR, draw_ocr
-from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL, STATIC_PATH
 import base64
 import io
 import json
@@ -15,18 +9,22 @@ import os
 import threading
 import time
 import uuid
-import torch
+
+import df2img
+import numpy as np
+import pandas as pd
 import requests
+import torch
 import uvicorn
-from fastapi import FastAPI, HTTPException, status, Depends
-from fastapi import Request
 from PIL import Image
-from llamafactory.api.protocol import Role, ModelList, ModelCard, ChatCompletionResponse, ChatCompletionRequest, \
-    Function, \
-    ChatCompletionMessage, FunctionCall, Finish, ChatCompletionResponseChoice, ChatCompletionResponseUsage, \
-    ChatCompletionStreamResponse, ChatCompletionStreamResponseChoice
+from fastapi import FastAPI
+from fastapi import Request
+from paddleocr import PaddleOCR, draw_ocr
+
 from xinhai.config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
 from xinhai.utils import build_logger, pretty_print_semaphore
+from ..config import STATIC_PATH
+
 GB = 1 << 30
 
 worker_id = str(uuid.uuid4())[:6]
@@ -143,7 +141,7 @@ class OCRModelWorker:
         # print(result)
         str_in_image, img_b64_str = self.get_ocred_result(image, result)
         print(str_in_image)
-        response={
+        response = {
             "title": image_url,
             "description": str_in_image,
             "image": img_b64_str,

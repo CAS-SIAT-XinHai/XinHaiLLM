@@ -8,11 +8,8 @@ Authors: Vimos Tan
 """
 import logging
 
-from xinhai.arena.environments import register_environment
-from xinhai.arena.environments.base import BaseEnvironment
+from xinhai.arena.environments import register_environment, BaseEnvironment
 from xinhai.types.arena import XinHaiArenaEnvironmentTypes
-from xinhai.types.routing import XinHaiRoutingType
-import itertools
 
 logger = logging.getLogger(__name__)
 
@@ -31,36 +28,12 @@ class SimpleEnvironment(BaseEnvironment):
 
     async def step(self):
         """Run one step of the environment"""
-        agent_queue = [self.agents[0]]
-        while agent_queue:
-            agent = agent_queue.pop(0)
-            candidate_agents = [self.agents[n] for n in self.topology.digraph.neighbors(agent.agent_id)]
-            routing_message = agent.routing(candidate_agents)
-
-            self.cnt_turn += 1
-            # logger.info("********************************************************")
-            # logger.info(f"{agent.agent_id }:{self.cnt_turn}")
-            # logger.info("********************************************************")
-            if ((routing_message.routing_type == XinHaiRoutingType.END_CAST or self.cnt_turn >= self.max_turns) and agent.agent_id == 0) or self.cnt_turn > 16:
-                # [a.store_long_term_memory() for a in diagraph.nodes]
-                break
-            targets = [self.agents[n] for n in routing_message.targets if
-                       self.topology.digraph.has_edge(agent.agent_id, n)]
-            if targets:
-                agent_queue.extend(targets)
-                agent_queue = [k for k, g in itertools.groupby(agent_queue)]
-                targets_descriptions = "\n".join(
-                    [f"{n.agent_id}: {n.role_description}" for n in targets])
-                message = agent.step(
-                    routing=routing_message.routing_type.routing_name,
-                    agents=targets_descriptions
-                )
-                agent.update_memory([message])
-
+        for topology in self.topologies:
+            for turn_id, (targets, message) in enumerate(topology(self.agents, input_messages=None)):
+                if turn_id > topology.max_turns:
+                    break
                 for a in targets:
                     a.update_memory([message])
-
-        self.cnt_turn += 1
 
     def reset(self) -> None:
         """Reset the environment"""
