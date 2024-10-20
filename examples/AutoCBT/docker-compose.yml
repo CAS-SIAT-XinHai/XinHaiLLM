@@ -95,7 +95,7 @@ services:
 #      timeout: 10s
 #      retries: 120
   llm_bridge: # Bridged LLM
-    image: xinhai
+    image: xinhai_backend
     depends_on:
       - controller
       - storage
