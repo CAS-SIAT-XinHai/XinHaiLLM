@@ -216,7 +216,10 @@ class BaseAgent:
         return routing_message
 
     @abstractmethod
-    def step(self, routing, agents, **kwargs):
+    def step(self,
+             routing_message_in: XinHaiRoutingMessage,
+             routing_message_out: XinHaiRoutingMessage,
+             target_agents: List[Self], **kwargs):
         """Get one step response"""
         pass
 
@@ -250,7 +253,7 @@ class BaseAgent:
             logger.warning(f"Error response from Agent-{agent_id}: {e}")
 
     def agent_descriptions(self, candidate_agents: List[Self]):
-        return "\n".join([f"{a.agent_id}: {a.role_description}" for a in candidate_agents])
+        return "\n".join([f"Agent-{a.agent_id} {a.name}: {a.role_description}" for a in candidate_agents])
 
     def prompt_for_routing(self, routing_prompt, num_retries=5):
         messages = [{

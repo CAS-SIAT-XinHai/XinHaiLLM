@@ -1,12 +1,15 @@
 arena:
   allowed_routing_types: &allowed_routing_types
     - "[Unicast]"
+    - "[Multicast]"
+    - "[Broadcast]"
+    - "[Endcast]"
 
   prompts:
-    answer_template: &answer_template |-
-      {"question answer":""}
     routing_prompt: &routing_prompt |-
-      ## Now, you are playing the role of {agent_name} in the virtual world. You need to react based on your own association with other roles. At present, the known information is as follows:
+      Now, you are working for an OCR Agency, playing the role of {agent_name}. 
+      You need to react based on your own association with other roles. 
+      At present, the known information is as follows:
       
       ### Your role description as {agent_name}:
       {role_description}
@@ -29,7 +32,18 @@ arena:
       
       ##Attention##
       Now, based on the above information and reference output format, what is your routing strategy?
-    Verify_prompt: &Verify_prompt |-
+    summary_prompt: &summary_prompt |-
+      ## Please provide a new conversation summary based on the previous conversation summary and the new conversation content. The new dialogue summary should include the content of the previous summary. The length of the abstract should not be too long or too short, and should be determined based on the previous conversation summary and content.
+      
+      #### Previous conversation summary: 
+      {chat_summary}
+      
+      #### New conversation content: 
+      {chat_history}
+      
+      ###Attention###
+      Only return the new conversation summary content, do not return the analysis process!
+    receptionist_prompt: &receptionist_prompt |-
       You are a {role_description}。
       The user has a question related to image information extraction, and the responses have been provided by both the mllm_agent and the ocr_agent.
       The information provided is as follows:
@@ -45,7 +59,6 @@ arena:
           Please determine whether the semantic content of the ocr_agent's and mllm_agent's responses is the same.If:
           1. The responses from both agents are largely similar, output an answer that fully complies with the image information extraction format requirements.
           2. The responses from the two agents differ significantly, choose the answer you believe is the most correct and most relevant to the user's question, and output an answer that fully complies with the image information extraction format requirements.
-
     mllm_prompt: &mllm_prompt |-
       Now, you are a {role_description}. The known information is as follows:
       (1) User's question:
@@ -53,8 +66,7 @@ arena:
       (2) Response template:
           {answer_template}
       Please respond to the user's question according to the provided response template.
-
-    Answer_Refactoring_Template: &Answer_Refactoring_Template |-
+    ocr_prompt: &ocr_prompt |-
       You are a {role_description}. Based on a VQA (Visual Question Answering) task involving an image, the known information includes:
       (1) User's text question:
           {user_question}
@@ -88,39 +100,38 @@ arena:
     - agent_type: proxy
       agent_id: 0
       name: user
-      role_description: 咨询者，面临心理问题
-      routing_prompt_template: *routing_prompt
-      summary_prompt_template: *summary_prompt
-      prompt_template: *consultant_prompt
       locale: zh
-      allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      allowed_routing_types:
+        - "[Unicast]"
+      llm: Qwen2.5-7B-Instruct
     - agent_type: simple
-      agent_id: 0
-      name: judge
+      agent_id: 1
+      name: receptionist
       role_description: verify_agent, based on the user's questions and needs, compare the following agent's answers to see if they are correct and verify the format.
       routing_prompt_template: *routing_prompt
-      Verify_prompt_template: *Verify_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *receptionist_prompt
       locale: en
       allowed_routing_types: *allowed_routing_types
-      answer_template: *answer_template
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct
     - agent_type: mllm
-      agent_id: 1
+      agent_id: 2
       name: mllm
       role_description: mllm_agent, need to answer user questions based on pictures and the answer template must meet the requirements.
-      mllm_prompt_template: *mllm_prompt
-      locale: zh
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *mllm_prompt
+      locale: en
       allowed_routing_types: *allowed_routing_types
-      answer_template: *answer_template
-      llm: Qwen1.5-7B-Chat
-      mllm: internvl_chat
+      llm: Qwen2.5-7B-Instruct
+      mllm: Qwen2-VL-7B-Instruct
     - agent_type: ocr
-      agent_id: 2
+      agent_id: 3
       name: ocr
       role_description: ocr_agent, question answering assistant.
-      Answer_Refactoring_Template: *Answer_Refactoring_Template
-      locale: zh
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *ocr_prompt
+      locale: en
       allowed_routing_types: *allowed_routing_types
-      answer_template: *answer_template
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct
