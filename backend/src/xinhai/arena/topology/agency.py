@@ -8,8 +8,6 @@ Authors: Vimos Tan
 """
 import logging
 
-import networkx as nx
-
 from llamafactory.api.protocol import Role
 from xinhai.arena.topology import register_topology, BaseTopology
 from xinhai.types.arena import XinHaiArenaAgentTypes
@@ -21,8 +19,6 @@ logger = logging.getLogger(__name__)
 
 @register_topology("agency")
 class AgencyTopology(BaseTopology):
-    def __init__(self, name, graph: nx.DiGraph, nodes=None, start=0, max_turns=0):
-        super().__init__(name, graph, nodes=nodes, start=start, max_turns=max_turns)
 
     def __call__(self, agents, input_messages, *args, **kwargs):
         """Run one step of the environment"""
