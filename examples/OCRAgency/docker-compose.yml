@@ -4,17 +4,18 @@ services:
   controller:
     image: xinhai_backend
     volumes:
-      - ./backend:/usr/share/xinhai/backend
-      - ./configs:/usr/share/xinhai/configs
+      - ../../backend:/usr/share/xinhai/backend
     ports:
-      - 8080:8080
-      - ${CONTROLLER_PORT}:${CONTROLLER_PORT}
-    command: python -m xinhai.controller --host ${CONTROLLER_HOST} --port ${CONTROLLER_PORT}
+      - ${FRONTEND_PORT}:8080
+      - ${CONTROLLER_PORT}:5000
+    environment:
+      PYTHONPATH: /usr/share/xinhai/backend/src
+    command: python -m xinhai.controller --host 0.0.0.0 --port 5000
     healthcheck:
       test:
         [
-          "CMD-SHELL",
-          "curl -X POST http://localhost:5000/api/list_models",
+          "CMD", "curl", "--fail", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{}",
+          "http://localhost:5000/api/list_models",
         ]
       interval: 10s
       timeout: 10s
@@ -22,21 +23,20 @@ services:
   frontend:
     image: xinhai_frontend
     volumes:
-      - ./frontend:/usr/share/xinhai/frontend
-      - ./configs:/usr/share/xinhai/configs
+      - ../../frontend:/usr/share/xinhai/frontend
     network_mode: service:controller
     working_dir: /usr/share/xinhai/frontend
     command: npm run serve
   storage:
     image: xinhai_backend
     depends_on:
-      - controller
+      controller:
+        condition: service_healthy
     volumes:
-      - ./backend:/usr/share/xinhai/backend
-      - ./configs:/usr/share/xinhai/configs
+      - ../../backend:/usr/share/xinhai/backend
       - pretrained_models:/usr/share/xinhai/pretrained_models
     environment:
-      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
+      CONTROLLER_ADDRESS: http://controller:5000
       MODEL_NAME: storage
       WORKER_ADDRESS: http://storage:${STORAGE_WORKER_PORT}
       WORKER_HOST: 0.0.0.0
@@ -51,18 +51,27 @@ services:
             - driver: nvidia
               device_ids: [ '${LLM_DEVICE}' ]
               capabilities: [ gpu ]
+    healthcheck:
+      test: [
+        "CMD", "curl", "--fail", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{}",
+        "http://localhost:${STORAGE_WORKER_PORT}/worker_get_status",
+      ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
   ocr:
     image: xinhai_backend
     depends_on:
-      - controller
-      - storage
+      controller:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
     volumes:
-      - ./backend:/usr/share/xinhai/backend
-      - ./configs:/usr/share/xinhai/configs
+      - ../../backend:/usr/share/xinhai/backend
       - pretrained_models:/usr/share/xinhai/pretrained_models
     environment:
       LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}
-      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
+      CONTROLLER_ADDRESS: http://controller:5000
       MODEL_NAME: ${OCR_MODEL_NAME}
       WORKER_ADDRESS: http://ocr:${OCR_WORKER_PORT}
       WORKER_HOST: 0.0.0.0
@@ -75,17 +84,26 @@ services:
             - driver: nvidia
               device_ids: [ '${OCR_DEVICE}' ]
               capabilities: [ gpu ]
+    healthcheck:
+      test: [
+        "CMD", "curl", "--fail", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{}",
+        "http://localhost:${OCR_WORKER_PORT}/worker_get_status",
+      ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
   llm:
     image: xinhai_backend
     depends_on:
-      - controller
-      - storage
+      controller:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
     volumes:
-      - ./backend:/usr/share/xinhai/backend
-      - ./configs:/usr/share/xinhai/configs
+      - ../../backend:/usr/share/xinhai/backend
       - pretrained_models:/usr/share/xinhai/pretrained_models
     environment:
-      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
+      CONTROLLER_ADDRESS: http://controller:5000
       MODEL_NAME: ${LLM_MODEL_NAME}
       WORKER_ADDRESS: http://llm:${LLM_WORKER_PORT}
       WORKER_HOST: 0.0.0.0
@@ -98,17 +116,26 @@ services:
             - driver: nvidia
               device_ids: [ '0' ]
               capabilities: [ gpu ]
+    healthcheck:
+      test: [
+        "CMD", "curl", "--fail", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{}",
+        "http://localhost:${LLM_WORKER_PORT}/worker_get_status",
+      ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
   mllm:
     image: xinhai_backend
     depends_on:
-      - controller
-      - storage
+      controller:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
     volumes:
-      - ./backend:/usr/share/xinhai/backend
-      - ./configs:/usr/share/xinhai/configs
+      - ../../backend:/usr/share/xinhai/backend
       - pretrained_models:/usr/share/xinhai/pretrained_models
     environment:
-      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
+      CONTROLLER_ADDRESS: http://controller:5000
       MODEL_NAME: ${MLLM_MODEL_NAME}
       MODEL_PATH: /usr/share/xinhai/pretrained_models/${MLLM_MODEL_PATH}
       WORKER_ADDRESS: http://mllm:${MLLM_WORKER_PORT}
@@ -122,52 +149,40 @@ services:
             - driver: nvidia
               device_ids: [ '1' ]
               capabilities: [ gpu ]
-#  infllm:
-#    image: xinhai
-#    depends_on:
-#      - controller
-#      - storage
-#    volumes:
-#      - ./backend:/usr/share/xinhai/backend
-#      - ./configs:/usr/share/xinhai/configs
-#      - ./related_repos:/usr/share/xinhai/related_repos
-#      - pretrained_models:/usr/share/xinhai/pretrained_models
-#    environment:
-#      PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
-#      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
-#      MODEL_NAME: ${INFLLM_MODEL_NAME}
-#      INFLLM_TYPE: ${INFLLM_TYPE}
-#      INFLLM_CONFIG_PATH: ${INFLLM_CONFIG_PATH}
-#      WORKER_ADDRESS: http://infllm:${INFLLM_WORKER_PORT}
-#      WORKER_HOST: 0.0.0.0
-#      WORKER_PORT: ${INFLLM_WORKER_PORT}
-#    command: python -m xinhai.workers.infllm --model_name_or_path /usr/share/xinhai/pretrained_models/${INFLLM_MODEL_PATH} --template ${INFLLM_MODEL_TEMPLATE}
-#    deploy:
-#      resources:
-#        reservations:
-#          devices:
-#            - driver: nvidia
-#              device_ids: [ '0' , '1' ]
-#              capabilities: [ gpu ]
-#  bridge:
-#    image: xinhai
-#    depends_on:
-#      - controller
-#      - storage
-#    volumes:
-#      - ./backend:/usr/share/xinhai/backend
-#      - ./configs:/usr/share/xinhai/configs
-#      - ./related_repos:/usr/share/xinhai/related_repos
-#    environment:
-#      PYTHONPATH: /usr/share/xinhai/related_repos/LLaMA-Factory/src
-#      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
-#      MODEL_NAME: Qwen/Qwen2-7B-Instruct
-#      WORKER_ADDRESS: http://bridge:${BRIDGE_WORKER_PORT}
-#      WORKER_HOST: 0.0.0.0
-#      WORKER_PORT: ${BRIDGE_WORKER_PORT}
-#      API_KEY: ${BRIDGE_API_KEY}
-#      API_BASE: ${BRIDGE_API_BASE}
-#    command: python -m xinhai.workers.bridge
+    healthcheck:
+      test: [
+        "CMD", "curl", "--fail", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{}",
+        "http://localhost:${MLLM_WORKER_PORT}/worker_get_status",
+      ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+  ocragency:
+    image: xinhai_backend
+    depends_on:
+      controller:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+      llm:
+        condition: service_healthy
+      mllm:
+        condition: service_healthy
+      ocr:
+        condition: service_healthy
+    volumes:
+      - ../../backend:/usr/share/xinhai/backend
+      - ./configs:/usr/share/xinhai/configs
+    environment:
+      CONTROLLER_ADDRESS: http://controller:5000
+      MODEL_NAME: ${AGENCY_NAME}
+      WORKER_ADDRESS: http://ocragency:${AGENCY_WORKER_PORT}
+      WORKER_HOST: 0.0.0.0
+      WORKER_PORT: ${AGENCY_WORKER_PORT}
+      AGENCY_NAME: ${AGENCY_NAME}
+      AGENCY_CONFIG_PATH: /usr/share/xinhai/configs/${AGENCY_NAME}.yaml
+      PYTHONPATH: /usr/share/xinhai/backend/src
+    command: python -m xinhai.workers.agency
 
 volumes:
   backend:

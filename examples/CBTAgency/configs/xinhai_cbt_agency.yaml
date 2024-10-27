@@ -38,6 +38,7 @@ arena:
           {routing_descriptions}
       
       基于当前情况，选择合适的通讯目标和通讯方式。
+      注意：不要同时选择咨询者和督导师作为通讯对象。
       
       [样例]
       {{"method": "[Multicast]", "target": [1]}}
@@ -47,29 +48,15 @@ arena:
       请根据之前的对话摘要和新的对话内容，给出新的对话摘要。
       新的对话摘要应当包含之前摘要的内容。
       摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。
-      ####
-      以前的对话摘要：{chat_summary}
       
-      ####
-      新的对话内容：{chat_history}
+      【历史对话摘要】
+      {chat_summary}
+      
+      【最新对话历史】
+      {chat_history}
       
       ###Attention###
       仅返回新的对话摘要内容，不要返回分析过程！
-    consultant_prompt: &consultant_prompt |-
-      角色描述：
-          {role_description}
-      
-      对话历史摘要：
-          {chat_summary}
-      
-      最新对话历史：
-          {chat_history}
-      
-      现在，你选择了以{routing}方式与以下智能体通信:
-      {agents}
-      
-      现在需要请求咨询师的帮助，请配合咨询师的询问，提供所需信息。
-      请问你想发出的消息内容是什么？
     prompt: &prompt |-
       请你基于咨询者的信息，给出⼀条专业的，富有同情⼼和具有助益性的回复。确保你的回复在保持以下认知⾏为疗法回答结构的基础上，尤其是识别关键思维或信念部分，流畅地将各部分内容相互连接：
       1. 验证和共情：对患者的情感或问题表示理解和同情，创建安全感。
@@ -78,15 +65,16 @@ arena:
       4. 提供策略或⻅解：提供实⽤策略或⻅解，以帮助他们处理当前情况。
       5. ⿎励与前瞻：⿎励患者使⽤策略，强调这只是开始，并可能需要进⼀步的⽀持。
       
-      角色描述：{role_description}
+      【角色描述】
+          {role_description}
       
-      对话历史摘要：
+      【对话历史摘要】
           {chat_summary}
       
-      最新对话历史：
+      【最新对话历史】
           {chat_history}
       
-      现在，你选择了以{routing}方式与{agents}通信，请问你想发出的消息内容是什么？
+      现在，你选择了以{routing_type}方式与{target_agent_names}通信，请问你想发出的消息内容是什么？
 
   name: XinHai CBT
 
@@ -120,10 +108,10 @@ arena:
       role_description: 咨询者，面临心理问题
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
-      prompt_template: *consultant_prompt
+      prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct
     - agent_type: simple
       agent_id: 1
       name: 咨询师
@@ -133,7 +121,7 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct
     - agent_type: simple
       agent_id: 2
       name: 督导师1
@@ -143,7 +131,7 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct
     - agent_type: simple
       agent_id: 3
       name: 督导师2
@@ -153,7 +141,7 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct
     - agent_type: simple
       agent_id: 4
       name: 督导师3
@@ -163,7 +151,7 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct
     - agent_type: simple
       agent_id: 5
       name: 督导师4
@@ -173,7 +161,7 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct
     - agent_type: simple
       agent_id: 6
       name: 督导师5
@@ -183,4 +171,4 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct

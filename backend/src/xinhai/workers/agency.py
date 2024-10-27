@@ -208,9 +208,6 @@ async def create_stream_chat_completion_response(
     completion_id = "chatcmpl-{}".format(uuid.uuid4().hex)
     response = await worker.interact(request)
 
-    prompt_length, response_length = 0, 0
-    choices = []
-
     yield json.dumps({
         "id": completion_id,
         "choices": [
@@ -338,11 +335,11 @@ async def create_chat_completion(request: ChatCompletionRequest):
 )
 async def create_chat_completion(xinhaimmrequest: XinHaiMMRequest):
     requests = to_chat_completion_requests(xinhaimmrequest)
-    respones = []
+    responses = []
     for request in requests:
-        respone = await create_chat_completion_response(request)
-        respones.append(respone)
-    result = to_xinhai_mm_response(xinhaimmrequest, respones)
+        response = await create_chat_completion_response(request)
+        responses.append(response)
+    result = to_xinhai_mm_response(xinhaimmrequest, responses)
     return result
 
 

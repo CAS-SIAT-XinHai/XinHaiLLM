@@ -16,10 +16,10 @@ from datetime import datetime
 from typing import List
 
 from more_itertools import split_when
-from pydantic import BaseModel
-from .prompt import XinHaiMMPrompt
 from pydantic import BaseModel, Field
+
 from llamafactory.api.protocol import MultimodalInputItem, ImageURL
+from .prompt import XinHaiMMPrompt
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -127,15 +127,41 @@ class XinHaiChatMessage(BaseModel):
     @classmethod
     def from_chat(cls, messages, role_mapping):
         t = datetime.now()
-        return [cls(
-            indexId=f'{i}',
-            content=m['content'],
-            senderId=role_mapping[m['role']],
-            username=role_mapping[m['role']],
-            role="user",
-            date=t.strftime("%a %b %d %Y"),
-            timestamp=t.strftime("%H:%M"),
-        ) for i, m in enumerate(messages)]
+        xinhai_messages = []
+        for i, m in enumerate(messages):
+            if isinstance(m['content'], str):
+                xinhai_message = cls(
+                    indexId=f'{i}',
+                    content=m['content'],
+                    senderId=role_mapping[m['role']],
+                    username=role_mapping[m['role']],
+                    role="user",
+                    date=t.strftime("%a %b %d %Y"),
+                    timestamp=t.strftime("%H:%M"),
+                )
+            elif isinstance(m['content'], list):
+                content = ''
+                files = []
+                for item in m['content']:
+                    if item.type == "text":
+                        content += item.text
+                    else:
+                        files.append(item.image_url)
+
+                xinhai_message = cls(
+                    indexId=f'{i}',
+                    content=content,
+                    senderId=role_mapping[m['role']],
+                    username=role_mapping[m['role']],
+                    role="user",
+                    date=t.strftime("%a %b %d %Y"),
+                    timestamp=t.strftime("%H:%M"),
+                    files=files
+                )
+            else:
+                raise ValueError
+            xinhai_messages.append(xinhai_message)
+        return xinhai_messages
 
 
 class XinHaiChatCompletionRequest(BaseModel):
@@ -159,8 +185,8 @@ class XinHaiChatCompletionRequest(BaseModel):
             else:
                 messages.append(ms[0].to_chat(static_path))
         return messages
-    
-    
+
+
 class XinHaiMMRequest(BaseModel):
     id: str
     type: str
@@ -169,9 +195,11 @@ class XinHaiMMRequest(BaseModel):
     model: str
     image: str
 
+
 class XinHaiMMResult(BaseModel):
-    name: str # the same as XinHaiMMPrompt.name
-    value: str # the OCR result   
+    name: str  # the same as XinHaiMMPrompt.name
+    value: str  # the OCR result
+
 
 class XinHaiMMResponse(BaseModel):
     id: str = Field(default="1")

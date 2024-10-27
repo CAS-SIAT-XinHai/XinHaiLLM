@@ -11,10 +11,12 @@ LastEditTime: 2024-07-19 17:28:20
 """
 import logging
 from datetime import datetime
+from typing import List
 
 from xinhai.arena.agents import register_agent, BaseAgent
 from xinhai.types.arena import XinHaiArenaAgentTypes
 from xinhai.types.message import XinHaiChatMessage
+from xinhai.types.routing import XinHaiRoutingMessage
 
 logger = logging.getLogger(__name__)
 
@@ -26,14 +28,47 @@ class SimpleAgent(BaseAgent):
     def reset(self) -> None:
         pass
 
-    def step(self, routing, agents, **kwargs):
+    def get_history(self, target_agents=None):
+        dialogue_context = []
+        if not target_agents:
+            for i, message in enumerate(self.memory.short_term_memory.messages[::-1]):
+                if not message.files:
+                    dialogue_context.insert(0, f"Agent-{message.senderId} {message.username}: {message.content}")
+                else:
+                    dialogue_context.insert(0,
+                                            f"Agent-{message.senderId} {message.username}: [IMG] {message.content}")
+
+                if len(dialogue_context) > self.summary_chunk_size:
+                    break
+        else:
+            target_agent_ids = [str(n.agent_id) for n in target_agents]
+            for i, message in enumerate(self.memory.short_term_memory.messages[::-1]):
+                if message.senderId in target_agent_ids:
+                    if not message.files:
+                        dialogue_context.insert(0, f"Agent-{message.senderId} {message.username}: {message.content}")
+                    else:
+                        dialogue_context.insert(0,
+                                                f"Agent-{message.senderId} {message.username}: [IMG] {message.content}")
+
+                    if len(dialogue_context) > self.summary_chunk_size:
+                        break
+        return dialogue_context
+
+    def step(
+            self,
+            routing_message_in: XinHaiRoutingMessage,
+            routing_message_out: XinHaiRoutingMessage,
+            target_agents: List[BaseAgent], **kwargs
+    ):
         chat_summary = self.get_summary()
-        chat_history = '\n'.join(self.get_history())
+        chat_history = '\n'.join(self.get_history(target_agents))
+        target_agent_names = ", ".join([f"Agent-{n.agent_id} {n.name}" for n in target_agents])
+
         prompt = self.prompt_template.format(chat_history=chat_history,
                                              chat_summary=chat_summary,
                                              role_description=self.role_description,
-                                             routing=routing,
-                                             agents=agents)
+                                             routing_type=routing_message_out.routing_type.routing_name,
+                                             target_agent_names=target_agent_names)
         role, content = self.complete_conversation(prompt)
 
         t = datetime.now()
@@ -41,7 +76,7 @@ class SimpleAgent(BaseAgent):
         return XinHaiChatMessage(
             indexId='-1',
             content=content,
-            senderId=self.name,
+            senderId=str(self.agent_id),
             username=self.name,
             role="user",
             date=t.strftime("%a %b %d %Y"),

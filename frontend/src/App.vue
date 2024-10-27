@@ -32,25 +32,25 @@
           </a-menu-item>
         </RouterLink>
         <RouterLink to="/simulation">
-          <a-menu-item key="0_2">
+          <a-menu-item key="0_3">
             <IconCalendar/>
             Simulation
           </a-menu-item>
         </RouterLink>
         <RouterLink to="/ragchat">
-          <a-menu-item key="0_3">
+          <a-menu-item key="0_4">
             <IconCaretLeft/>
             RAGChat
           </a-menu-item>
         </RouterLink>
         <RouterLink to="/autosop">
-          <a-menu-item key="0_4">
+          <a-menu-item key="0_5">
             <IconCalendar/>
             AutoSOP
           </a-menu-item>
         </RouterLink>
         <RouterLink to="/autoinvoice">
-          <a-menu-item key="0_5">
+          <a-menu-item key="0_6">
             <IconCalendar/>
             AutoInvoice
           </a-menu-item>

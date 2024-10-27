@@ -1,25 +1,26 @@
 <template>
-  <div>
-    <a-row>
-      <a-col :span="24">
-        <a-select
-            :loading="loading"
-            v-model="modelName"
-            v-model:options="modelOptions"></a-select>
-      </a-col>
-    </a-row>
-    <vue-advanced-chat
-        height="calc(100vh - 20px)"
-        :current-user-id="currentUserId"
-        :rooms="JSON.stringify(rooms)"
-        :rooms-loaded="true"
-        :messages="JSON.stringify(messages)"
-        :messages-loaded="messagesLoaded"
-        @open-file="openFile($event.detail[0])"
-        @send-message="sendMessage($event.detail[0])"
-        @fetch-messages="fetchMessages($event.detail[0])"
-    />
-  </div>
+  <form v-if="addNewRoom" @submit.prevent="createRoom">
+    <a-select
+        :loading="loading"
+        v-model="modelName"
+        v-model:options="modelOptions"></a-select>
+    <button type="submit" :disabled="disableForm || !modelName">
+      Create Room
+    </button>
+    <button class="button-cancel" @click="addNewRoom = false">Cancel</button>
+  </form>
+  <vue-advanced-chat
+      height="calc(100vh - 20px)"
+      :current-user-id="currentUserId"
+      :rooms="JSON.stringify(rooms)"
+      :rooms-loaded="true"
+      :messages="JSON.stringify(messages)"
+      :messages-loaded="messagesLoaded"
+      @open-file="openFile($event.detail[0])"
+      @add-room="addRoom($event.detail[0])"
+      @send-message="sendMessage($event.detail[0])"
+      @fetch-messages="fetchMessages($event.detail[0])"
+  />
 </template>
 
 <script>
@@ -35,19 +36,11 @@ export default {
     const modelName = ref("");
     const modelOptions = ref([]);
     const loading = ref(false);
+    const addNewRoom = ref(false);
+    const disableForm = ref(false);
     const currentUserId = 'user';
-    const rooms = [
-      {
-        roomId: '1',
-        roomName: 'Room 1',
-        avatar: 'https://66.media.tumblr.com/avatar_c6a8eae4303e_512.pnj',
-        users: [
-          {_id: 'system', username: 'System', role: 'system'},
-          {_id: 'user', username: 'User', role: 'user'},
-          {_id: modelName.value, username: modelName.value, role: 'assistant'}
-        ]
-      }
-    ];
+    const rooms = ref([]);
+    const roomId = ref("");
     const messages = ref([]);
     const messagesLoaded = ref(false);
 
@@ -68,13 +61,14 @@ export default {
         .catch(function (error) {
           console.log(error);
           loading.value = true;
-        });
+        })
 
     function fetchMessages({room}) {
       axios.post('/api/storage/fetch-messages', {
         room: room
       }).then(function (response) {
-        messages.value = [...response["data"]["messages"], ...messages.value]
+        // messages.value = [...response["data"]["messages"], ...messages.value]
+        messages.value = response["data"]["messages"]
         messagesLoaded.value = true
       }).catch(function (error) {
         console.log(error);
@@ -90,11 +84,36 @@ export default {
     }
 
     function getRoomFromId(room_id) {
-      for (const g of rooms) {
+      for (const g of rooms.value) {
         if (g.roomId === room_id) {
           return g
         }
       }
+    }
+
+    function addRoom() {
+      addNewRoom.value = true
+    }
+
+    function createRoom() {
+      disableForm.value = true
+      roomId.value = rooms.value.length.toString() + "-" + modelName.value
+      rooms.value.push(
+          {
+            roomId: roomId.value,
+            roomName: roomId.value,
+            avatar: 'https://66.media.tumblr.com/avatar_c6a8eae4303e_512.pnj',
+            users: [
+              {_id: 'system', username: 'System', role: 'system'},
+              {_id: 'user', username: 'User', role: 'user'},
+              {_id: modelName.value, username: modelName.value, role: 'assistant'}
+            ]
+          }
+      )
+
+      messages.value = []
+      addNewRoom.value = false
+      disableForm.value = false
     }
 
     // function blobToBase64(blob) {
@@ -312,8 +331,13 @@ export default {
       modelName,
       modelOptions,
       loading,
+      addNewRoom,
+      disableForm,
       currentUserId,
       rooms,
+      roomId,
+      addRoom,
+      createRoom,
       messages,
       messagesLoaded,
       openFile,

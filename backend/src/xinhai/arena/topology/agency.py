@@ -8,8 +8,6 @@ Authors: Vimos Tan
 """
 import logging
 
-import networkx as nx
-
 from llamafactory.api.protocol import Role
 from xinhai.arena.topology import register_topology, BaseTopology
 from xinhai.types.arena import XinHaiArenaAgentTypes
@@ -21,8 +19,6 @@ logger = logging.getLogger(__name__)
 
 @register_topology("agency")
 class AgencyTopology(BaseTopology):
-    def __init__(self, name, graph: nx.DiGraph, nodes=None, start=0, max_turns=0):
-        super().__init__(name, graph, nodes=nodes, start=start, max_turns=max_turns)
 
     def __call__(self, agents, input_messages, *args, **kwargs):
         """Run one step of the environment"""
@@ -43,27 +39,28 @@ class AgencyTopology(BaseTopology):
         proxy_agent.memory.short_term_memory.messages = XinHaiChatMessage.from_chat(input_messages, role_mapping)
         start_agent.memory.short_term_memory.messages = XinHaiChatMessage.from_chat(input_messages, role_mapping)
 
-        agent_queue = [start_agent]
+        routing_message_in = proxy_agent.prompt_for_static_routing([start_agent.agent_id])
+
+        agent_queue = [(routing_message_in, start_agent)]
         end_casted = set()
         while agent_queue:
-            agent = agent_queue.pop(0)
+            routing_message_in, agent = agent_queue.pop(0)
             candidate_agents = [agents[n] for n in self.digraph.neighbors(agent.agent_id)]
-            routing_message = agent.routing(candidate_agents)
-            logger.debug(routing_message)
-            if routing_message.routing_type == XinHaiRoutingType.END_CAST:
+            routing_message_out = agent.routing(candidate_agents)
+            logger.debug(routing_message_out)
+            if routing_message_out.routing_type == XinHaiRoutingType.END_CAST:
                 end_casted.add(agent.agent_id)
 
-            targets = [agents[n] for n in routing_message.targets if
+            targets = [agents[n] for n in routing_message_out.targets if
                        all([self.digraph.has_edge(agent.agent_id, n),
                             n not in agent_queue,
                             n not in end_casted])]
             if targets:
-                agent_queue.extend(targets)
-                targets_descriptions = "\n".join(
-                    [f"{n.agent_id}: {n.role_description}" for n in targets])
+                agent_queue.extend([(routing_message_out, t) for t in targets])
                 message = agent.step(
-                    routing=routing_message.routing_type.routing_name,
-                    agents=targets_descriptions
+                    routing_message_in=routing_message_in,
+                    routing_message_out=routing_message_out,
+                    target_agents=targets
                 )
 
                 yield targets, message

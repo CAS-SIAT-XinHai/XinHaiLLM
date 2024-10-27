@@ -151,11 +151,9 @@ class BaseAgent:
         chat_summary = "" if len(summaries) == 0 else summaries[-1].content
         return chat_summary
 
-    def get_history(self):
-        dialogue_context = []
-        for i, message in enumerate(self.memory.short_term_memory.messages[-self.summary_chunk_size:]):
-            dialogue_context.append(f"{message.senderId}: {message.content}")
-        return dialogue_context
+    @abstractmethod
+    def get_history(self, target_agents: List[Self] = None):
+        raise NotImplementedError
 
     @property
     def storage_key(self):
@@ -164,8 +162,8 @@ class BaseAgent:
     def get_routing_prompt(self, candidate_agents, **kwargs):
         """Get one step response"""
         chat_summary = self.get_summary()
-        chat_history = '\n'.join(self.get_history())
-        agent_descriptions = self.agent_descriptions(candidate_agents)
+        chat_history = '\n'.join(self.get_history(candidate_agents))
+        agent_descriptions = "\n".join([f"{a.agent_id}: {a.role_description}" for a in candidate_agents])
         return self.routing_prompt_template.format(agent_name=self.name,
                                                    role_description=self.role_description,
                                                    chat_summary=chat_summary,
@@ -178,7 +176,6 @@ class BaseAgent:
 
     def routing(self, candidate_agents: List[Self], **kwargs) -> XinHaiRoutingMessage:
         """Routing logic for agent"""
-        targets = [a.agent_id for a in candidate_agents]
         # if len(self.allowed_routing_types) == 1:
         #     routing_message = XinHaiRoutingMessage(
         #         agent_id=self.agent_id,
@@ -189,6 +186,7 @@ class BaseAgent:
         #     return routing_message
         # else:
         if self.static_routing:
+            targets = [a.agent_id for a in candidate_agents]
             routing_message = self.prompt_for_static_routing(targets)
         else:
             routing_prompt = self.get_routing_prompt(candidate_agents, **kwargs)
@@ -216,7 +214,10 @@ class BaseAgent:
         return routing_message
 
     @abstractmethod
-    def step(self, routing, agents, **kwargs):
+    def step(self,
+             routing_message_in: XinHaiRoutingMessage,
+             routing_message_out: XinHaiRoutingMessage,
+             target_agents: List[Self], **kwargs):
         """Get one step response"""
         pass
 
@@ -248,9 +249,6 @@ class BaseAgent:
             # Handle all OpenAI API errors
             logger.warning("*****************************************")
             logger.warning(f"Error response from Agent-{agent_id}: {e}")
-
-    def agent_descriptions(self, candidate_agents: List[Self]):
-        return "\n".join([f"{a.agent_id}: {a.role_description}" for a in candidate_agents])
 
     def prompt_for_routing(self, routing_prompt, num_retries=5):
         messages = [{
@@ -296,9 +294,15 @@ class BaseAgent:
             if chat_response:
                 rr = self.format_pattern.findall(chat_response)
                 if rr:
-                    break
-
-        return self.name, rr[0].strip()
+                    rr = rr[0]
+                    try:
+                        d = json.loads(rr)
+                        if isinstance(d, dict) and len(d) > 0:
+                            return self.name, d["response"]
+                        else:
+                            logger.error(f"Evaluation {rr} error.")
+                    except Exception as e:
+                        logger.error(f"Evaluation {rr} error: {e}")
 
     def retrieve_memory(self) -> XinHaiMemory:
         fetch_request = XinHaiFetchMemoryRequest(storage_key=self.storage_key)
@@ -369,7 +373,7 @@ class BaseAgent:
         chat_summary = self.get_summary()
         chat_history = '\n'.join(self.get_history())
         messages = [
-            {"role": "system", "content": "You are a helpful assistant."},
+            # {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user",
              "content": self.summary_prompt_template.format(chat_summary=chat_summary, chat_history=chat_history)},
         ]
