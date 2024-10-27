@@ -58,6 +58,10 @@ class BaseTopology:
         )
 
     @abstractmethod
+    def fast_response(self, agents, input_messages, *args, **kwargs):
+        raise NotImplementedError
+
+    @abstractmethod
     def __call__(self, agents, input_messages, *args, **kwargs):
         raise NotImplementedError
 

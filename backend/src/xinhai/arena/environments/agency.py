@@ -31,7 +31,8 @@ class AgencyEnvironment(BaseEnvironment):
         for topology in self.topologies:
             for turn_id, (targets, message) in enumerate(topology(self.agents, input_messages)):
                 if turn_id > topology.max_turns:
-                    break
+                    logger.warning(f"Reached maximum number of {topology.max_turns} turns!")
+                    return topology.fast_response(self.agents, input_messages)
                 for a in targets:
                     a.update_memory([message])
                     if a.agent_type == XinHaiArenaAgentTypes.PROXY:

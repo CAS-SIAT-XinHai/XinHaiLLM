@@ -43,7 +43,7 @@ class SimpleAgent(BaseAgent):
         else:
             target_agent_ids = [str(n.agent_id) for n in target_agents]
             for i, message in enumerate(self.memory.short_term_memory.messages[::-1]):
-                if message.senderId in target_agent_ids:
+                if message.senderId in target_agent_ids or any([n in target_agent_ids for n in message.receiverIds]):
                     if not message.files:
                         dialogue_context.insert(0, f"Agent-{message.senderId} {message.username}: {message.content}")
                     else:
@@ -77,6 +77,7 @@ class SimpleAgent(BaseAgent):
             indexId='-1',
             content=content,
             senderId=str(self.agent_id),
+            receiverIds=[str(a.agent_id) for a in target_agents],
             username=self.name,
             role="user",
             date=t.strftime("%a %b %d %Y"),

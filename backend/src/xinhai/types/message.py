@@ -13,7 +13,7 @@ import io
 import os
 import sys
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from more_itertools import split_when
 from pydantic import BaseModel, Field
@@ -58,6 +58,7 @@ class XinHaiChatMessage(BaseModel):
     # disableActions: Optional[bool]
     # disableReactions: Optional[bool]
     files: List[XinHaiChatFile] = []
+    receiverIds: Optional[List[str]] = []
 
     # reactions: Optional[Dict]
     # replyMessage: Optional['XinHaiChatMessage']
@@ -133,11 +134,12 @@ class XinHaiChatMessage(BaseModel):
                 xinhai_message = cls(
                     indexId=f'{i}',
                     content=m['content'],
-                    senderId=role_mapping[m['role']],
-                    username=role_mapping[m['role']],
+                    senderId=role_mapping['role2id'][m['role']],
+                    username=role_mapping['role2name'][m['role']],
                     role="user",
                     date=t.strftime("%a %b %d %Y"),
                     timestamp=t.strftime("%H:%M"),
+                    receiverIds=role_mapping['role2receivers'][m['role']],
                 )
             elif isinstance(m['content'], list):
                 content = ''
@@ -151,12 +153,13 @@ class XinHaiChatMessage(BaseModel):
                 xinhai_message = cls(
                     indexId=f'{i}',
                     content=content,
-                    senderId=role_mapping[m['role']],
-                    username=role_mapping[m['role']],
+                    senderId=role_mapping['role2id'][m['role']],
+                    username=role_mapping['role2name'][m['role']],
                     role="user",
                     date=t.strftime("%a %b %d %Y"),
                     timestamp=t.strftime("%H:%M"),
-                    files=files
+                    files=files,
+                    receiverIds=role_mapping['role2receivers'][m['role']],
                 )
             else:
                 raise ValueError
