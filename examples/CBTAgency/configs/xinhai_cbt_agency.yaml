@@ -38,6 +38,7 @@ arena:
           {routing_descriptions}
       
       基于当前情况，选择合适的通讯目标和通讯方式。
+      注意：不要同时选择咨询者和督导师作为通讯对象。
       
       [样例]
       {{"method": "[Multicast]", "target": [1]}}
@@ -47,11 +48,12 @@ arena:
       请根据之前的对话摘要和新的对话内容，给出新的对话摘要。
       新的对话摘要应当包含之前摘要的内容。
       摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。
-      ####
-      以前的对话摘要：{chat_summary}
       
-      ####
-      新的对话内容：{chat_history}
+      【历史对话摘要】
+      {chat_summary}
+      
+      【最新对话历史】
+      {chat_history}
       
       ###Attention###
       仅返回新的对话摘要内容，不要返回分析过程！
@@ -109,7 +111,7 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct
     - agent_type: simple
       agent_id: 1
       name: 咨询师
@@ -119,7 +121,7 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct
     - agent_type: simple
       agent_id: 2
       name: 督导师1
@@ -129,7 +131,7 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct
     - agent_type: simple
       agent_id: 3
       name: 督导师2
@@ -139,7 +141,7 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct
     - agent_type: simple
       agent_id: 4
       name: 督导师3
@@ -149,7 +151,7 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct
     - agent_type: simple
       agent_id: 5
       name: 督导师4
@@ -159,7 +161,7 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct
     - agent_type: simple
       agent_id: 6
       name: 督导师5
@@ -169,4 +171,4 @@ arena:
       prompt_template: *prompt
       locale: zh
       allowed_routing_types: *allowed_routing_types
-      llm: Qwen1.5-7B-Chat
+      llm: Qwen2.5-7B-Instruct

@@ -28,6 +28,32 @@ class SimpleAgent(BaseAgent):
     def reset(self) -> None:
         pass
 
+    def get_history(self, target_agents=None):
+        dialogue_context = []
+        if not target_agents:
+            for i, message in enumerate(self.memory.short_term_memory.messages[::-1]):
+                if not message.files:
+                    dialogue_context.insert(0, f"Agent-{message.senderId} {message.username}: {message.content}")
+                else:
+                    dialogue_context.insert(0,
+                                            f"Agent-{message.senderId} {message.username}: [IMG] {message.content}")
+
+                if len(dialogue_context) > self.summary_chunk_size:
+                    break
+        else:
+            target_agent_ids = [str(n.agent_id) for n in target_agents]
+            for i, message in enumerate(self.memory.short_term_memory.messages[::-1]):
+                if message.senderId in target_agent_ids:
+                    if not message.files:
+                        dialogue_context.insert(0, f"Agent-{message.senderId} {message.username}: {message.content}")
+                    else:
+                        dialogue_context.insert(0,
+                                                f"Agent-{message.senderId} {message.username}: [IMG] {message.content}")
+
+                    if len(dialogue_context) > self.summary_chunk_size:
+                        break
+        return dialogue_context
+
     def step(
             self,
             routing_message_in: XinHaiRoutingMessage,
@@ -35,7 +61,7 @@ class SimpleAgent(BaseAgent):
             target_agents: List[BaseAgent], **kwargs
     ):
         chat_summary = self.get_summary()
-        chat_history = '\n'.join(self.get_history())
+        chat_history = '\n'.join(self.get_history(target_agents))
         target_agent_names = ", ".join([f"Agent-{n.agent_id} {n.name}" for n in target_agents])
 
         prompt = self.prompt_template.format(chat_history=chat_history,
@@ -50,7 +76,7 @@ class SimpleAgent(BaseAgent):
         return XinHaiChatMessage(
             indexId='-1',
             content=content,
-            senderId=self.name,
+            senderId=str(self.agent_id),
             username=self.name,
             role="user",
             date=t.strftime("%a %b %d %Y"),
