@@ -30,13 +30,17 @@ class AgencyEnvironment(BaseEnvironment):
         """Run one step of the environment"""
         for topology in self.topologies:
             for turn_id, (targets, message) in enumerate(topology(self.agents, input_messages)):
+                for n in [message.senderId] + message.receiverIds:
+                    a = self.agents[int(n)]
+                    a.update_memory([message])
+
+                for a in targets:
+                    if a.agent_type == XinHaiArenaAgentTypes.PROXY:
+                        return message
+
                 if turn_id > topology.max_turns:
                     logger.warning(f"Reached maximum number of {topology.max_turns} turns!")
                     return topology.fast_response(self.agents, input_messages)
-                for a in targets:
-                    a.update_memory([message])
-                    if a.agent_type == XinHaiArenaAgentTypes.PROXY:
-                        return message
 
     def reset(self) -> None:
         """Reset the environment"""

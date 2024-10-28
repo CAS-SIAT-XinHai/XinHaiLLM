@@ -136,11 +136,6 @@ class BaseAgent:
 
         self.memory = self.retrieve_memory()
 
-    def generate_message_id(self):
-        messages = self.memory.short_term_memory.messages
-        index_id = 0 if len(messages) == 0 else int(messages[-1].indexId)
-        return self.id_template.format(id=index_id + 1)
-
     def generate_summary_id(self):
         summaries = self.memory.long_term_memory.summaries
         index_id = 0 if len(summaries) == 0 else int(summaries[-1].indexId)
@@ -314,11 +309,10 @@ class BaseAgent:
                               json=fetch_request.model_dump(), timeout=60)
             if r.status_code != 200:
                 logger.error(f"Get status fails: {self.controller_address}, {r}")
-            logger.debug(r.json())
             memory_response = XinHaiFetchMemoryResponse.model_validate(r.json())
 
-            logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-            logger.debug(
+            logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            logger.info(
                 f"Get memories of Agent {self.agent_id}: {json.dumps(memory_response.model_dump_json(), ensure_ascii=False, indent=4)}")
 
             return memory_response.memory
@@ -337,14 +331,13 @@ class BaseAgent:
         else:
             summaries = []
 
-        logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        logger.debug(f"Adding summaries: {summaries} to Agent {self.agent_id}")
+        logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+        logger.info(f"Adding summaries: {summaries} to Agent {self.agent_id}")
         self.memory.long_term_memory.summaries.extend(summaries)
 
-        logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        logger.debug(f"Adding {messages} to Agent {self.agent_id}")
+        logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+        logger.info(f"Adding {messages} to Agent {self.agent_id}")
         for m in messages:
-            m.indexId = self.generate_message_id()
             current_messages.append(m)
 
         memory_request = XinHaiStoreMemoryRequest(

@@ -12,7 +12,7 @@ import os
 import threading
 import time
 import uuid
-from typing import Optional, Annotated, Tuple, List, Dict
+from typing import Optional, Annotated, Tuple, List, Dict, Union
 
 import requests
 import uvicorn
@@ -28,7 +28,7 @@ from llamafactory.api.protocol import ChatCompletionResponse, ChatCompletionRequ
     ChatCompletionMessage, Finish, Role, ChatCompletionResponseChoice, ChatCompletionResponseUsage
 from xinhai.arena.simulation import Simulation
 from xinhai.config import WORKER_HEART_BEAT_INTERVAL, LOG_DIR
-from xinhai.types.message import XinHaiMMRequest, XinHaiMMResponse, XinHaiMMResult
+from xinhai.types.message import XinHaiMMRequest, XinHaiMMResponse, XinHaiMMResult, XinHaiChatCompletionRequest
 from xinhai.types.worker import XinHaiWorkerTypes
 from xinhai.utils import pretty_print_semaphore, build_logger
 
@@ -69,7 +69,8 @@ def heart_beat_worker(controller):
 
 class AgencyWorker:
     def __init__(self):
-        self.simulator = Simulation.from_config(AGENCY_CONFIG_PATH)
+        self.simulators = {}
+        # Simulation.from_config(AGENCY_CONFIG_PATH)
         if not NO_REGISTER:
             self.register_to_controller()
             self.heart_beat_thread = threading.Thread(
@@ -123,7 +124,8 @@ class AgencyWorker:
             "queue_length": self.get_queue_length(),
         }
 
-    async def interact(self, request: "ChatCompletionRequest") -> Tuple[List[Dict[str, str]], str, str]:
+    async def interact(self, request: Union[ChatCompletionRequest, XinHaiChatCompletionRequest]) -> Tuple[
+        List[Dict[str, str]], str, str]:
         logging.info(request)
         input_messages = []
         for i, m in enumerate(request.messages):
@@ -149,7 +151,21 @@ class AgencyWorker:
         else:
             tools = ""
 
-        responses = await self.simulator.environment.step(
+        if isinstance(request, XinHaiChatCompletionRequest):
+            environment_id = request.room.roomId
+            if environment_id not in self.simulators:
+                simulator = Simulation.from_config(AGENCY_CONFIG_PATH, environment_id=environment_id)
+                self.simulators[request.room.roomId] = simulator
+            else:
+                simulator = self.simulators[request.room.roomId]
+        else:
+            if 'default' not in self.simulators:
+                simulator = Simulation.from_config(AGENCY_CONFIG_PATH)
+                self.simulators["default"] = simulator
+            else:
+                simulator = self.simulators["default"]
+
+        responses = await simulator.environment.step(
             input_messages,
             # system,
             # tools,
@@ -203,7 +219,7 @@ async def create_chat_completion_response(
 
 
 async def create_stream_chat_completion_response(
-        request: "ChatCompletionRequest",
+        request: Union[ChatCompletionRequest, XinHaiChatCompletionRequest]
 ):
     completion_id = "chatcmpl-{}".format(uuid.uuid4().hex)
     response = await worker.interact(request)
@@ -319,7 +335,7 @@ async def verify_api_key(auth: Annotated[Optional[HTTPAuthorizationCredentials],
     status_code=status.HTTP_200_OK,
     # dependencies=[Depends(verify_api_key)],
 )
-async def create_chat_completion(request: ChatCompletionRequest):
+async def create_chat_completion(request: Union[ChatCompletionRequest, XinHaiChatCompletionRequest]):
     if request.stream:
         generate = create_stream_chat_completion_response(request)
         return EventSourceResponse(generate, media_type="text/event-stream")

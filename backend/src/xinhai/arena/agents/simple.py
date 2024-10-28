@@ -10,6 +10,7 @@ Date: 2024-07-19 17:22:57
 LastEditTime: 2024-07-19 17:28:20
 """
 import logging
+import uuid
 from datetime import datetime
 from typing import List
 
@@ -74,7 +75,7 @@ class SimpleAgent(BaseAgent):
         t = datetime.now()
 
         return XinHaiChatMessage(
-            indexId='-1',
+            indexId=uuid.uuid4().hex,
             content=content,
             senderId=str(self.agent_id),
             receiverIds=[str(a.agent_id) for a in target_agents],

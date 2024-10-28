@@ -104,9 +104,9 @@ export default {
             roomName: roomId.value,
             avatar: 'https://66.media.tumblr.com/avatar_c6a8eae4303e_512.pnj',
             users: [
-              {_id: 'system', username: 'System', role: 'system'},
-              {_id: 'user', username: 'User', role: 'user'},
-              {_id: modelName.value, username: modelName.value, role: 'assistant'}
+              {_id: 0, username: 'User', role: 'user'},
+              {_id: 1, username: modelName.value, role: 'assistant'},
+              {_id: 2, username: 'System', role: 'system'}
             ]
           }
       )
@@ -211,6 +211,12 @@ export default {
       })
     }
 
+    function uuidv4() {
+      return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+          (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
+      );
+    }
+
     async function sendMessage({content, roomId, files}) {
       // {
       //   "content": "你好、",
@@ -224,7 +230,7 @@ export default {
 
       const message = {
         _id: messages.value.length,
-        indexId: messages.value.length.toString(),
+        indexId: uuidv4(),
         content: content,
         senderId: currentUserId,
         role: 'user',
@@ -249,12 +255,15 @@ export default {
       }
 
       try {
+        const chat_id = uuidv4();
         const response = await fetch('/api/chat-completion', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
+            id: chat_id,
+            room: getRoomFromId(roomId),
             model: modelName.value,
             messages: messages.value,
           })
@@ -291,7 +300,7 @@ export default {
                       ...messages.value,
                       {
                         _id: messages.value.length,
-                        indexId: messages.value.length.toString(),
+                        indexId: chat_id,
                         content: content,
                         senderId: modelName.value,
                         role: 'assistant',

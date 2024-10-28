@@ -19,11 +19,12 @@ class Simulation:
         self.environment = environment
 
     @classmethod
-    def from_config(cls, config_path):
+    def from_config(cls, config_path, environment_id=None):
         config = yaml.safe_load(open(config_path))
 
         arena_config = config['arena']
         env_config = arena_config["environment"]
+        env_config["environment_id"] = environment_id
 
         # Build the agents
         agents = []

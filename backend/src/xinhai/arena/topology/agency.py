@@ -69,8 +69,12 @@ class AgencyTopology(BaseTopology):
                 Role.ASSISTANT: [str(proxy_agent.agent_id)],
             }
         }
-        proxy_agent.memory.short_term_memory.messages = XinHaiChatMessage.from_chat(input_messages, role_mapping)
-        start_agent.memory.short_term_memory.messages = XinHaiChatMessage.from_chat(input_messages, role_mapping)
+
+        # input messages is sent from frontend, it may contain the whole conversation history
+        for message in XinHaiChatMessage.from_chat(input_messages, role_mapping):
+            for n in [message.senderId] + message.receiverIds:
+                a = agents[int(n)]
+                a.update_memory([message])
 
         routing_message_in = proxy_agent.prompt_for_static_routing([start_agent.agent_id])
 
@@ -95,6 +99,5 @@ class AgencyTopology(BaseTopology):
                     routing_message_out=routing_message_out,
                     target_agents=targets
                 )
-                agent.update_memory([message])
 
                 yield targets, message

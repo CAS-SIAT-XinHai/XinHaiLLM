@@ -1,24 +1,6 @@
-controller:
-  controller_address: http://localhost:5000
-
-workers:
-  - worker_type: llm
-    worker_name: Qwen1.5-7B-Chat
-    worker_address: http://localhost:40001
-    worker_host: 0.0.0.0
-    worker_port: 40001
-    no_register: false
-    limit_model_concurrency: 5
-    device: cuda
-    api_key: EMPTY
-  - worker_type: ocr
-  - worker_type: storage
-
 arena:
   allowed_routing_types: &allowed_routing_types
     - "[Unicast]"
-    - "[Multicast]"
-    - "[Broadcast]"
   prompts:
     routing_prompt: &routing_prompt |-
       现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：

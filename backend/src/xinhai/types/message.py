@@ -12,14 +12,16 @@ import base64
 import io
 import os
 import sys
+import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from more_itertools import split_when
 from pydantic import BaseModel, Field
 
-from llamafactory.api.protocol import MultimodalInputItem, ImageURL
+from llamafactory.api.protocol import MultimodalInputItem, ImageURL, FunctionAvailable
 from .prompt import XinHaiMMPrompt
+from .room import XinHaiChatRoom
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -132,7 +134,7 @@ class XinHaiChatMessage(BaseModel):
         for i, m in enumerate(messages):
             if isinstance(m['content'], str):
                 xinhai_message = cls(
-                    indexId=f'{i}',
+                    indexId=uuid.uuid4().hex,
                     content=m['content'],
                     senderId=role_mapping['role2id'][m['role']],
                     username=role_mapping['role2name'][m['role']],
@@ -151,7 +153,7 @@ class XinHaiChatMessage(BaseModel):
                         files.append(item.image_url)
 
                 xinhai_message = cls(
-                    indexId=f'{i}',
+                    indexId=uuid.uuid4().hex,
                     content=content,
                     senderId=role_mapping['role2id'][m['role']],
                     username=role_mapping['role2name'][m['role']],
@@ -168,17 +170,18 @@ class XinHaiChatMessage(BaseModel):
 
 
 class XinHaiChatCompletionRequest(BaseModel):
+    id: str
     model: str
     messages: List[XinHaiChatMessage]
-
-    # tools: Optional[List[FunctionAvailable]] = None
-    # do_sample: bool = True
-    # temperature: Optional[float] = None
-    # top_p: Optional[float] = None
-    # n: int = 1
-    # max_tokens: Optional[int] = None
-    # stop: Optional[Union[str, List[str]]] = None
-    # stream: bool = False
+    room: XinHaiChatRoom = None
+    tools: Optional[List[FunctionAvailable]] = None
+    do_sample: bool = True
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    n: int = 1
+    max_tokens: Optional[int] = None
+    stop: Optional[Union[str, List[str]]] = None
+    stream: bool = False
 
     def to_chat(self, static_path):
         messages = []
