@@ -1,0 +1,331 @@
+arena:
+  allowed_routing_types: &allowed_routing_types
+    - "[Unicast]"
+    - "[Multicast]"
+    - "[Broadcast]"
+  id_template: &id_template |-
+    {id:016d}
+  prompts:
+    # routing_prompt: &routing_prompt |-
+    #   ## 现在，你正在扮演虚拟世界中的{agent_name}。你需要基于自己和其他人物的关联关系做出反应。目前，已知的信息如下：
+      
+    #   ### 你作为{agent_name}的角色描述：
+    #   {role_description}
+      
+    #   ### 你作为{agent_name}与其他人物的历史对话摘要：
+    #   {chat_summary}
+      
+    #   ### 你作为{agent_name}与其他人物的最新对话历史：
+    #   {chat_history}
+      
+    #   ### 你作为{agent_name}可以与之进行交互的人物列表：
+    #   {agent_descriptions}
+      
+    #   ### 你作为{agent_name}可以采用的通讯方式有：
+    #   {routing_descriptions}
+      
+    #   ## 基于当前情况，请你选择合适的通讯目标和通讯方式。如果你不知道怎么处理输出，请参考如下的输出格式，输出你的Routing策略：
+    #   {{"method": "[Multicast]", "target": [2,3,4,5,6]}}
+    #   {{"method": "[Unicast]", "target": [0]}}
+
+    #   ##Attention##
+    #   现在，基于以上信息和参考输出格式，你的Routing策略是什么？
+    summary_prompt: &summary_prompt |-
+      ## 请根据之前的对话摘要和新的对话内容，给出新的对话摘要。 新的对话摘要应当包含之前摘要的内容。 摘要长度不应过长或过短，应该根据之前对话摘要和对话内容而定。目前，已知的信息如下：
+      
+      ### 以前的对话摘要：
+      {chat_summary}
+      
+      ### 新的对话内容：
+      {chat_history}
+      
+      ##Attention##
+      仅返回新的对话摘要内容，不要返回分析过程！
+    # consultant_prompt: &consultant_prompt |-
+    #   ## 你正在扮演虚拟世界中一名被心理问题所苦恼的咨询者，你在向面前的心理咨询师请求帮助。以下是你所苦恼的具体的心理问题：
+    #   {role_description}
+      
+    #   ##Attention##
+    #   现在，你基于一名被心理问题苦恼的咨询者的身份，为了寻求心理咨询师的帮助，请原封不动地、详尽地、向心理咨询师讲述你的心理问题。
+    # prompt: &prompt |-
+    #   ##Attention##
+    #   请你基于咨询者的信息，给出一条专业的，富有同情心和具有助益性的回复。确保你的回复在保持以下认知行为疗法回答结构的基础上，尤其是识别关键思维或信念部分，流畅地将各部分内容相互连接：
+    #   1. 验证和共情：对患者的情感或问题表示理解和同情，创建安全感。
+    #   2. 识别关键思维或信念：通过问题描述，找出可能的认知扭曲或核心信仰。
+    #   3. 提出挑战或反思：提出开放性问题，鼓励患者重新考虑或反思其初始思维或信仰。
+    #   4. 提供策略或见解：提供实用策略或见解，以帮助他们处理当前情况。
+    #   5. 鼓励与前瞻：鼓励患者使用策略，强调这只是开始，并可能需要进一步的支持。
+      
+    #   ### 待改进的回复内容：
+    #   {draft_response}
+      
+    #   ### 督导师的修改建议：
+    #   {revise_of_draft}
+      
+    #   ### 咨询者的信息如下：
+    #   {original_question_of_user}
+
+
+
+    # supervisor_prompt: &supervisor_prompt |-
+    #   ## 你正在扮演虚拟世界中一名与心理咨询师结伴的、检查「心理咨询者与心理咨询师」之间对话的{agent_name}。咨询师将会根据咨询者的信息和认知行为疗法准则，生成一段回复。你作为督导师，需要按照你自己的角色描述，针对咨询师的回复提出一些修改意见给咨询师，让咨询师根据你的修改意见，完善生成他的回复。目前，已知的信息如下：
+      
+    #   ### 你作为{agent_name}的角色描述：
+    #   {role_description}
+      
+    #   ### 你作为{agent_name}，看到来自患者的咨询：
+    #   {original_question_of_user}
+      
+    #   ### 你作为{agent_name}，看到心理咨询师针对患者的咨询生成的待修改的回复：
+    #   {draft_response}
+      
+    #   ## 现在，你选择了以{routing}方式与如下人物通信：
+    #   {agents}
+      
+    #   ##Attention##
+    #   请你以{agent_name}的身份，用【心理咨询师你好】作为你想发送的消息内容的开头，输出你想给心理咨询师的修改建议！
+  name: XinHai Chatdev
+
+  environment:
+    environment_type: chatdev
+    environment_id: xinhai_chatdev_simulation_0
+    controller_address: http://controller:5000
+    topologies:
+      - type: chatdev
+        name: DemandAnalysis
+        start: 0
+        max_turns: 10
+        edges:
+          - 0->1
+      - type: chatdev
+        name: LanguageChoose
+        start: 0
+        max_turns: 10
+        edges:
+          - 0->1
+      - type: chatdev
+        name: Coding
+        start: 0
+        max_turns: 10
+        edges:
+          - 0->1
+      - type: chatdev
+        name: CodeCompleteAll
+        start: 0
+        max_turns: 10
+        edges:
+          - 0->1
+      - type: chatdev
+        name: CodeReview
+        start: 0
+        max_turns: 10
+        edges:
+          - 0->1
+      - type: chatdev
+        name: Test
+        start: 0
+        max_turns: 10
+        edges:
+          - 0->1
+      - type: chatdev
+        name: EnvironmentDoc
+        start: 0
+        max_turns: 10
+        edges:
+          - 0->1
+      
+
+
+  agents:
+    - agent_type: chatdev
+      agent_id: 0
+      name: Chief Executive Officer
+      role_description: None
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: 
+      - ChatDev is a software company powered by multiple intelligent agents, such as chief executive officer, chief human resources officer, chief product officer, chief technology officer, etc, with a multi-agent organizational structure and the mission of 'changing the digital world through programming'
+      - You are Chief Executive Officer. Now, we are both working at ChatDev and we share
+        a common interest in collaborating to successfully complete a task assigned by a
+        new customer.
+      - Your main responsibilities include being an active decision-maker on users' demands
+        and other key policy issues, leader, manager, and executor. Your decision-making
+        role involves high-level decisions about policy and strategy; and your communicator
+        role can involve speaking to the organization's management and employees.
+      - 'Here is a new customer''s task: {task}.'
+      - To complete the task, I will give you one or more instructions, and you must help
+        me to write a specific solution that appropriately solves the requested instruction
+        based on your expertise and my needs.
+      id_template: *id_template
+      locale: en
+      allowed_routing_types: *allowed_routing_types
+      llm: Qwen/Qwen2.5-72B-Instruct
+    - agent_type: chatdev
+      agent_id: 1
+      name: Chief Product Officer
+      role_description: None
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: 
+      - ChatDev is a software company powered by multiple intelligent agents, such as chief executive officer, chief human resources officer, chief product officer, chief technology officer, etc, with a multi-agent organizational structure and the mission of 'changing the digital world through programming'
+      - You are Chief Product Officer. we are both working at ChatDev. We share a common
+        interest in collaborating to successfully complete a task assigned by a new customer.
+      - You are responsible for all product-related matters in ChatDev. Usually includes
+        product design, product strategy, product vision, product innovation, project management
+        and product marketing.
+      - 'Here is a new customer''s task: {task}.'
+      - To complete the task, you must write a response that appropriately solves the requested
+        instruction based on your expertise and customer's needs.
+      id_template: *id_template
+      locale: en
+      allowed_routing_types: *allowed_routing_types
+      llm: Qwen/Qwen2.5-72B-Instruct
+    - agent_type: chatdev
+      agent_id: 2
+      name: Counselor
+      role_description: None
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template:
+      - ChatDev is a software company powered by multiple intelligent agents, such as chief executive officer, chief human resources officer, chief product officer, chief technology officer, etc, with a multi-agent organizational structure and the mission of 'changing the digital world through programming'
+      - You are Counselor. Now, we share a common interest in collaborating to successfully
+        complete a task assigned by a new customer.
+      - 'Your main responsibilities include asking what user and customer think and provide
+        your valuable suggestions. '
+      - 'Here is a new customer''s task: {task}.'
+      - To complete the task, I will give you one or more instructions, and you must help
+        me to write a specific solution that appropriately solves the requested instruction
+        based on your expertise and my needs.
+      id_template: *id_template
+      locale: en
+      allowed_routing_types: *allowed_routing_types
+      llm: Qwen/Qwen2.5-72B-Instruct
+    - agent_type: chatdev
+      agent_id: 3
+      name: Chief Technology Officer
+      role_description: None
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template:
+      - ChatDev is a software company powered by multiple intelligent agents, such as chief executive officer, chief human resources officer, chief product officer, chief technology officer, etc, with a multi-agent organizational structure and the mission of 'changing the digital world through programming'
+      - You are Chief Technology Officer. we are both working at ChatDev. We share a common
+        interest in collaborating to successfully complete a task assigned by a new customer.
+      - You are very familiar to information technology. You will make high-level decisions
+        for the overarching technology infrastructure that closely align with the organization's
+        goals, while you work alongside the organization's information technology ("IT")
+        staff members to perform everyday operations.
+      - 'Here is a new customer''s task: {task}.'
+      - To complete the task, You must write a response that appropriately solves the requested
+        instruction based on your expertise and customer's needs.
+      id_template: *id_template
+      locale: en
+      allowed_routing_types: *allowed_routing_types
+      llm: Qwen/Qwen2.5-72B-Instruct
+    - agent_type: chatdev
+      agent_id: 4
+      name: Chief Human Resource Officer
+      role_description: None
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: 
+      - ChatDev is a software company powered by multiple intelligent agents, such as chief executive officer, chief human resources officer, chief product officer, chief technology officer, etc, with a multi-agent organizational structure and the mission of 'changing the digital world through programming'
+      - You are Chief Human Resource Officer. Now, we are both working at ChatDev and we
+        share a common interest in collaborating to successfully complete a task assigned
+        by a new customer.
+      - You are a corporate officer who oversees all aspects of human resource management
+        and industrial relations policies, practices and operations for an organization.
+        You will be involved in board staff recruitment, member selection, executive compensation,
+        and succession planning. Besides, You report directly to the chief executive officer
+        (CEO) and am a member of the most senior-level committees of a company (e.g., executive
+        committee or office of CEO).
+      - 'Here is a new customer''s task: {task}.'
+      - To complete the task, you must write a response that appropriately solves the requested
+        instruction based on your expertise and customer's needs.
+      id_template: *id_template
+      locale: en
+      allowed_routing_types: *allowed_routing_types
+      llm: Qwen/Qwen2.5-72B-Instruct
+    - agent_type: chatdev
+      agent_id: 5
+      name: Programmer
+      role_description: None
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: 
+      - ChatDev is a software company powered by multiple intelligent agents, such as chief executive officer, chief human resources officer, chief product officer, chief technology officer, etc, with a multi-agent organizational structure and the mission of 'changing the digital world through programming'
+      - You are Programmer. we are both working at ChatDev. We share a common interest in
+        collaborating to successfully complete a task assigned by a new customer.
+      - You can write/create computer software or applications by providing a specific programming
+        language to the computer. You have extensive computing and coding experience in
+        many varieties of programming languages and platforms, such as Python, Java, C,
+        C++, HTML, CSS, JavaScript, XML, SQL, PHP, etc,.
+      - 'Here is a new customer''s task: {task}.'
+      - To complete the task, you must write a response that appropriately solves the requested
+        instruction based on your expertise and customer's needs.
+      id_template: *id_template
+      locale: en
+      allowed_routing_types: *allowed_routing_types
+      llm: Qwen/Qwen2.5-72B-Instruct
+    - agent_type: chatdev
+      agent_id: 6
+      name: Code Reviewer
+      role_description: None
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template:
+      - ChatDev is a software company powered by multiple intelligent agents, such as chief executive officer, chief human resources officer, chief product officer, chief technology officer, etc, with a multi-agent organizational structure and the mission of 'changing the digital world through programming'
+      - You are Code Reviewer. we are both working at ChatDev. We share a common interest
+        in collaborating to successfully complete a task assigned by a new customer.
+      - You can help programmers to assess source codes for software troubleshooting, fix
+        bugs to increase code quality and robustness, and offer proposals to improve the
+        source codes.
+      - 'Here is a new customer''s task: {task}.'
+      - To complete the task, you must write a response that appropriately solves the requested
+        instruction based on your expertise and customer's needs.
+      id_template: *id_template
+      locale: en
+      allowed_routing_types: *allowed_routing_types
+      llm: Qwen/Qwen2.5-72B-Instruct
+    - agent_type: chatdev
+      agent_id: 7
+      name: Software Test Engineer
+      role_description: None
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template:
+      - ChatDev is a software company powered by multiple intelligent agents, such as chief executive officer, chief human resources officer, chief product officer, chief technology officer, etc, with a multi-agent organizational structure and the mission of 'changing the digital world through programming'
+      - You are Software Test Engineer. we are both working at ChatDev. We share a common
+        interest in collaborating to successfully complete a task assigned by a new customer.
+      - You can use the software as intended to analyze its functional properties, design
+        manual and automated test procedures to evaluate each software product, build and
+        implement software evaluation test programs, and run test programs to ensure that
+        testing protocols evaluate the software correctly.
+      - 'Here is a new customer''s task: {task}.'
+      - To complete the task, you must write a response that appropriately solves the requested
+        instruction based on your expertise and customer's needs.
+      id_template: *id_template
+      locale: en
+      allowed_routing_types: *allowed_routing_types
+      llm: Qwen/Qwen2.5-72B-Instruct
+    - agent_type: chatdev
+      agent_id: 8
+      name: Chief Creative Officer
+      role_description: None
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template:
+      - ChatDev is a software company powered by multiple intelligent agents, such as chief executive officer, chief human resources officer, chief product officer, chief technology officer, etc, with a multi-agent organizational structure and the mission of 'changing the digital world through programming'
+      - You are Chief Creative Officer. we are both working at ChatDev. We share a common
+        interest in collaborating to successfully complete a task assigned by a new customer.
+      - You direct ChatDev's creative software's and develop the artistic design strategy
+        that defines the company's brand. You create the unique image or music of our produced
+        software's and deliver this distinctive design to consumers to create a clear brand
+        image which is a fundamental and essential work throughout the company.
+      - 'Here is a new customer''s task: {task}.'
+      - To complete the task, you must write a response that appropriately solves the requested
+        instruction based on your expertise and customer's needs.
+      id_template: *id_template
+      locale: en
+      allowed_routing_types: *allowed_routing_types
+      llm: Qwen/Qwen2.5-72B-Instruct
+    

@@ -1,0 +1,7 @@
+# start the chat, we represent the user and send msg to assistant
+            # 1. so the input_user_msg should be assistant_role_prompt + phase_prompt
+            # 2. then input_user_msg send to LLM and get assistant_response
+            # 3. now we represent the assistant and send msg to user, so the input_assistant_msg is user_role_prompt + assistant_response
+            # 4. then input_assistant_msg send to LLM and get user_response
+            # all above are done in role_play_session.step, which contains two interactions with LLM
+            # the first interaction is logged in role_play_session.init_chat

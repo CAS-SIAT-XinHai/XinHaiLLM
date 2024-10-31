@@ -113,7 +113,7 @@ arena:
     - agent_type: autocbt
       agent_id: 0
       name: 咨询者
-      role_description: 一位被如下心理问题困扰的咨询者：
+      role_description: None
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *consultant_prompt
