@@ -11,8 +11,8 @@ Authors: Ancheng Xu
 from xinhai.arena.topology import register_topology, BaseTopology
 
 
-@register_topology("autocbt")
-class AutoCBTTopology(BaseTopology):
+@register_topology("chatdev")
+class ChatdevTopology(BaseTopology):
 
     def __call__(self, agents, *args, **kwargs):
         agent_queue = [agents[self.start]]
@@ -21,17 +21,10 @@ class AutoCBTTopology(BaseTopology):
             candidate_agents = [agents[n] for n in self.digraph.neighbors(agent.agent_id)]
             targets = []
 
-            # 这段「候选target的个数只有1，那么不再路由，直接让候选target作为targets」不知道能不能加，感觉破坏了自主路由的意思。但不加又太耗费token且触发api的限速
-            if len(candidate_agents) == 1:
-                targets = [agents[candidate_agents[0].agent_id]]
-                routing_message = agent.prompt_for_static_routing([n.agent_id for n in targets])
-            else:
-                while not targets:
-                    routing_message = agent.routing(candidate_agents)
-
-                    targets = [agents[n] for n in routing_message.targets if
-                               all([self.digraph.has_edge(agent.agent_id, n),
-                                    n not in agent_queue])]
+            
+            targets = [agents[candidate_agents[0].agent_id]]
+            routing_message = agent.prompt_for_static_routing([n.agent_id for n in targets])
+            
 
             agent_queue.extend(targets)
 

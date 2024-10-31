@@ -31,7 +31,7 @@ class AutoCBTAgent(BaseAgent):
 
     def step(self, routing, agents, **kwargs):
         chat_summary = self.get_summary()
-        chat_history = '\n'.join(self.get_history())
+        chat_history = '\n'.join(self.get_history())##?????????
 
         supervisor_key_word = "督导师" if self.locale is XinHaiI18NLocales.CHINESE else "supervisor"
 

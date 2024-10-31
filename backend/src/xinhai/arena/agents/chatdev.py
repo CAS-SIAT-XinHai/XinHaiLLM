@@ -23,8 +23,8 @@ from xinhai.types.routing import XinHaiRoutingMessage
 logger = logging.getLogger(__name__)
 
 
-@register_agent("autocbt")
-class AutoCBTAgent(BaseAgent):
+@register_agent("chatdev")
+class ChatdevAgent(BaseAgent):
 
     def reset(self) -> None:
         pass

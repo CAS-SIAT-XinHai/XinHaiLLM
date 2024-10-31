@@ -14,8 +14,8 @@ from xinhai.arena.environments import register_environment, BaseEnvironment
 logger = logging.getLogger(__name__)
 
 
-@register_environment("autocbt")
-class AutoCBTEnvironment(BaseEnvironment):
+@register_environment("chatdev")
+class ChatdevEnvironment(BaseEnvironment):
     async def step(self):
         """Run one step of the environment"""
         for topology in self.topologies:
