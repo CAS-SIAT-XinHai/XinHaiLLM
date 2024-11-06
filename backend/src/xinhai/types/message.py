@@ -43,6 +43,7 @@ class XinHaiChatFile(BaseModel):
 
 class XinHaiChatMessage(BaseModel):
     _id: str
+    id: str
     indexId: str
     content: str
     senderId: str

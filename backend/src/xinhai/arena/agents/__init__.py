@@ -20,7 +20,7 @@ from typing import List
 import requests
 from openai import OpenAI, OpenAIError
 
-from xinhai.types.arena import XinHaiArenaAgentTypes
+from xinhai.types.arena import XinHaiArenaAgentTypes, XinHaiArenaLLMConfig
 from xinhai.types.i18n import XinHaiI18NLocales
 from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiChatSummary
 from xinhai.types.message import XinHaiChatMessage
@@ -102,10 +102,6 @@ class BaseAgent:
         self.agent_id = agent_id
         self.role_description = role_description
 
-        self.llm = llm
-        self.api_key = api_key
-        self.api_base = api_base or f'{controller_address}/v1'
-
         self.max_retries = max_retries
         self.routing_prompt_template = routing_prompt_template
         self.summary_prompt_template = summary_prompt_template
@@ -114,9 +110,11 @@ class BaseAgent:
 
         # self.memory = []  # memory of current agent
         # self.messages = {}  # messages between current agent and other agents
+
+        self.llm: XinHaiArenaLLMConfig = XinHaiArenaLLMConfig.from_config(llm, controller_address)
         self.client = OpenAI(
-            api_key=self.api_key,
-            base_url=self.api_base,
+            api_key=self.llm.api_key,
+            base_url=self.llm.api_base,
         )
         self.summary_chunk_size = summary_chunk_size
 

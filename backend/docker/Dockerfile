@@ -1,25 +1,23 @@
-ARG IMG_TAG=2.4.0-cuda12.1-cudnn9-devel
+ARG IMG_TAG=2.5.1-cuda12.1-cudnn9-devel
 ARG IMG_REPO=pytorch
 
 FROM pytorch/$IMG_REPO:$IMG_TAG
 
 RUN apt-get update
 
-RUN apt-get -y install curl
+RUN apt-get -y install curl git
 
-RUN conda install -y -c conda-forge gcc=12.1.0
+RUN conda install -y -c conda-forge gxx_linux-64
 
 COPY pip.conf /root/.config/pip/pip.conf
 
-RUN pip install python-multipart sse_starlette
+RUN pip install python-multipart sse_starlette chromadb sentence_transformers
 
-RUN pip install chromadb sentence_transformers
-
-RUN pip install vllm==0.6.1.post2
+#RUN pip install vllm==0.6.3
 # Install vLLM with CUDA 11.8.
-# ARG VLLM_VERSION=0.6.1.post2
-# ARG PYTHON_VERSION=311
-# RUN pip install https://github.com/vllm-project/vllm/releases/download/v${VLLM_VERSION}/vllm-${VLLM_VERSION}+cu121-cp${PYTHON_VERSION}-cp${PYTHON_VERSION}-manylinux1_x86_64.whl --extra-index-url https://download.pytorch.org/whl/cu121
+#ARG VLLM_VERSION=0.6.3.post1
+#ARG PYTHON_VERSION=311
+#RUN pip install https://github.com/vllm-project/vllm/releases/download/v${VLLM_VERSION}/vllm-${VLLM_VERSION}+cu121-cp${PYTHON_VERSION}-cp${PYTHON_VERSION}-manylinux1_x86_64.whl --extra-index-url https://download.pytorch.org/whl/cu121
 
 RUN pip install aiofiles peft trl datasets accelerate
 
@@ -28,6 +26,12 @@ ARG WORK_DIR=/usr/share/xinhai
 RUN mkdir -p ${WORK_DIR}/related_repos
 
 COPY --from=root related_repos/  ${WORK_DIR}/related_repos
+
+WORKDIR ${WORK_DIR}/related_repos/vllm
+RUN python use_existing_torch.py
+RUN git config --global http.version HTTP/1.1
+RUN pip install -r requirements-build.txt
+RUN pip install -e . --no-build-isolation
 
 WORKDIR ${WORK_DIR}/related_repos/LLaMA-Factory
 RUN pip install -e .

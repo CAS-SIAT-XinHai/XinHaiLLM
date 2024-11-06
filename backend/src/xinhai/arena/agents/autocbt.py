@@ -12,6 +12,7 @@ LastEditTime: 2024-10-19 17:28:20
 import logging
 import random
 import time
+import uuid
 from datetime import datetime
 from typing import List
 
@@ -55,6 +56,7 @@ class AutoCBTAgent(BaseAgent):
         t = datetime.now()
 
         return XinHaiChatMessage(
+            id=uuid.uuid4().hex,
             indexId='-1',
             content=content,
             senderId=self.name,
