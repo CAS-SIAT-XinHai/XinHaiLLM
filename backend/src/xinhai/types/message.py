@@ -12,6 +12,7 @@ import base64
 import io
 import os
 import sys
+import time
 import uuid
 from datetime import datetime
 
@@ -31,7 +32,7 @@ from typing import List, Optional, Union
 from pydantic import BaseModel, Field
 
 
-# The Role and DataRole are extracted from llamafactory
+# The protocols are extracted from llamafactory
 
 @unique
 class Role(str, Enum):
@@ -99,6 +100,31 @@ class MultimodalInputItem(BaseModel):
     image_url: Optional[ImageURL] = None
 
 
+class ChatMessage(BaseModel):
+    role: Role
+    content: Optional[Union[str, List[MultimodalInputItem]]] = None
+    tool_calls: Optional[List[FunctionCall]] = None
+
+
+class ChatCompletionMessage(BaseModel):
+    role: Optional[Role] = None
+    content: Optional[str] = None
+    tool_calls: Optional[List[FunctionCall]] = None
+
+
+class ChatCompletionRequest(BaseModel):
+    model: str
+    messages: List[ChatMessage]
+    tools: Optional[List[FunctionAvailable]] = None
+    do_sample: Optional[bool] = None
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    n: int = 1
+    max_tokens: Optional[int] = None
+    stop: Optional[Union[str, List[str]]] = None
+    stream: bool = False
+
+
 class ChatCompletionResponseChoice(BaseModel):
     index: int
     message: ChatCompletionMessage
@@ -115,6 +141,36 @@ class ChatCompletionResponseUsage(BaseModel):
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
+
+
+class ChatCompletionResponse(BaseModel):
+    id: str
+    object: Literal["chat.completion"] = "chat.completion"
+    created: int = Field(default_factory=lambda: int(time.time()))
+    model: str
+    choices: List[ChatCompletionResponseChoice]
+    usage: ChatCompletionResponseUsage
+
+
+class ChatCompletionStreamResponse(BaseModel):
+    id: str
+    object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
+    created: int = Field(default_factory=lambda: int(time.time()))
+    model: str
+    choices: List[ChatCompletionStreamResponseChoice]
+
+
+class ScoreEvaluationRequest(BaseModel):
+    model: str
+    messages: List[str]
+    max_length: Optional[int] = None
+
+
+class ScoreEvaluationResponse(BaseModel):
+    id: str
+    object: Literal["score.evaluation"] = "score.evaluation"
+    model: str
+    scores: List[float]
 
 
 class XinHaiChatFile(BaseModel):
