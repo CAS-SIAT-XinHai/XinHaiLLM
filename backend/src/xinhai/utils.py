@@ -1,3 +1,4 @@
+import gc
 import json
 import logging
 import logging.handlers
@@ -6,6 +7,13 @@ import sys
 from typing import Dict, Any
 
 import requests
+import torch
+from transformers.utils import (
+    is_torch_cuda_available,
+    is_torch_mps_available,
+    is_torch_npu_available,
+    is_torch_xpu_available,
+)
 
 server_error_msg = "**NETWORK ERROR DUE TO HIGH TRAFFIC. PLEASE REGENERATE OR REFRESH THIS PAGE.**"
 moderation_msg = "YOUR INPUT VIOLATES OUR CONTENT MODERATION GUIDELINES. PLEASE TRY AGAIN."
@@ -138,3 +146,18 @@ def jsonify(data: "BaseModel") -> str:
         return json.dumps(data.model_dump(exclude_unset=True), ensure_ascii=False)
     except AttributeError:  # pydantic v1
         return data.json(exclude_unset=True, ensure_ascii=False)
+
+
+def torch_gc() -> None:
+    r"""
+    Collects GPU or NPU memory.
+    """
+    gc.collect()
+    if is_torch_xpu_available():
+        torch.xpu.empty_cache()
+    elif is_torch_npu_available():
+        torch.npu.empty_cache()
+    elif is_torch_mps_available():
+        torch.mps.empty_cache()
+    elif is_torch_cuda_available():
+        torch.cuda.empty_cache()

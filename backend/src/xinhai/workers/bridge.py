@@ -21,7 +21,7 @@ from openai import OpenAI
 from sse_starlette import EventSourceResponse
 
 from xinhai.types.message import Role, ROLE_MAPPING, ChatCompletionStreamResponseChoice, ChatCompletionStreamResponse, \
-    ChatCompletionResponse
+    ChatCompletionResponse, ChatCompletionRequest
 from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
 from ..utils import build_logger, pretty_print_semaphore
 
