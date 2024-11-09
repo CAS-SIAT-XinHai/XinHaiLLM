@@ -16,11 +16,10 @@ from typing import List
 
 from openai import OpenAI
 
-from llamafactory.api.protocol import MultimodalInputItem, ImageURL
 from xinhai.arena.agents import register_agent, BaseAgent
 from xinhai.arena.agents.simple import SimpleAgent
 from xinhai.types.arena import XinHaiArenaAgentTypes, XinHaiArenaLLMConfig
-from xinhai.types.message import XinHaiChatMessage
+from xinhai.types.message import XinHaiChatMessage, MultimodalInputItem, ImageURL
 from xinhai.types.routing import XinHaiRoutingMessage
 
 logger = logging.getLogger(__name__)

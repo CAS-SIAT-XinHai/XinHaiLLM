@@ -230,7 +230,8 @@ export default {
 
       const message = {
         _id: messages.value.length,
-        indexId: uuidv4(),
+        id: uuidv4(),
+        indexId: messages.value.length.toString(),
         content: content,
         senderId: currentUserId,
         role: 'user',
@@ -300,7 +301,8 @@ export default {
                       ...messages.value,
                       {
                         _id: messages.value.length,
-                        indexId: chat_id,
+                        id: chat_id,
+                        indexId: messages.value.length.toString(),
                         content: content,
                         senderId: modelName.value,
                         role: 'assistant',

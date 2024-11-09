@@ -16,8 +16,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiMemoryType, \
-    XinHaiChatSummary
+from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiChatSummary
 from xinhai.types.message import XinHaiChatMessage
 from xinhai.types.storage import XinHaiFetchMessagesResponse, XinHaiFetchMessagesRequest, XinHaiStoreMessagesRequest, \
     XinHaiFetchMemoryRequest, XinHaiFetchMemoryResponse, XinHaiStoreMemoryRequest, XinHaiStoreMemoryResponse, \
@@ -189,13 +188,14 @@ class StorageWorker:
             })
 
         collection = self.client.get_or_create_collection(name=f"{request.storage_key}_summary",
-                                                        embedding_function=self.embedding_fn)
+                                                          embedding_function=self.embedding_fn)
         if collection.count() < request.threshold:
             summaries = []
         else:
-            summaries = collection.query(query_texts=request.query, n_results=request.top_k, include=['metadatas'])['metadatas'][0]
+            summaries = \
+            collection.query(query_texts=request.query, n_results=request.top_k, include=['metadatas'])['metadatas'][0]
             summaries = [XinHaiChatSummary.model_validate_json(s['summary']) for s in summaries]
-            
+
         return XinHaiRecallMemoryResponse(
             recalled_memory=XinHaiMemory(
                 storage_key=request.storage_key,
@@ -210,18 +210,19 @@ class StorageWorker:
             return XinHaiDeleteMemoryResponse(
                 num_delete=0,
                 error_code=XinHaiStorageErrorCode.ERROR
-        )
-        
+            )
+
         if request.memory_type == "short":
             collection = self.client.get_or_create_collection(name=f"{request.storage_key}",
-                                                    embedding_function=self.embedding_fn)
+                                                              embedding_function=self.embedding_fn)
         elif request.memory_type == "long":
             collection = self.client.get_or_create_collection(name=f"{request.storage_key}_summary",
-                                                    embedding_function=self.embedding_fn)
+                                                              embedding_function=self.embedding_fn)
 
         num_delete = collection.count()
         self.client.delete_collection(name=request.storage_key)
-        logger.info(f"{num_delete} {request.memory_type}-term-memories in Agent {request.storage_key} has been deleted!")
+        logger.info(
+            f"{num_delete} {request.memory_type}-term-memories in Agent {request.storage_key} has been deleted!")
 
         return XinHaiDeleteMemoryResponse(
             num_delete=num_delete,
@@ -273,6 +274,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 async def fetch_memory(request: XinHaiFetchMemoryRequest, response_model=XinHaiFetchMemoryResponse):
     # params = await request.json()
     return worker.fetch_memory(request)
+
 
 @app.post("/worker_recall_memory")
 async def recall_memory(request: XinHaiRecallMemoryRequest, response_model=XinHaiRecallMemoryResponse):

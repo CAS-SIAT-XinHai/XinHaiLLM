@@ -18,19 +18,21 @@ import requests
 import uvicorn
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from openai.types.chat import ChatCompletionMessage
 from sse_starlette import EventSourceResponse
 from starlette import status
 from starlette.middleware.cors import CORSMiddleware
+from vllm.entrypoints.openai.protocol import ChatCompletionRequest, ChatCompletionResponse
 
-from llamafactory.api.chat import ROLE_MAPPING
-from llamafactory.api.common import dictify
-from llamafactory.api.protocol import ChatCompletionResponse, ChatCompletionRequest, Function, FunctionCall, \
-    ChatCompletionMessage, Finish, Role, ChatCompletionResponseChoice, ChatCompletionResponseUsage
+# from llamafactory.api.protocol import ChatCompletionResponse, ChatCompletionRequest, Function, FunctionCall, \
+#     ChatCompletionMessage, Finish, Role, ChatCompletionResponseChoice, ChatCompletionResponseUsage
 from xinhai.arena.simulation import Simulation
 from xinhai.config import WORKER_HEART_BEAT_INTERVAL, LOG_DIR
-from xinhai.types.message import XinHaiMMRequest, XinHaiMMResponse, XinHaiMMResult, XinHaiChatCompletionRequest
+from xinhai.types.message import XinHaiMMRequest, XinHaiMMResponse, XinHaiMMResult, XinHaiChatCompletionRequest, \
+    ROLE_MAPPING, Role, Function, FunctionCall, Finish, ChatCompletionResponseChoice, ChatCompletionResponseUsage, \
+    MultimodalInputItem, ImageURL
 from xinhai.types.worker import XinHaiWorkerTypes
-from xinhai.utils import pretty_print_semaphore, build_logger
+from xinhai.utils import pretty_print_semaphore, build_logger, dictify
 
 GB = 1 << 30
 
@@ -250,7 +252,6 @@ def to_chat_completion_requests(
     # messages的类型是messages: List[ChatMessage]，
     # 则构建messages
     messages = []
-    from llamafactory.api.protocol import MultimodalInputItem, ImageURL
     # 接下来是参数对，第一是prompt，第二是name
     for xinhaiPrompt in prompts:
         prompt = xinhaiPrompt.prompt

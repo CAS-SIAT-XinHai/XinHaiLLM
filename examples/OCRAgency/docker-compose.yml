@@ -4,7 +4,7 @@ services:
   controller:
     image: xinhai_backend
     volumes:
-      - ../../backend:/usr/share/xinhai/backend
+      - backend:/usr/share/xinhai/backend
     ports:
       - ${FRONTEND_PORT}:8080
       - ${CONTROLLER_PORT}:5000
@@ -23,7 +23,7 @@ services:
   frontend:
     image: xinhai_frontend
     volumes:
-      - ../../frontend:/usr/share/xinhai/frontend
+      - frontend:/usr/share/xinhai/frontend
     network_mode: service:controller
     working_dir: /usr/share/xinhai/frontend
     command: npm run serve
@@ -33,7 +33,7 @@ services:
       controller:
         condition: service_healthy
     volumes:
-      - ../../backend:/usr/share/xinhai/backend
+      - backend:/usr/share/xinhai/backend
       - pretrained_models:/usr/share/xinhai/pretrained_models
     environment:
       CONTROLLER_ADDRESS: http://controller:5000
@@ -67,7 +67,7 @@ services:
       storage:
         condition: service_healthy
     volumes:
-      - ../../backend:/usr/share/xinhai/backend
+      - backend:/usr/share/xinhai/backend
       - pretrained_models:/usr/share/xinhai/pretrained_models
     environment:
       LD_LIBRARY_PATH: ${LD_LIBRARY_PATH}
@@ -92,23 +92,13 @@ services:
       interval: 10s
       timeout: 10s
       retries: 120
-  llm:
+  llm-server:
     image: xinhai_backend
-    depends_on:
-      controller:
-        condition: service_healthy
-      storage:
-        condition: service_healthy
     volumes:
-      - ../../backend:/usr/share/xinhai/backend
       - pretrained_models:/usr/share/xinhai/pretrained_models
     environment:
-      CONTROLLER_ADDRESS: http://controller:5000
       MODEL_NAME: ${LLM_MODEL_NAME}
-      WORKER_ADDRESS: http://llm:${LLM_WORKER_PORT}
-      WORKER_HOST: 0.0.0.0
-      WORKER_PORT: ${LLM_WORKER_PORT}
-    command: python -m xinhai.workers.llm --model_name_or_path /usr/share/xinhai/pretrained_models/${LLM_MODEL_PATH} --template ${LLM_MODEL_TEMPLATE} --infer_backend vllm --vllm_enforce_eager --infer_dtype float16
+    command: vllm serve /usr/share/xinhai/pretrained_models/${LLM_MODEL_PATH} --served_model_name ${LLM_MODEL_NAME} --dtype float16 --host 0.0.0.0 --port ${LLM_SERVER_PORT} --gpu-memory-utilization 0.9 --max_model_len 8192
     deploy:
       resources:
         reservations:
@@ -118,30 +108,48 @@ services:
               capabilities: [ gpu ]
     healthcheck:
       test: [
+        "CMD", "curl", "--fail", "-s",
+        "http://localhost:${LLM_SERVER_PORT}/health",
+      ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+  llm: # Bridged LLM
+    image: xinhai
+    depends_on:
+      controller:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+      llm-server:
+        condition: service_healthy
+    volumes:
+      - backend:/usr/share/xinhai/backend
+      - configs:/usr/share/xinhai/configs
+    environment:
+      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
+      MODEL_NAME: ${LLM_MODEL_NAME}
+      WORKER_ADDRESS: http://llm:${LLM_WORKER_PORT}
+      WORKER_HOST: 0.0.0.0
+      WORKER_PORT: ${LLM_WORKER_PORT}
+      API_KEY: BRIDGE_API_KEY
+      API_BASE: http://llm-server:${LLM_SERVER_PORT}/v1
+    command: python -m xinhai.workers.bridge
+    healthcheck:
+      test: [
         "CMD", "curl", "--fail", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{}",
         "http://localhost:${LLM_WORKER_PORT}/worker_get_status",
       ]
       interval: 10s
       timeout: 10s
       retries: 120
-  mllm:
+  mllm-server:
     image: xinhai_backend
-    depends_on:
-      controller:
-        condition: service_healthy
-      storage:
-        condition: service_healthy
     volumes:
-      - ../../backend:/usr/share/xinhai/backend
       - pretrained_models:/usr/share/xinhai/pretrained_models
     environment:
-      CONTROLLER_ADDRESS: http://controller:5000
-      MODEL_NAME: ${MLLM_MODEL_NAME}
-      MODEL_PATH: /usr/share/xinhai/pretrained_models/${MLLM_MODEL_PATH}
-      WORKER_ADDRESS: http://mllm:${MLLM_WORKER_PORT}
-      WORKER_HOST: 0.0.0.0
-      WORKER_PORT: ${MLLM_WORKER_PORT}
-    command: python -m xinhai.workers.mllm --model_name_or_path /usr/share/xinhai/pretrained_models/${MLLM_MODEL_PATH} --template ${MLLM_MODEL_TEMPLATE} --infer_backend vllm --vllm_enforce_eager --infer_dtype float16
+      MODEL_NAME: ${LLM_MODEL_NAME}
+    command: vllm serve /usr/share/xinhai/pretrained_models/${MLLM_MODEL_PATH} --served_model_name ${MLLM_MODEL_NAME} --dtype float16 --host 0.0.0.0 --port ${MLLM_SERVER_PORT} --gpu-memory-utilization 0.9 --max_model_len 10000
     deploy:
       resources:
         reservations:
@@ -149,6 +157,35 @@ services:
             - driver: nvidia
               device_ids: [ '1' ]
               capabilities: [ gpu ]
+    healthcheck:
+      test: [
+        "CMD", "curl", "--fail", "-s",
+        "http://localhost:${MLLM_SERVER_PORT}/health",
+      ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+  mllm: # Bridged MLLM
+    image: xinhai
+    depends_on:
+      controller:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+      mllm-server:
+        condition: service_healthy
+    volumes:
+      - backend:/usr/share/xinhai/backend
+      - configs:/usr/share/xinhai/configs
+    environment:
+      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
+      MODEL_NAME: ${MLLM_MODEL_NAME}
+      WORKER_ADDRESS: http://mllm:${MLLM_WORKER_PORT}
+      WORKER_HOST: 0.0.0.0
+      WORKER_PORT: ${MLLM_WORKER_PORT}
+      API_KEY: BRIDGE_API_KEY
+      API_BASE: http://mllm-server:${MLLM_SERVER_PORT}/v1
+    command: python -m xinhai.workers.bridge
     healthcheck:
       test: [
         "CMD", "curl", "--fail", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{}",
@@ -171,8 +208,8 @@ services:
       ocr:
         condition: service_healthy
     volumes:
-      - ../../backend:/usr/share/xinhai/backend
-      - ./configs:/usr/share/xinhai/configs
+      - backend:/usr/share/xinhai/backend
+      - configs:/usr/share/xinhai/configs
     environment:
       CONTROLLER_ADDRESS: http://controller:5000
       MODEL_NAME: ${AGENCY_NAME}
@@ -187,8 +224,22 @@ services:
 volumes:
   backend:
     driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ../../backend
+  frontend:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ../../frontend
   configs:
     driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: configs
   pretrained_models:
     driver: local
     driver_opts:

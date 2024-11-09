@@ -14,19 +14,107 @@ import os
 import sys
 import uuid
 from datetime import datetime
-from typing import List, Optional, Union
 
 from more_itertools import split_when
-from pydantic import BaseModel, Field
+from openai.types.chat import ChatCompletionMessage
 
-from llamafactory.api.protocol import MultimodalInputItem, ImageURL, FunctionAvailable
 from .prompt import XinHaiMMPrompt
 from .room import XinHaiChatRoom
 
 if sys.version_info >= (3, 11):
-    from typing import Self
+    from typing import Self, Literal, Any, Dict
 else:
     from typing_extensions import Self
+from enum import Enum, unique
+from typing import List, Optional, Union
+
+from pydantic import BaseModel, Field
+
+
+# The Role and DataRole are extracted from llamafactory
+
+@unique
+class Role(str, Enum):
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+    FUNCTION = "function"
+    TOOL = "tool"
+
+
+@unique
+class DataRole(str, Enum):
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+    FUNCTION = "function"
+    OBSERVATION = "observation"
+
+
+ROLE_MAPPING = {
+    Role.USER: DataRole.USER.value,
+    Role.ASSISTANT: DataRole.ASSISTANT.value,
+    Role.SYSTEM: DataRole.SYSTEM.value,
+    Role.FUNCTION: DataRole.FUNCTION.value,
+    Role.TOOL: DataRole.OBSERVATION.value,
+}
+
+
+class Function(BaseModel):
+    name: str
+    arguments: str
+
+
+class FunctionDefinition(BaseModel):
+    name: str
+    description: str
+    parameters: Dict[str, Any]
+
+
+class FunctionAvailable(BaseModel):
+    type: Literal["function", "code_interpreter"] = "function"
+    function: Optional[FunctionDefinition] = None
+
+
+class FunctionCall(BaseModel):
+    id: str
+    type: Literal["function"] = "function"
+    function: Function
+
+
+class ImageURL(BaseModel):
+    url: str
+
+
+@unique
+class Finish(str, Enum):
+    STOP = "stop"
+    LENGTH = "length"
+    TOOL = "tool_calls"
+
+
+class MultimodalInputItem(BaseModel):
+    type: Literal["text", "image_url"]
+    text: Optional[str] = None
+    image_url: Optional[ImageURL] = None
+
+
+class ChatCompletionResponseChoice(BaseModel):
+    index: int
+    message: ChatCompletionMessage
+    finish_reason: Finish
+
+
+class ChatCompletionStreamResponseChoice(BaseModel):
+    index: int
+    delta: ChatCompletionMessage
+    finish_reason: Optional[Finish] = None
+
+
+class ChatCompletionResponseUsage(BaseModel):
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
 
 
 class XinHaiChatFile(BaseModel):
