@@ -32,15 +32,11 @@ class MLLMAgent(SimpleAgent):
     def __init__(self, name, agent_id, role_description, llm, mllm,
                  routing_prompt_template, summary_prompt_template, prompt_template,
                  environment_id, controller_address, locale,
-                 allowed_routing_types,
-                 api_key="EMPTY",
-                 api_base=None):
+                 allowed_routing_types):
         super().__init__(name, agent_id, role_description, llm,
                          routing_prompt_template, summary_prompt_template, prompt_template,
                          environment_id, controller_address, locale,
-                         allowed_routing_types,
-                         api_key=api_key,
-                         api_base=api_base)
+                         allowed_routing_types)
         self.mllm: XinHaiArenaLLMConfig = XinHaiArenaLLMConfig.from_config(mllm, controller_address)
         self.mllm_client = OpenAI(
             api_key=self.mllm.api_key,

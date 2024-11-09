@@ -91,8 +91,6 @@ class BaseAgent:
                  routing_prompt_template, summary_prompt_template, prompt_template,
                  environment_id, controller_address, locale,
                  allowed_routing_types,
-                 api_key="EMPTY",
-                 api_base=None,
                  use_summary=True,
                  static_routing=False,
                  id_template=None,

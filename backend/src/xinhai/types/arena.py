@@ -15,8 +15,8 @@ class XinHaiArenaAgentTypes(str, Enum):
     SIMPLE = 'simple'
     PROXY = 'proxy'
     VERIFY_AGENT = 'verify_agent'
-    OCR = 'ocr_agent'
-    MLLM = 'mllm_agent'
+    OCR = 'ocr'
+    MLLM = 'mllm'
 
 
 class XinHaiArenaEnvironmentTypes(str, Enum):
@@ -27,13 +27,13 @@ class XinHaiArenaEnvironmentTypes(str, Enum):
 
 class XinHaiArenaLLMConfig(BaseModel):
     model: str
-    api_key: str
+    api_key: str = "EMPTY"
     api_base: str = None
-    do_sample: bool
-    temperature: float
-    top_p: float
-    max_new_tokens: int
-    num_return_sequences: int = 1
+    do_sample: bool = False
+    temperature: float = 1
+    top_p: float = 1
+    # max_new_tokens: int =
+    # num_return_sequences: int = 1
 
     @classmethod
     def from_config(cls, llm_config, controller_address):

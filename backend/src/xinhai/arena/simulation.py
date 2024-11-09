@@ -29,6 +29,7 @@ class Simulation:
         # Build the agents
         agents = []
         for agent_configs in arena_config["agents"]:
+            logger.info(agent_configs)
             agent_type = agent_configs.pop("agent_type")
 
             agent = AGENT_REGISTRY[agent_type](**agent_configs,
