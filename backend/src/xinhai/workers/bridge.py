@@ -19,13 +19,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from openai import OpenAI
 from sse_starlette import EventSourceResponse
-from vllm.entrypoints.openai.protocol import ChatCompletionResponse, ChatCompletionRequest, ChatCompletionStreamResponse
 
-from xinhai.types.message import Role, ROLE_MAPPING, ChatCompletionStreamResponseChoice
-# from llamafactory.api.protocol import Role, ChatCompletionResponse, ChatCompletionRequest, \
-#     ChatCompletionMessage, Finish, ChatCompletionStreamResponse, ChatCompletionStreamResponseChoice
-# from llamafactory.data import Role as DataRole
-# from llamafactory.extras.misc import torch_gc
+from xinhai.types.message import Role, ROLE_MAPPING, ChatCompletionStreamResponseChoice, ChatCompletionStreamResponse, \
+    ChatCompletionResponse, ChatCompletionRequest
 from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
 from ..utils import build_logger, pretty_print_semaphore
 

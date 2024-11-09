@@ -10,10 +10,9 @@ import logging
 
 import networkx as nx
 
-from llamafactory.api.protocol import Role
 from xinhai.arena.topology import register_topology, BaseTopology
 from xinhai.types.arena import XinHaiArenaAgentTypes
-from xinhai.types.message import XinHaiChatMessage
+from xinhai.types.message import XinHaiChatMessage, Role
 from xinhai.types.routing import XinHaiRoutingType
 
 logger = logging.getLogger(__name__)

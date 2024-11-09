@@ -22,15 +22,11 @@ from openai.types.chat import ChatCompletionMessage
 from sse_starlette import EventSourceResponse
 from starlette import status
 from starlette.middleware.cors import CORSMiddleware
-from vllm.entrypoints.openai.protocol import ChatCompletionRequest, ChatCompletionResponse
-
-# from llamafactory.api.protocol import ChatCompletionResponse, ChatCompletionRequest, Function, FunctionCall, \
-#     ChatCompletionMessage, Finish, Role, ChatCompletionResponseChoice, ChatCompletionResponseUsage
 from xinhai.arena.simulation import Simulation
 from xinhai.config import WORKER_HEART_BEAT_INTERVAL, LOG_DIR
 from xinhai.types.message import XinHaiMMRequest, XinHaiMMResponse, XinHaiMMResult, XinHaiChatCompletionRequest, \
     ROLE_MAPPING, Role, Function, FunctionCall, Finish, ChatCompletionResponseChoice, ChatCompletionResponseUsage, \
-    MultimodalInputItem, ImageURL
+    MultimodalInputItem, ImageURL, ChatCompletionRequest, ChatCompletionResponse
 from xinhai.types.worker import XinHaiWorkerTypes
 from xinhai.utils import pretty_print_semaphore, build_logger, dictify
 
