@@ -26,11 +26,10 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from more_itertools import sliced
 from openai import OpenAI, OpenAIError
-from openai.types.chat import ChatCompletion
 from pydantic import ValidationError
 from sse_starlette import EventSourceResponse
+from vllm.entrypoints.openai.protocol import ChatCompletionRequest, ChatCompletionResponse
 
-from llamafactory.api.protocol import ChatCompletionResponse, ChatCompletionRequest
 from xinhai.types.message import XinHaiMMRequest, XinHaiMMResponse
 from .config import CONTROLLER_HEART_BEAT_EXPIRATION, LOG_DIR, STATIC_PATH
 from .types.message import XinHaiChatCompletionRequest

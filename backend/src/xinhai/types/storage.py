@@ -11,7 +11,7 @@ from typing import List
 
 from pydantic import BaseModel
 
-from xinhai.types.memory import XinHaiMemory, XinHaiMemoryType, XinHaiChatSummary
+from xinhai.types.memory import XinHaiMemory
 from xinhai.types.message import XinHaiChatMessage
 from xinhai.types.room import XinHaiChatRoom
 

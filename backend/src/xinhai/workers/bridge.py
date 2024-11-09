@@ -19,11 +19,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from openai import OpenAI
 from sse_starlette import EventSourceResponse
+from vllm.entrypoints.openai.protocol import ChatCompletionResponse, ChatCompletionRequest, ChatCompletionStreamResponse
 
-from llamafactory.api.protocol import Role, ChatCompletionResponse, ChatCompletionRequest, \
-    ChatCompletionMessage, Finish, ChatCompletionStreamResponse, ChatCompletionStreamResponseChoice
-from llamafactory.data import Role as DataRole
-from llamafactory.extras.misc import torch_gc
+from xinhai.types.message import Role, ROLE_MAPPING, ChatCompletionStreamResponseChoice
+# from llamafactory.api.protocol import Role, ChatCompletionResponse, ChatCompletionRequest, \
+#     ChatCompletionMessage, Finish, ChatCompletionStreamResponse, ChatCompletionStreamResponseChoice
+# from llamafactory.data import Role as DataRole
+# from llamafactory.extras.misc import torch_gc
 from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
 from ..utils import build_logger, pretty_print_semaphore
 
@@ -168,14 +170,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-ROLE_MAPPING = {
-    Role.USER: DataRole.USER.value,
-    Role.ASSISTANT: DataRole.ASSISTANT.value,
-    Role.SYSTEM: DataRole.SYSTEM.value,
-    Role.FUNCTION: DataRole.FUNCTION.value,
-    Role.TOOL: DataRole.OBSERVATION.value,
-}
 
 
 def _process_request(request: "ChatCompletionRequest") -> Tuple[List[Dict[str, str]], str, str]:

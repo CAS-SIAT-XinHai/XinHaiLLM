@@ -12,19 +12,109 @@ import base64
 import io
 import os
 import sys
+import uuid
 from datetime import datetime
-from typing import List
 
 from more_itertools import split_when
-from pydantic import BaseModel, Field
+from openai.types.chat import ChatCompletionMessage
 
-from llamafactory.api.protocol import MultimodalInputItem, ImageURL
 from .prompt import XinHaiMMPrompt
+from .room import XinHaiChatRoom
 
 if sys.version_info >= (3, 11):
-    from typing import Self
+    from typing import Self, Literal, Any, Dict
 else:
     from typing_extensions import Self
+from enum import Enum, unique
+from typing import List, Optional, Union
+
+from pydantic import BaseModel, Field
+
+
+# The Role and DataRole are extracted from llamafactory
+
+@unique
+class Role(str, Enum):
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+    FUNCTION = "function"
+    TOOL = "tool"
+
+
+@unique
+class DataRole(str, Enum):
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+    FUNCTION = "function"
+    OBSERVATION = "observation"
+
+
+ROLE_MAPPING = {
+    Role.USER: DataRole.USER.value,
+    Role.ASSISTANT: DataRole.ASSISTANT.value,
+    Role.SYSTEM: DataRole.SYSTEM.value,
+    Role.FUNCTION: DataRole.FUNCTION.value,
+    Role.TOOL: DataRole.OBSERVATION.value,
+}
+
+
+class Function(BaseModel):
+    name: str
+    arguments: str
+
+
+class FunctionDefinition(BaseModel):
+    name: str
+    description: str
+    parameters: Dict[str, Any]
+
+
+class FunctionAvailable(BaseModel):
+    type: Literal["function", "code_interpreter"] = "function"
+    function: Optional[FunctionDefinition] = None
+
+
+class FunctionCall(BaseModel):
+    id: str
+    type: Literal["function"] = "function"
+    function: Function
+
+
+class ImageURL(BaseModel):
+    url: str
+
+
+@unique
+class Finish(str, Enum):
+    STOP = "stop"
+    LENGTH = "length"
+    TOOL = "tool_calls"
+
+
+class MultimodalInputItem(BaseModel):
+    type: Literal["text", "image_url"]
+    text: Optional[str] = None
+    image_url: Optional[ImageURL] = None
+
+
+class ChatCompletionResponseChoice(BaseModel):
+    index: int
+    message: ChatCompletionMessage
+    finish_reason: Finish
+
+
+class ChatCompletionStreamResponseChoice(BaseModel):
+    index: int
+    delta: ChatCompletionMessage
+    finish_reason: Optional[Finish] = None
+
+
+class ChatCompletionResponseUsage(BaseModel):
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
 
 
 class XinHaiChatFile(BaseModel):
@@ -41,6 +131,7 @@ class XinHaiChatFile(BaseModel):
 
 class XinHaiChatMessage(BaseModel):
     _id: str
+    id: str
     indexId: str
     content: str
     senderId: str
@@ -58,6 +149,7 @@ class XinHaiChatMessage(BaseModel):
     # disableActions: Optional[bool]
     # disableReactions: Optional[bool]
     files: List[XinHaiChatFile] = []
+    receiverIds: Optional[List[str]] = []
 
     # reactions: Optional[Dict]
     # replyMessage: Optional['XinHaiChatMessage']
@@ -131,13 +223,14 @@ class XinHaiChatMessage(BaseModel):
         for i, m in enumerate(messages):
             if isinstance(m['content'], str):
                 xinhai_message = cls(
-                    indexId=f'{i}',
+                    indexId=uuid.uuid4().hex,
                     content=m['content'],
-                    senderId=role_mapping[m['role']],
-                    username=role_mapping[m['role']],
+                    senderId=role_mapping['role2id'][m['role']],
+                    username=role_mapping['role2name'][m['role']],
                     role="user",
                     date=t.strftime("%a %b %d %Y"),
                     timestamp=t.strftime("%H:%M"),
+                    receiverIds=role_mapping['role2receivers'][m['role']],
                 )
             elif isinstance(m['content'], list):
                 content = ''
@@ -149,14 +242,15 @@ class XinHaiChatMessage(BaseModel):
                         files.append(item.image_url)
 
                 xinhai_message = cls(
-                    indexId=f'{i}',
+                    indexId=uuid.uuid4().hex,
                     content=content,
-                    senderId=role_mapping[m['role']],
-                    username=role_mapping[m['role']],
+                    senderId=role_mapping['role2id'][m['role']],
+                    username=role_mapping['role2name'][m['role']],
                     role="user",
                     date=t.strftime("%a %b %d %Y"),
                     timestamp=t.strftime("%H:%M"),
-                    files=files
+                    files=files,
+                    receiverIds=role_mapping['role2receivers'][m['role']],
                 )
             else:
                 raise ValueError
@@ -165,17 +259,18 @@ class XinHaiChatMessage(BaseModel):
 
 
 class XinHaiChatCompletionRequest(BaseModel):
+    id: str
     model: str
     messages: List[XinHaiChatMessage]
-
-    # tools: Optional[List[FunctionAvailable]] = None
-    # do_sample: bool = True
-    # temperature: Optional[float] = None
-    # top_p: Optional[float] = None
-    # n: int = 1
-    # max_tokens: Optional[int] = None
-    # stop: Optional[Union[str, List[str]]] = None
-    # stream: bool = False
+    room: XinHaiChatRoom = None
+    tools: Optional[List[FunctionAvailable]] = None
+    do_sample: bool = True
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    n: int = 1
+    max_tokens: Optional[int] = None
+    stop: Optional[Union[str, List[str]]] = None
+    stream: bool = False
 
     def to_chat(self, static_path):
         messages = []

@@ -1,24 +1,6 @@
-controller:
-  controller_address: http://localhost:5000
-
-workers:
-  - worker_type: llm
-    worker_name: Qwen1.5-7B-Chat
-    worker_address: http://localhost:40001
-    worker_host: 0.0.0.0
-    worker_port: 40001
-    no_register: false
-    limit_model_concurrency: 5
-    device: cuda
-    api_key: EMPTY
-  - worker_type: ocr
-  - worker_type: storage
-
 arena:
   allowed_routing_types: &allowed_routing_types
     - "[Unicast]"
-    - "[Multicast]"
-    - "[Broadcast]"
   prompts:
     routing_prompt: &routing_prompt |-
       现在，你正在扮演虚拟世界中的一个智能体，名字是{agent_name}。你需要基于自己和其他智能体的关联关系做出反应。目前，已知的信息如下：
@@ -58,13 +40,6 @@ arena:
       ###Attention###
       仅返回新的对话摘要内容，不要返回分析过程！
     prompt: &prompt |-
-      请你基于咨询者的信息，给出⼀条专业的，富有同情⼼和具有助益性的回复。确保你的回复在保持以下认知⾏为疗法回答结构的基础上，尤其是识别关键思维或信念部分，流畅地将各部分内容相互连接：
-      1. 验证和共情：对患者的情感或问题表示理解和同情，创建安全感。
-      2. 识别关键思维或信念：通过问题描述，找出可能的认知扭曲或核⼼信仰。
-      3. 提出挑战或反思：提出开放性问题，⿎励患者重新考虑或反思其初始思维或信仰。
-      4. 提供策略或⻅解：提供实⽤策略或⻅解，以帮助他们处理当前情况。
-      5. ⿎励与前瞻：⿎励患者使⽤策略，强调这只是开始，并可能需要进⼀步的⽀持。
-      
       【角色描述】
           {role_description}
       
@@ -125,7 +100,7 @@ arena:
     - agent_type: simple
       agent_id: 2
       name: 督导师1
-      role_description: 督导师1，专注于验证和共情，能够对患者的情感或问题表示理解和同情，创建安全感。
+      role_description: 督导师1，不直接和咨询者进行对话。专注于验证和共情，能够对患者的情感或问题表示理解和同情，创建安全感。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
@@ -135,7 +110,7 @@ arena:
     - agent_type: simple
       agent_id: 3
       name: 督导师2
-      role_description: 督导师2，擅长识别关键思维或信念，能够通过问题描述，找出可能的认知扭曲或核⼼信仰。
+      role_description: 督导师2，不直接和咨询者进行对话。擅长识别关键思维或信念，能够通过问题描述，找出可能的认知扭曲或核⼼信仰。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
@@ -145,7 +120,7 @@ arena:
     - agent_type: simple
       agent_id: 4
       name: 督导师3
-      role_description: 督导师3，善于提出挑战或反思，通过提出开放性问题，⿎励患者重新考虑或反思其初始思维或信仰。
+      role_description: 督导师3，不直接和咨询者进行对话。善于提出挑战或反思，通过提出开放性问题，⿎励患者重新考虑或反思其初始思维或信仰。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
@@ -155,7 +130,7 @@ arena:
     - agent_type: simple
       agent_id: 5
       name: 督导师4
-      role_description: 督导师4，善于提供策略或⻅解，通过提供实⽤策略或⻅解，以帮助他们处理当前情况。
+      role_description: 督导师4，不直接和咨询者进行对话。善于提供策略或⻅解，通过提供实⽤策略或⻅解，以帮助他们处理当前情况。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt
@@ -165,7 +140,7 @@ arena:
     - agent_type: simple
       agent_id: 6
       name: 督导师5
-      role_description: 督导师5，负责⿎励与前瞻，⿎励患者使⽤策略，强调这只是开始，并可能需要进⼀步的⽀持。
+      role_description: 督导师5，不直接和咨询者进行对话。负责⿎励与前瞻，⿎励患者使⽤策略，强调这只是开始，并可能需要进⼀步的⽀持。
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
       prompt_template: *prompt

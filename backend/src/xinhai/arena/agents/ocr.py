@@ -10,34 +10,24 @@ LastEditTime: 2024-07-19 17:28:20
 """
 import json
 import logging
+import uuid
 from datetime import datetime
+from typing import List
 
 import requests
 
 from xinhai.arena.agents import register_agent, BaseAgent
+from xinhai.arena.agents.simple import SimpleAgent
 from xinhai.types.arena import XinHaiArenaAgentTypes
 from xinhai.types.message import XinHaiChatMessage
+from xinhai.types.routing import XinHaiRoutingMessage
 
 logger = logging.getLogger(__name__)
 
 
-@register_agent(XinHaiArenaAgentTypes.OCR_AGENT)
-class OCRAgent(BaseAgent):
-    agent_type = XinHaiArenaAgentTypes.OCR_AGENT
-
-    def __init__(self, name, agent_id, role_description, llm, api_key, api_base,
-                 prompt_template,
-                 environment_id, controller_address, locale,
-                 allowed_routing_types, answer_template):
-        super().__init__(name, agent_id, role_description, llm, api_key, api_base,
-                         routing_prompt_template='',
-                         summary_prompt_template='',
-                         prompt_template=prompt_template,
-                         environment_id=environment_id,
-                         controller_address=controller_address,
-                         locale=locale,
-                         allowed_routing_types=allowed_routing_types)
-        self.answer_template = answer_template
+@register_agent(XinHaiArenaAgentTypes.OCR)
+class OCRAgent(SimpleAgent):
+    agent_type = XinHaiArenaAgentTypes.OCR
 
     def reset(self) -> None:
         pass
@@ -63,23 +53,33 @@ class OCRAgent(BaseAgent):
 
         return r.json()
 
-    def step(self, routing, agents, **kwargs):
-        image_url = kwargs.get("image_url", "")
-        user_question = kwargs.get("user_question", "")
+    def step(
+            self,
+            routing_message_in: XinHaiRoutingMessage,
+            routing_message_out: XinHaiRoutingMessage,
+            target_agents: List[BaseAgent], **kwargs
+    ):
+        chat_summary = self.get_summary()
+        chat_history, chat_files = self.get_history(target_agents)
+        target_agent_names = ", ".join([f"Agent-{n.agent_id} {n.name}" for n in target_agents])
+
         try:
-            ocr_ret = self.ocr_conversation(image_url)
+            ocr_ret = self.ocr_conversation(chat_files[0].url)
         except Exception as e:
             ocr_ret = {'description': ''}
             logger.warning("ocr工具出错！")
 
-        prompt = self.prompt_template.format(role_description=self.role_description,
-                                             user_question=user_question,
-                                             answer_template='{' + self.answer_template[1:-1] + '}',
+        prompt = self.prompt_template.format(chat_history='\n'.join(chat_history),
+                                             chat_summary=chat_summary,
+                                             role_description=self.role_description,
+                                             routing_type=routing_message_out.routing_type.routing_name,
+                                             target_agent_names=target_agent_names,
                                              ocr_tool_answer=ocr_ret['description'])
         role, content = self.complete_conversation(prompt)
 
         t = datetime.now()
         return XinHaiChatMessage(
+            id=uuid.uuid4().hex,
             indexId='-1',
             content=content,
             senderId=self.name,

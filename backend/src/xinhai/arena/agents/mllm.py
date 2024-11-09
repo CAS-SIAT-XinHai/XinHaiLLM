@@ -10,46 +10,58 @@ LastEditTime: 2024-07-19 17:28:20
 """
 import logging
 import re
+import uuid
 from datetime import datetime
+from typing import List
+
+from openai import OpenAI
 
 from xinhai.arena.agents import register_agent, BaseAgent
-from xinhai.types.arena import XinHaiArenaAgentTypes
-from xinhai.types.message import XinHaiChatMessage
+from xinhai.arena.agents.simple import SimpleAgent
+from xinhai.types.arena import XinHaiArenaAgentTypes, XinHaiArenaLLMConfig
+from xinhai.types.message import XinHaiChatMessage, MultimodalInputItem, ImageURL
+from xinhai.types.routing import XinHaiRoutingMessage
 
 logger = logging.getLogger(__name__)
 
 
-@register_agent(XinHaiArenaAgentTypes.MLLM_AGENT)
-class MLLMAgent(BaseAgent):
-    agent_type = XinHaiArenaAgentTypes.MLLM_AGENT
+@register_agent(XinHaiArenaAgentTypes.MLLM)
+class MLLMAgent(SimpleAgent):
+    agent_type = XinHaiArenaAgentTypes.MLLM
 
-    def __init__(self, name, agent_id, role_description, llm,
+    def __init__(self, name, agent_id, role_description, llm, mllm,
+                 routing_prompt_template, summary_prompt_template, prompt_template,
                  environment_id, controller_address, locale,
                  allowed_routing_types,
                  api_key="EMPTY",
                  api_base=None):
-        routing_prompt_template = " "
-        summary_prompt_template = ""
-        prompt_template = ""
         super().__init__(name, agent_id, role_description, llm,
                          routing_prompt_template, summary_prompt_template, prompt_template,
                          environment_id, controller_address, locale,
                          allowed_routing_types,
                          api_key=api_key,
                          api_base=api_base)
+        self.mllm: XinHaiArenaLLMConfig = XinHaiArenaLLMConfig.from_config(mllm, controller_address)
+        self.mllm_client = OpenAI(
+            api_key=self.mllm.api_key,
+            base_url=self.mllm.api_base,
+        )
 
     def reset(self) -> None:
         pass
 
-    def complete_conversation(self, prompt, image_url=None, num_retries=5):
+    def complete_mllm_conversation(self, mllm_prompt, image_url, num_retries=5):
+        assert image_url is not None
 
         # 采用多模态的message
-        txt = MultimodalInputItem(type="text", text=prompt)
-        pie = MultimodalInputItem(type="image_url",
-                                  image_url=ImageURL(url=image_url))
+        txt = MultimodalInputItem(type="text", text=mllm_prompt)
+        pie = MultimodalInputItem(type="image_url", image_url=ImageURL(url=image_url))
         messages = [{
             "role": "user",
-            "content": [txt.dict(), pie.dict()]
+            "content": [
+                txt.model_dump(),
+                pie.model_dump()
+            ]
         }]
         format_pattern = re.compile(r'\{(?:\s*"(.*?)"\s*:\s*"(.*?)"\s*,?)*\}')
 
@@ -81,30 +93,38 @@ class MLLMAgent(BaseAgent):
         # 将这些格式化后的部分组合成最终字符串
         formatted_string = '{' + ','.join(formatted_parts) + '}'
 
-        return self.name, formatted_string
+        return formatted_string
 
-    def step(self, routing, agents, **kwargs):
-        # chat_summary = self.get_summary()
-        # chat_history = '\n'.join(self.get_history())
-        user_question = kwargs.get("user_question", "")
-        image_url = kwargs.get("image_url", "")
-        # 统一一个发送的格式。
-        prompt = self.mllm_prompt_template.format(
-            role_description=self.role_description,
-            user_question=user_question,
-            answer_template=self.answer_template,
-        )
+    def step(
+            self,
+            routing_message_in: XinHaiRoutingMessage,
+            routing_message_out: XinHaiRoutingMessage,
+            target_agents: List[BaseAgent], **kwargs
+    ):
+        chat_summary = self.get_summary()
+        chat_history, chat_files = self.get_history(target_agents)
+        target_agent_names = ", ".join([f"Agent-{n.agent_id} {n.name}" for n in target_agents])
 
-        role, content = self.complete_conversation(prompt, image_url)
+        prompt = self.prompt_template.format(chat_history='\n'.join(chat_history),
+                                             chat_summary=chat_summary,
+                                             role_description=self.role_description,
+                                             routing_type=routing_message_out.routing_type.routing_name,
+                                             target_agent_names=target_agent_names)
+        role, mllm_prompt = self.complete_conversation(prompt)
+
+        content = self.complete_mllm_conversation(mllm_prompt, image_url=chat_files[0].url)
 
         t = datetime.now()
 
         return XinHaiChatMessage(
+            id=uuid.uuid4().hex,
             indexId='-1',
             content=content,
-            senderId=self.name,
+            senderId=str(self.agent_id),
+            receiverIds=[str(a.agent_id) for a in target_agents],
             username=self.name,
             role="user",
             date=t.strftime("%a %b %d %Y"),
             timestamp=t.strftime("%H:%M"),
+            files=chat_files
         )

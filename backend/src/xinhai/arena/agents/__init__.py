@@ -20,7 +20,7 @@ from typing import List
 import requests
 from openai import OpenAI, OpenAIError
 
-from xinhai.types.arena import XinHaiArenaAgentTypes
+from xinhai.types.arena import XinHaiArenaAgentTypes, XinHaiArenaLLMConfig
 from xinhai.types.i18n import XinHaiI18NLocales
 from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiChatSummary
 from xinhai.types.message import XinHaiChatMessage
@@ -102,10 +102,6 @@ class BaseAgent:
         self.agent_id = agent_id
         self.role_description = role_description
 
-        self.llm = llm
-        self.api_key = api_key
-        self.api_base = api_base or f'{controller_address}/v1'
-
         self.max_retries = max_retries
         self.routing_prompt_template = routing_prompt_template
         self.summary_prompt_template = summary_prompt_template
@@ -114,9 +110,11 @@ class BaseAgent:
 
         # self.memory = []  # memory of current agent
         # self.messages = {}  # messages between current agent and other agents
+
+        self.llm: XinHaiArenaLLMConfig = XinHaiArenaLLMConfig.from_config(llm, controller_address)
         self.client = OpenAI(
-            api_key=self.api_key,
-            base_url=self.api_base,
+            api_key=self.llm.api_key,
+            base_url=self.llm.api_base,
         )
         self.summary_chunk_size = summary_chunk_size
 
@@ -135,11 +133,6 @@ class BaseAgent:
         self.format_pattern = re.compile(self.format_regex, re.DOTALL)
 
         self.memory = self.retrieve_memory()
-
-    def generate_message_id(self):
-        messages = self.memory.short_term_memory.messages
-        index_id = 0 if len(messages) == 0 else int(messages[-1].indexId)
-        return self.id_template.format(id=index_id + 1)
 
     def generate_summary_id(self):
         summaries = self.memory.long_term_memory.summaries
@@ -314,11 +307,10 @@ class BaseAgent:
                               json=fetch_request.model_dump(), timeout=60)
             if r.status_code != 200:
                 logger.error(f"Get status fails: {self.controller_address}, {r}")
-            logger.debug(r.json())
             memory_response = XinHaiFetchMemoryResponse.model_validate(r.json())
 
-            logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-            logger.debug(
+            logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+            logger.info(
                 f"Get memories of Agent {self.agent_id}: {json.dumps(memory_response.model_dump_json(), ensure_ascii=False, indent=4)}")
 
             return memory_response.memory
@@ -337,14 +329,13 @@ class BaseAgent:
         else:
             summaries = []
 
-        logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        logger.debug(f"Adding summaries: {summaries} to Agent {self.agent_id}")
+        logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+        logger.info(f"Adding summaries: {summaries} to Agent {self.agent_id}")
         self.memory.long_term_memory.summaries.extend(summaries)
 
-        logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        logger.debug(f"Adding {messages} to Agent {self.agent_id}")
+        logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+        logger.info(f"Adding {messages} to Agent {self.agent_id}")
         for m in messages:
-            m.indexId = self.generate_message_id()
             current_messages.append(m)
 
         memory_request = XinHaiStoreMemoryRequest(
