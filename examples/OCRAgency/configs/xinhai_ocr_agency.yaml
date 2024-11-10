@@ -1,0 +1,143 @@
+arena:
+  allowed_routing_types: &allowed_routing_types
+    - "[Unicast]"
+    - "[Multicast]"
+    - "[Broadcast]"
+    - "[Endcast]"
+  llm: &llm
+    model: Qwen2.5-7B-Instruct
+  prompts:
+    routing_prompt: &routing_prompt |-
+      Now, you are working for an OCR Agency, playing the role of {agent_name}. 
+      You need to react based on your own association with other roles. 
+      At present, the known information is as follows:
+      
+      ### Your role description as {agent_name}:
+      {role_description}
+      
+      ### Summary of historical conversations between you as {agent_name} and other roles:
+      {chat_summary}
+      
+      ### Your latest conversation history with other roles as {agent_name}:
+      {chat_history}
+      
+      ### List of roles that you, as {agent_name}, can interact with:
+      {agent_descriptions}
+      
+      ### The communication methods you can use as {agent_name} are:
+      {routing_descriptions}
+      
+      ## Based on the current situation, please choose a suitable communication target and communication method. If you don't know how to handle the output, please refer to the following output format and output your routing strategy:
+      {{"method": "[Multicast]", "target": [2,3,4,5,6]}}
+      {{"method": "[Unicast]", "target": [0]}}
+      
+      ##Attention##
+      Now, based on the above information and reference output format, what is your routing strategy?
+    summary_prompt: &summary_prompt |-
+      ## Please provide a new conversation summary based on the previous conversation summary and the new conversation content. The new dialogue summary should include the content of the previous summary. The length of the abstract should not be too long or too short, and should be determined based on the previous conversation summary and content.
+      
+      #### Previous conversation summary: 
+      {chat_summary}
+      
+      #### New conversation content: 
+      {chat_history}
+      
+      ###Attention###
+      Only return the new conversation summary content, do not return the analysis process!
+    receptionist_prompt: &receptionist_prompt |-
+      You are a {role_description}。
+      The user has a question related to image information extraction, and the responses have been provided by both the mllm_agent and the ocr_agent.
+      The information provided is as follows:
+      （1）User's text question:
+          {user_question}
+      （2）The required output format and specified fields for the extracted image information:
+          {answer_template}
+      （3）Response from ocr_agent:
+          {ocr_agent_answer}
+      （4）Response from mllm_agent:
+          {mllm_agent_answer}
+      （5）Your task:
+          Please determine whether the semantic content of the ocr_agent's and mllm_agent's responses is the same.If:
+          1. The responses from both agents are largely similar, output an answer that fully complies with the image information extraction format requirements.
+          2. The responses from the two agents differ significantly, choose the answer you believe is the most correct and most relevant to the user's question, and output an answer that fully complies with the image information extraction format requirements.
+    mllm_prompt: &mllm_prompt |-
+      Now, you are a {role_description}. The known information is as follows:
+      (1) User's question:
+          {user_question}
+      (2) Response template:
+          {answer_template}
+      Please respond to the user's question according to the provided response template.
+    ocr_prompt: &ocr_prompt |-
+      You are a {role_description}. Based on a VQA (Visual Question Answering) task involving an image, the known information includes:
+      (1) User's text question:
+          {user_question}
+      (2) Required output format and specified fields for the extracted image information:
+          {answer_template}
+      (3) ocr_tool_answer (responsible for recognizing all text in the image):
+          '''{ocr_tool_answer}'''
+      Now, you need to organize the above information, extract relevant details from the ocr_tool_answer to answer the user's question, and ensure that the response format complies with the required output format for image information extraction.
+
+  name: XinHai OCR
+
+  environment:
+    environment_type: ocragency
+    environment_id: xinhai_ocr_simulation_4
+    controller_address: http://controller:5000
+    topologies:
+      - type: ocragency
+        name: OCRAgency
+        start: 0
+        max_turns: 10
+        edges:
+          - 0->1
+          - 1->0
+          - 1->2
+          - 1->3
+          - 2->1
+          - 2->3
+          - 3->1
+          - 3->2
+  agents:
+    - agent_type: proxy
+      agent_id: 0
+      name: user
+      role_description: user agent
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template:
+      locale: en
+      allowed_routing_types:
+        - "[Unicast]"
+      llm: *llm
+    - agent_type: simple
+      agent_id: 1
+      name: receptionist
+      role_description: verify_agent, based on the user's questions and needs, compare the following agent's answers to see if they are correct and verify the format.
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *receptionist_prompt
+      locale: en
+      allowed_routing_types: *allowed_routing_types
+      llm: *llm
+    - agent_type: mllm
+      agent_id: 2
+      name: mllm
+      role_description: mllm_agent, need to answer user questions based on pictures and the answer template must meet the requirements.
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *mllm_prompt
+      locale: en
+      allowed_routing_types: *allowed_routing_types
+      llm: *llm
+      mllm:
+        model: Qwen2-VL-7B-Instruct
+    - agent_type: ocr
+      agent_id: 3
+      name: ocr
+      role_description: ocr_agent, question answering assistant.
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template: *ocr_prompt
+      locale: en
+      allowed_routing_types: *allowed_routing_types
+      llm: *llm

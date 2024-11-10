@@ -9,7 +9,11 @@ Authors: Vimos Tan
 import importlib
 import logging
 import os
-from xinhai.arena.environments.base import BaseEnvironment
+from abc import abstractmethod
+from typing import List
+
+from xinhai.arena.agents import BaseAgent
+from xinhai.arena.topology import BaseTopology
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +55,44 @@ def register_environment(name, subname=None):
         return cls
 
     return register_environment_cls
+
+
+class BaseEnvironment:
+    """
+    Base class for environment.
+
+    Args:
+        agents: List of agents
+        max_turns: Maximum number of turns
+        cnt_turn: Current turn number
+    """
+    environment_id: str
+    agents: List[BaseAgent]
+    topologies: List[BaseTopology]
+
+    def __init__(self, environment_id, agents: List[BaseAgent], topologies: List[BaseTopology], controller_address,
+                 max_turns=10,
+                 cnt_turn=0):
+        self.environment_id = environment_id
+        self.agents = agents
+        self.topologies = topologies
+        self.max_turns = max_turns
+        self.cnt_turn = cnt_turn
+        self.controller_address = controller_address
+
+    @abstractmethod
+    async def step(self, *args, **kwargs) -> None:
+        """Run one step of the environment"""
+        pass
+
+    @abstractmethod
+    def reset(self) -> None:
+        """Reset the environment"""
+        pass
+
+    def is_done(self) -> bool:
+        """Check if the environment is done"""
+        return self.cnt_turn >= self.max_turns
 
 
 # automatically import any Python files in the models/ directory

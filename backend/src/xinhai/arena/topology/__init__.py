@@ -9,6 +9,10 @@ Authors: Renhao Li
 import importlib
 import logging
 import os
+from abc import abstractmethod
+from typing import Any
+
+import networkx as nx
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +33,37 @@ def register_topology(name, subname=None):
         return cls
 
     return register_topology_cls
+
+
+class BaseTopology:
+
+    def __init__(self, name, graph: nx.DiGraph, nodes=None, start=0, max_turns=0):
+        self.name = name
+        self.digraph = graph
+        self.nodes = nodes or graph.nodes
+        self.start = start
+        self.max_turns = max_turns
+
+    @classmethod
+    def from_config(cls, config: Any):
+        edges = []
+        for e in config['edges']:
+            tail, head = map(int, e.split("->"))
+            edges.append((tail, head))
+        return cls(
+            config['name'],
+            nx.DiGraph(edges),
+            start=config['start'],
+            max_turns=config['max_turns']
+        )
+
+    @abstractmethod
+    def fast_response(self, agents, input_messages, *args, **kwargs):
+        raise NotImplementedError
+
+    @abstractmethod
+    def __call__(self, agents, input_messages, *args, **kwargs):
+        raise NotImplementedError
 
 
 # automatically import any Python files in the models/ directory

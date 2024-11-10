@@ -1,14 +1,15 @@
+import datetime
 import json
 import os
-import uuid
-import subprocess
-import yaml
-import chromadb
-import datetime
-import threading
-import pytz
-import time
 import random
+import subprocess
+import threading
+import time
+import uuid
+
+import chromadb
+import pytz
+import yaml
 
 # project_path = "/data/xuancheng/koenshen/XinHaiLLM_240821"
 # data_path = "/data/xuancheng/koenshen/XinHaiLLM_240821/data"
@@ -18,14 +19,21 @@ import random
 # data_path = "/data/yangmin/autocbt/data"
 # db_path = "/data/yangmin/autocbt/AutoCBT-DB"
 
-project_path = "/mnt/c/koenshen/SVN/XinHaiLLM_240921/XinHaiLLM"
-data_path = "/mnt/c/koenshen/SVN/XinHaiLLM_data_and_db/data"
-db_path = "/mnt/c/koenshen/SVN/XinHaiLLM_data_and_db/AutoCBT-DB"
-work_dir = f'{project_path}/backend/src'
+# project_path = "/mnt/c/koenshen/SVN/XinHaiLLM_240921/XinHaiLLM"
+# data_path = "/mnt/c/koenshen/SVN/XinHaiLLM_data_and_db/data"
+# db_path = "/mnt/c/koenshen/SVN/XinHaiLLM_data_and_db/AutoCBT-DB"
+# work_dir = f'{project_path}/backend/src'
+
+
+PROJECT_PATH = os.environ.get("PROJECT_PATH")
+DATA_PATH = os.environ.get("DATA_PATH")
+DB_PATH = os.environ.get("DB_PATH")
+
 language = 'zh'
 # 创建北京时间（亚洲/上海）时区对象
 beijing_tz = pytz.timezone('Asia/Shanghai')
-client = chromadb.PersistentClient(path=db_path)
+client = chromadb.PersistentClient(path=DB_PATH)
+
 
 def read_files_by_path(path: str, suffix=".json"):
     # 遍历指定目录下的所有文件
@@ -35,11 +43,12 @@ def read_files_by_path(path: str, suffix=".json"):
             result_list.append(filename)
     return result_list
 
-def hello(config:dict, role_description:str, data_dict: dict):
+
+def hello(config: dict, role_description: str, data_dict: dict):
     environment_id = str(uuid.uuid4())
     config['arena']['environment']['environment_id'] = environment_id
     config['arena']['agents'][0]['role_description'] = role_description
-    config_file = f"{data_path}/configs/{config['arena']['agents'][0]['locale']}_{data_dict['questionID']}_{environment_id}.yaml"
+    config_file = f"{DATA_PATH}/configs/{config['arena']['agents'][0]['locale']}_{data_dict['questionID']}_{environment_id}.yaml"
     with open(config_file, 'w', encoding='utf-8') as f:
         yaml.safe_dump(config, f, allow_unicode=True)
     # 避开api的限速
@@ -49,14 +58,16 @@ def hello(config:dict, role_description:str, data_dict: dict):
     except Exception as e:
         print(f"An error occurred: {e}")
 
+
 def process_data(data_list: list, start_index: int, end_index: int):
     temp_list = data_list[start_index: end_index]
     for index, data_dict in enumerate(temp_list):
         print(f"XXX {index} : {start_index}->{end_index} XXXXXXXXXXXXXXXXXXXXXXXXX\n")
         role_description = data_dict['question'] + data_dict['description']
-        with open(f'{project_path}/examples/AutoCBT/configs/xinhai_cbt_{language}.yaml', 'r', encoding='utf-8') as f:
+        with open(f'{PROJECT_PATH}/examples/AutoCBT/configs/xinhai_cbt_{language}.yaml', 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
         hello(config, role_description, data_dict)
+
 
 def sort_message_of_history(data_list: list):
     parsed_list = []
@@ -73,10 +84,11 @@ def sort_message_of_history(data_list: list):
     sorted_list = sorted(parsed_list, key=lambda x: x["indexId"], reverse=False)
     return sorted_list
 
+
 def chat_completion(start_index, end_index, num_threads, language):
-    #先对话，保存对话记录到storage中
+    # 先对话，保存对话记录到storage中
     dataset_name = "psyqa_balanced" if language == "zh" else "therapistqa_balanced"
-    with open(f"{data_path}/{dataset_name}.json", 'r', encoding='utf-8') as f:
+    with open(f"{DATA_PATH}/{dataset_name}.json", 'r', encoding='utf-8') as f:
         whole_list = json.load(f)
         data_list = whole_list[start_index: end_index]
 
@@ -94,12 +106,13 @@ def chat_completion(start_index, end_index, num_threads, language):
     for thread in threads:
         thread.join()
 
+
 def generate_data_result_file(start_index):
     # 从storage中提取对话记录作为结果
     dataset_name = "psyqa_balanced" if language == "zh" else "therapistqa_balanced"
-    yaml_file_list = read_files_by_path(path=f"{data_path}/configs", suffix=".yaml")
+    yaml_file_list = read_files_by_path(path=f"{DATA_PATH}/configs", suffix=".yaml")
 
-    with open(f"{data_path}/{dataset_name}.json", 'r', encoding='utf-8') as f:
+    with open(f"{DATA_PATH}/{dataset_name}.json", 'r', encoding='utf-8') as f:
         whole_list = json.load(f)
     # 创建一个字典，键为 questionID，值为对应的元素
     id_index = {element['questionID']: element for element in whole_list}
@@ -126,8 +139,9 @@ def generate_data_result_file(start_index):
         data_dict["cbt_generate_time"] = beijing_time
         data_dict["environment_id"] = environment_id
         result_list.append(data_dict)
-    with open(f"{data_path}/result/{dataset_name}_{start_index}_autocbt.json", 'w', encoding='utf-8') as f:
+    with open(f"{DATA_PATH}/result/{dataset_name}_{start_index}_autocbt.json", 'w', encoding='utf-8') as f:
         json.dump(result_list, f, indent=4, ensure_ascii=False)
+
 
 if __name__ == "__main__":
     num_threads = 10
@@ -137,6 +151,6 @@ if __name__ == "__main__":
     while start_index < 100:
         print(f"new start threads {start_index}")
         time.sleep(120)
-        chat_completion(start_index, start_index+each_time_add_num, num_threads, language)
+        chat_completion(start_index, start_index + each_time_add_num, num_threads, language)
         generate_data_result_file(start_index)
         start_index += each_time_add_num

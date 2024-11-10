@@ -16,8 +16,7 @@ from typing import Dict, List
 
 import requests
 
-from xinhai.arena.agents import register_agent
-from xinhai.arena.agents.base import BaseAgent
+from xinhai.arena.agents import register_agent, BaseAgent
 from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiChatSummary
 from xinhai.types.message import XinHaiChatMessage
 from xinhai.types.routing import XinHaiRoutingType
@@ -38,11 +37,12 @@ class SchoolAgent(BaseAgent):
     env_role: str
 
     def __init__(self, name, agent_id, role_description, env_role, llm, api_key, api_base, routing_prompt_template,
-                 summary_prompt_template, reflect_prompt_template, prompt_template, id_template, summary_mode, environment_id, controller_address, locale,
+                 summary_prompt_template, reflect_prompt_template, prompt_template, id_template, summary_mode,
+                 environment_id, controller_address, locale,
                  allowed_routing_types, static_routing):
         super().__init__(name, agent_id, role_description, llm, api_key, api_base,
                          routing_prompt_template, summary_prompt_template, prompt_template,
-                         environment_id, controller_address, locale, 
+                         environment_id, controller_address, locale,
                          allowed_routing_types, static_routing,
                          id_template, max_retries=5)
         self.env_role = env_role
@@ -65,8 +65,8 @@ class SchoolAgent(BaseAgent):
         mask_len = stage_conv_budget
         mask_end_index = len(self.memory.short_term_memory.messages)
         mask_start_index = mask_end_index - mask_len
-        self.message_mask_list += range(mask_start_index,mask_end_index)
-    
+        self.message_mask_list += range(mask_start_index, mask_end_index)
+
     def reset_stage(self):
         self.message_mask_list.clear()
 
@@ -136,7 +136,6 @@ class SchoolAgent(BaseAgent):
         source = ref_info_config["ref_source"]
         worker = ref_info_config["ref_worker"]
         query_var = ref_info_config["ref_query"]
-
 
         if query_var == "cross_turn_info":
             query = self.environment.cross_turn_info
@@ -288,7 +287,7 @@ class SchoolAgent(BaseAgent):
                 },
             ]
             content = self.chat_completion(client=self.client, model=self.llm, agent_id=self.agent_id,
-                                           messages=messages)      
+                                           messages=messages)
         elif summary_mode == "reflect_w_exp":
             past_exp = self.recall_from_memory(query=chat_history)[0]
             messages = [
@@ -348,8 +347,8 @@ class SchoolAgent(BaseAgent):
             params_for_query_search = {
                 "user_query": query,
                 "source": source,
-                "collections": ["kg_collection","ca_collection"],
-                "top_k": [3,2],
+                "collections": ["kg_collection", "ca_collection"],
+                "top_k": [3, 2],
             }
 
         try:
@@ -397,9 +396,9 @@ class SchoolAgent(BaseAgent):
         retrieved_knowledge_ids = [c["id"] for c in retrieved_res[meta_key]]
         self.environment.retrieved_knowledge_ids = retrieved_knowledge_ids
         self.environment.excluded_knowledge_ids += retrieved_knowledge_ids
-        
+
         for item in retrieved_res[doc_key]:
-            prompt = prompt + f"#{i}\n" + item +"\n"
+            prompt = prompt + f"#{i}\n" + item + "\n"
             i += 1
         prompt += "[教案结尾]"
         return [prompt]
@@ -420,10 +419,11 @@ class SchoolAgent(BaseAgent):
                 else:
                     break
             dict_r["options"] = text_option
-            prompt = "<问题>\n{question}\n<问题结束>\n<选项>\n{options}\n<选项结束><标准答案>\n{answer}\n<标准答案结束><题解>\n{explanation}\n<题解结束>".format(**dict_r)
+            prompt = "<问题>\n{question}\n<问题结束>\n<选项>\n{options}\n<选项结束><标准答案>\n{answer}\n<标准答案结束><题解>\n{explanation}\n<题解结束>".format(
+                **dict_r)
             prompts.append(prompt)
             retrieved_qa_ids.append(dict_r["id"])
-        
+
         self.environment.retrieved_qa_ids = retrieved_qa_ids
 
         return prompts

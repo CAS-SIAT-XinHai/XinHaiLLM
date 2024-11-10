@@ -26,14 +26,14 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from more_itertools import sliced
 from openai import OpenAI, OpenAIError
-from sse_starlette import EventSourceResponse
 from pydantic import ValidationError
-from llamafactory.api.protocol import ChatCompletionResponse, ChatCompletionRequest
+from sse_starlette import EventSourceResponse
+from vllm.entrypoints.openai.protocol import ChatCompletionRequest, ChatCompletionResponse
+
+from xinhai.types.message import XinHaiMMRequest, XinHaiMMResponse
 from .config import CONTROLLER_HEART_BEAT_EXPIRATION, LOG_DIR, STATIC_PATH
 from .types.message import XinHaiChatCompletionRequest
 from .utils import build_logger, server_error_msg
-
-from xinhai.types.message import XinHaiMMRequest, XinHaiMMResponse, XinHaiMMResult
 
 logger = build_logger("controller", "controller.log", LOG_DIR)
 
@@ -210,7 +210,7 @@ class Controller:
             logger.info(f"no worker: {request.model}")
             ret = {
                 "text": server_error_msg,
-                "error_code": 2,            }
+                "error_code": 2, }
             yield json.dumps(ret).encode() + b"\0"
 
         if isinstance(request, XinHaiChatCompletionRequest):
@@ -265,7 +265,8 @@ class Controller:
             model=request.model,
             messages=messages
         )
-        return response
+        logger.info(f"Getting response: {response}")
+        return ChatCompletionResponse.model_validate_json(response.to_json())
 
     @staticmethod
     def chat_completion(client, model, messages):
@@ -332,7 +333,7 @@ class Controller:
         logger.info(f"Get response from [knowledge]: {knowledge_data}")
 
         rewriting_prompt = ("##任务\n你是一位心理学领域的资深专家，你需要为给出的心理学测评题目选择最符合心理学原理的选项。\n\n"
-                            #"##示例题目及回答\n如果以下给出的示例题目及回答对你的本次回答具有帮助，你可以将它们作为参考\n{history}\n\n"
+                            # "##示例题目及回答\n如果以下给出的示例题目及回答对你的本次回答具有帮助，你可以将它们作为参考\n{history}\n\n"
                             "##可供参考的知识和经验\n如果以下给出的知识和经验对你的本次回答具有帮助，你可以将它们作为参考\n{ProEK}\n\n"
                             "##需要你回答的心理学题目\n{query}\n\n"
                             "##注意\n请以JSON格式返回你的答案，不要添加任何分析和其他内容。你的输出仅限于候选选项的字母，例如：{{'ans':'A'}}\n\n你的答案是：")
@@ -994,8 +995,7 @@ class Controller:
         logger.error(r.text)
         return r.json()
 
-
-    async def worker_api_mm_ocr(self, request:Union[XinHaiMMRequest]) -> Optional[XinHaiMMResponse]:
+    async def worker_api_mm_ocr(self, request: Union[XinHaiMMRequest]) -> Optional[XinHaiMMResponse]:
         worker_addr = self.get_worker_address(request.model)
         logger.info(f"Worker {request.model}: {worker_addr} , {request}")
         if not worker_addr:
@@ -1006,7 +1006,7 @@ class Controller:
             }
             return ret
 
-        #第一种是用openai接口传，但是要转变成Chatrequest,所以注释掉了
+        # 第一种是用openai接口传，但是要转变成Chatrequest,所以注释掉了
         # prompts=request.prompts
         # image=request.image
         # #messages的类型是messages: List[ChatMessage]，
@@ -1027,7 +1027,7 @@ class Controller:
         # }]
         #
         # openai_api_key = "EMPTY"  # OPENAI_API_KEY
-        #openai_api_base = f"{worker_addr}/v1/"
+        # openai_api_base = f"{worker_addr}/v1/"
 
         # client = OpenAI(
         #     api_key=openai_api_key,
@@ -1042,12 +1042,11 @@ class Controller:
         # )
         # content = response.choices[0].message.content
 
-        #第二种直接访问对应接口
-        import httpx
+        # 第二种直接访问对应接口
         url = f"{worker_addr}/v1/chat/agent"
         request_data = request.dict()
         response = requests.post(url, json=request_data)
-            # 检查响应状态
+        # 检查响应状态
         if response.status_code == 200:
             response_data = response.json()
             try:
@@ -1277,6 +1276,7 @@ async def worker_api_search_chat(worker: str, request: Request):
 @app.post("/api/mm_ocr")
 async def worker_api_mm_ocr(request: XinHaiMMRequest):
     return await controller.worker_api_mm_ocr(request)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

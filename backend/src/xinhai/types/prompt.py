@@ -27,8 +27,8 @@ else:
 class XinHaiPromptTypeMixin:
     prompt_name: str
     description: Dict[XinHaiI18NLocales, List[str]]
-    
-    
+
+
 class XinHaiMMPrompt(BaseModel):
     name: str
     prompt: str
@@ -37,12 +37,14 @@ class XinHaiMMPrompt(BaseModel):
 class XinHaiPromptType(XinHaiPromptTypeMixin, Enum):
     FORMATPROMPT = "[FormatResponse]", {
         XinHaiI18NLocales.CHINESE: {
-            "prompt": "生成的回复用 [回复] 和 [回复结束] 括起来。",
-            "regex": r"\[\s*回复\s*\](.*)\[\s*回复结束\s*\]"
+            "prompt": "生成的回复以下面格式返回："
+                      "{\"response\": \"xxxxxxxxx\"}",
+            "regex": r"\{(?:[^{}]|(?:\{(?:[^{}])*?\}))*?\}"
         },
         XinHaiI18NLocales.ENGLISH: {
-            "prompt": "The generated response should be enclosed by [Response] and [End of Response].",
-            "regex": r"\[\s*Response\s*\](.*)\[\s*End of Response\s*\]"
+            "prompt": "The generated response should be enclosed by the following json:"
+                      "{\"response\": \"xxxxxxxxx\"}",
+            "regex": r"\{(?:[^{}]|(?:\{(?:[^{}])*?\}))*?\}"
         }
     }
 

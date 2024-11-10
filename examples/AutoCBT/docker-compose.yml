@@ -1,0 +1,152 @@
+version: "2.2"
+
+services:
+  controller:
+    image: xinhai_backend
+    volumes:
+      - ../../backend:/usr/share/xinhai/backend
+    ports:
+      - ${FRONTEND_PORT}:8080
+      - ${CONTROLLER_PORT}:5000
+    environment:
+      PYTHONPATH: /usr/share/xinhai/backend/src
+    command: python -m xinhai.controller --host 0.0.0.0 --port 5000
+    healthcheck:
+      test:
+        [
+          "CMD", "curl", "--fail", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{}",
+          "http://localhost:5000/api/list_models",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+  frontend:
+    image: xinhai_frontend
+    volumes:
+      - ../../frontend:/usr/share/xinhai/frontend
+    network_mode: service:controller
+    working_dir: /usr/share/xinhai/frontend
+    command: npm run serve
+  storage:
+    image: xinhai_backend
+    depends_on:
+      controller:
+        condition: service_healthy
+    volumes:
+      - ../../backend:/usr/share/xinhai/backend
+      - pretrained_models:/usr/share/xinhai/pretrained_models
+    environment:
+      CONTROLLER_ADDRESS: http://controller:5000
+      MODEL_NAME: storage
+      WORKER_ADDRESS: http://storage:${STORAGE_WORKER_PORT}
+      WORKER_HOST: 0.0.0.0
+      WORKER_PORT: ${STORAGE_WORKER_PORT}
+      DB_PATH: /usr/share/xinhai/pretrained_models/${STORAGE_DB_PATH}
+      EMBEDDING_MODEL_PATH: /usr/share/xinhai/pretrained_models/${STORAGE_EMBEDDING_MODEL_PATH}
+      PYTHONPATH: /usr/share/xinhai/backend/src
+    command: python -m xinhai.workers.storage
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: [ '${LLM_DEVICE}' ]
+              capabilities: [ gpu ]
+    healthcheck:
+      test: [
+          "CMD", "curl", "--fail", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{}",
+          "http://localhost:${STORAGE_WORKER_PORT}/worker_get_status",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+#  llm:
+#    image: xinhai_backend
+#    depends_on:
+#      controller:
+#        condition: service_healthy
+#      storage:
+#        condition: service_healthy
+#    volumes:
+#      - ../../backend:/usr/share/xinhai/backend
+#      - ./configs:/usr/share/xinhai/configs
+#      - pretrained_models:/usr/share/xinhai/pretrained_models
+#    environment:
+#      CONTROLLER_ADDRESS: http://controller:${CONTROLLER_PORT}
+#      MODEL_NAME: ${LLM_MODEL_NAME}
+#      WORKER_ADDRESS: http://llm:${LLM_WORKER_PORT}
+#      WORKER_HOST: 0.0.0.0
+#      WORKER_PORT: ${LLM_WORKER_PORT}
+#      PYTHONPATH: /usr/share/xinhai/backend/src
+#    command: python -m xinhai.workers.llm --model_name_or_path /usr/share/xinhai/pretrained_models/${LLM_MODEL_PATH} --template ${LLM_MODEL_TEMPLATE} --infer_backend vllm --vllm_enforce_eager --infer_dtype float16
+#    deploy:
+#      resources:
+#        reservations:
+#          devices:
+#            - driver: nvidia
+#              device_ids: [ '0' ]
+#              capabilities: [ gpu ]
+#    healthcheck:
+#      test: [
+#        "CMD", "curl", "--fail", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{}",
+#        "http://localhost:${LLM_WORKER_PORT}/worker_get_status",
+#      ]
+#      interval: 10s
+#      timeout: 10s
+#      retries: 120
+  llm_bridge: # Bridged LLM
+    image: xinhai_backend
+    depends_on:
+      - controller
+      - storage
+    volumes:
+      - ../../backend:/usr/share/xinhai/backend
+    environment:
+      PYTHONPATH: /usr/share/xinhai/backend/src
+      CONTROLLER_ADDRESS: http://controller:5000
+      MODEL_NAME: ${BRIDGE_MODEL_NAME}
+      WORKER_ADDRESS: http://llm_bridge:${BRIDGE_WORKER_PORT}
+      WORKER_HOST: 0.0.0.0
+      WORKER_PORT: ${BRIDGE_WORKER_PORT}
+      API_KEY: ${BRIDGE_API_KEY}
+      API_BASE: ${BRIDGE_API_BASE}
+    command: python -m xinhai.workers.bridge
+    healthcheck:
+      test: [
+        "CMD", "curl", "--fail", "-s", "-X", "POST", "-H", "Content-Type: application/json", "-d", "{}",
+        "http://localhost:${BRIDGE_WORKER_PORT}/worker_get_status",
+      ]
+      interval: 10s
+      timeout: 10s
+      retries: 120
+  autocbt_simulation:
+    image: xinhai_backend
+    depends_on:
+      controller:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+      llm_bridge:
+        condition: service_healthy
+    volumes:
+      - ../../backend:/usr/share/xinhai/backend
+      - ../../examples:/usr/share/xinhai/examples
+    environment:
+      PYTHONPATH: /usr/share/xinhai/backend/src
+      DB_PATH: /usr/share/xinhai/pretrained_models/${STORAGE_DB_PATH}
+      PROJECT_PATH: /usr/share/xinhai
+      DATA_PATH: /usr/share/xinhai/examples/AutoCBT/data
+    working_dir: /usr/share/xinhai/examples/AutoCBT
+    command: python autocbt_simulation.py --config_path ./configs/xinhai_cbt_zh.yaml --data_path data --language zh --debug
+
+volumes:
+  backend:
+    driver: local
+  configs:
+    driver: local
+  pretrained_models:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: /data/pretrained_models

@@ -1,33 +1,31 @@
+"""
+Copyright (c) CAS-SIAT-XinHai.
+Licensed under the CC0-1.0 license.
+
+XinHai stands for [Sea of Minds].
+
+Authors: Ancheng Xu
+         Vimos Tan
+Date: 2024-07-19 17:22:57
+LastEditTime: 2024-10-19 17:28:20
+"""
 import logging
-from datetime import datetime
 import random
-from xinhai.arena.agents import register_agent
-from xinhai.arena.agents.base import BaseAgent
-from xinhai.types.memory import XinHaiMemory, XinHaiShortTermMemory, XinHaiLongTermMemory, XinHaiChatSummary
-from xinhai.types.message import XinHaiChatMessage
-from xinhai.types.routing import XinHaiRoutingMessage, XinHaiRoutingType
-from xinhai.types.prompt import XinHaiPromptType
-from xinhai.types.storage import XinHaiFetchMemoryResponse, XinHaiStoreMemoryRequest, XinHaiFetchMemoryRequest
-from xinhai.types.i18n import XinHaiI18NLocales
-import sys
-import requests
-import json
 import time
-from openai import OpenAI, OpenAIError
+import uuid
+from datetime import datetime
 from typing import List
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-import time
+
+from xinhai.arena.agents import register_agent, BaseAgent
+from xinhai.types.i18n import XinHaiI18NLocales
+from xinhai.types.message import XinHaiChatMessage
+from xinhai.types.routing import XinHaiRoutingMessage
+
 logger = logging.getLogger(__name__)
 
 
 @register_agent("autocbt")
 class AutoCBTAgent(BaseAgent):
-    def __init__(self, name, agent_id, role_description, llm, api_key, api_base, routing_prompt_template, summary_prompt_template, prompt_template, environment_id, controller_address, locale, allowed_routing_types, static_routing=False, id_template=None, max_retries=4, summary_chunk_size=16):
-        super().__init__(name, agent_id, role_description, llm, api_key, api_base, routing_prompt_template, summary_prompt_template, prompt_template, environment_id, controller_address, locale, allowed_routing_types, static_routing, id_template, max_retries)
-        self.summary_chunk_size = summary_chunk_size
 
     def reset(self) -> None:
         pass
@@ -42,9 +40,14 @@ class AutoCBTAgent(BaseAgent):
                                              chat_summary=chat_summary,
                                              role_description=self.role_description,
                                              original_question_of_user=self.environment.agents[0].role_description,
-                                             chat_question=self.get_history()[0].replace('\n', '') if len(self.get_history()) > 0 else "None",
-                                             draft_response=self.get_history()[1].replace('\n', '') if len(self.get_history()) > 1 else "None",
-                                             revise_of_draft='\n'.join(["【"+his.replace('\n', '')+"】" for his in self.get_history() if supervisor_key_word in his]) if len(self.get_history()) > 2 else "None",
+                                             chat_question=self.get_history()[0].replace('\n', '') if len(
+                                                 self.get_history()) > 0 else "None",
+                                             draft_response=self.get_history()[1].replace('\n', '') if len(
+                                                 self.get_history()) > 1 else "None",
+                                             revise_of_draft='\n'.join(
+                                                 ["【" + his.replace('\n', '') + "】" for his in self.get_history() if
+                                                  supervisor_key_word in his]) if len(
+                                                 self.get_history()) > 2 else "None",
                                              routing=routing,
                                              agents=agents,
                                              agent_name=self.name)
@@ -53,6 +56,7 @@ class AutoCBTAgent(BaseAgent):
         t = datetime.now()
 
         return XinHaiChatMessage(
+            id=uuid.uuid4().hex,
             indexId='-1',
             content=content,
             senderId=self.name,
@@ -62,7 +66,7 @@ class AutoCBTAgent(BaseAgent):
             timestamp=t.strftime("%H:%M"),
         )
 
-    def routing(self, candidate_agents: List[Self], **kwargs) -> XinHaiRoutingMessage:
+    def routing(self, candidate_agents: List[BaseAgent], **kwargs) -> XinHaiRoutingMessage:
         while True:
             routing_message = super().routing(candidate_agents=candidate_agents, **kwargs)
             targets = routing_message.targets
@@ -78,7 +82,7 @@ class AutoCBTAgent(BaseAgent):
             if (content is not None) and len(content) > 0:
                 return content
             print(f"sleep {sleep_time}s to avoid limit speed of api")
-            time.sleep(sleep_time) # siliconflow有api限速
+            time.sleep(sleep_time)  # siliconflow有api限速
 
     def complete_conversation(self, prompt, num_retries=5):
         messages = [{
@@ -86,8 +90,8 @@ class AutoCBTAgent(BaseAgent):
             "content": prompt + "\n\n" + self.format_prompt,
         }]
 
-        repeate_time=3
-        final_response=""
+        repeate_time = 3
+        final_response = ""
         while True and repeate_time > 0:
             logger.debug(messages)
             chat_response = self.chat_completion(self.client, model=self.llm, agent_id=self.agent_id, messages=messages)

@@ -12,31 +12,30 @@ import os
 import threading
 import time
 import uuid
-from typing import Optional, Annotated, Tuple, List, Dict
+from typing import Optional, Annotated, Tuple, List, Dict, Union
 
 import requests
 import uvicorn
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from more_itertools import split_when
+from openai.types.chat import ChatCompletionMessage
 from sse_starlette import EventSourceResponse
 from starlette import status
-
-from llamafactory.api.chat import ROLE_MAPPING
-from llamafactory.api.common import dictify
-from llamafactory.api.protocol import ChatCompletionResponse, ChatCompletionRequest, Function, FunctionCall, \
-    ChatCompletionMessage, Finish, Role, ChatCompletionResponseChoice, ChatCompletionResponseUsage, ChatMessage
+from starlette.middleware.cors import CORSMiddleware
 from xinhai.arena.simulation import Simulation
-from xinhai.config import WORKER_HEART_BEAT_INTERVAL
-from xinhai.utils import pretty_print_semaphore
-from xinhai.types.message import XinHaiMMRequest, XinHaiMMResponse, XinHaiMMResult
-from xinhai.types.prompt import XinHaiMMPrompt
-from llamafactory.chat.base_engine import BaseEngine, Response
+from xinhai.config import WORKER_HEART_BEAT_INTERVAL, LOG_DIR
+from xinhai.types.message import XinHaiMMRequest, XinHaiMMResponse, XinHaiMMResult, XinHaiChatCompletionRequest, \
+    ROLE_MAPPING, Role, Function, FunctionCall, Finish, ChatCompletionResponseChoice, ChatCompletionResponseUsage, \
+    MultimodalInputItem, ImageURL, ChatCompletionRequest, ChatCompletionResponse
+from xinhai.types.worker import XinHaiWorkerTypes
+from xinhai.utils import pretty_print_semaphore, build_logger, dictify
+
 GB = 1 << 30
 
 worker_id = str(uuid.uuid4())[:6]
-logger = logging.getLogger(__name__)
-# logger = build_logger("model_worker", f"model_worker_{worker_id}.log", LOG_DIR)
+logger = build_logger(f"{XinHaiWorkerTypes.AGENCY}_worker",
+                      f"{XinHaiWorkerTypes.AGENCY}_worker_{worker_id}.log",
+                      LOG_DIR)
 global_counter = 0
 
 model_semaphore = None
@@ -44,7 +43,7 @@ model_semaphore = None
 CONTROLLER_ADDRESS = os.environ.get("CONTROLLER_ADDRESS")
 WORKER_ADDRESS = os.environ.get("WORKER_ADDRESS")
 WORKER_HOST = os.environ.get("WORKER_HOST")
-WORKER_PORT = int(os.environ.get("WORKER_PORT", 40000))
+WORKER_PORT = int(os.environ.get("WORKER_PORT", 40005))
 AGENCY_CONFIG_PATH = os.environ.get("AGENCY_CONFIG_PATH")
 MODEL_NAME = os.environ.get("MODEL_NAME", "agency")
 NO_REGISTER = os.environ.get("NO_REGISTER", False)
@@ -68,7 +67,8 @@ def heart_beat_worker(controller):
 
 class AgencyWorker:
     def __init__(self):
-        self.simulator = Simulation.from_config(AGENCY_CONFIG_PATH)
+        self.simulators = {}
+        # Simulation.from_config(AGENCY_CONFIG_PATH)
         if not NO_REGISTER:
             self.register_to_controller()
             self.heart_beat_thread = threading.Thread(
@@ -122,44 +122,11 @@ class AgencyWorker:
             "queue_length": self.get_queue_length(),
         }
 
-    async def interact(self, request: "ChatCompletionRequest") -> Tuple[List[Dict[str, str]], str, str]:
-        logging.debug(request)
-        messages = []
-        #遍历messages
-        for ms in split_when(request.messages, lambda x, y: x.role != y.role):
-            if len(ms) > 1:
-                content_str = ""
-                content = None
-                for m in ms:
-                    if isinstance(m.content, str):
-                        content_str = content_str + "\n" + m.content
-                    else:
-                        content = m.content
-                        for item in m.content:
-                            content_str = content_str + "\n" + item.text
-                if content is not None:
-                    content[0].text = content_str
-                    message = ChatMessage(role=m.role, content=content)
-                else:
-                    message = ChatMessage(role=m.role, content=content_str)
-                messages.append(message)
-            else:
-                #ms[0] ChatMessage
-                messages.append(ms[0])
-
-        if len(messages) == 0:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid length")
-        #
-        if messages[0].role == Role.SYSTEM:
-            system = messages.pop(0).content
-        else:
-            system = ""
-
-        if len(messages) % 2 == 0:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only supports u/a/u/a/u...")
-
+    async def interact(self, request: Union[ChatCompletionRequest, XinHaiChatCompletionRequest]) -> Tuple[
+        List[Dict[str, str]], str, str]:
+        logging.info(request)
         input_messages = []
-        for i, m in enumerate(messages):
+        for i, m in enumerate(request.messages):
             if i % 2 == 0 and m.role not in [Role.USER, Role.TOOL]:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
             elif i % 2 == 1 and m.role not in [Role.ASSISTANT, Role.FUNCTION]:
@@ -182,10 +149,24 @@ class AgencyWorker:
         else:
             tools = ""
 
-        responses = await self.simulator.environment.step(
+        if isinstance(request, XinHaiChatCompletionRequest):
+            environment_id = request.room.roomId
+            if environment_id not in self.simulators:
+                simulator = Simulation.from_config(AGENCY_CONFIG_PATH, environment_id=environment_id)
+                self.simulators[request.room.roomId] = simulator
+            else:
+                simulator = self.simulators[request.room.roomId]
+        else:
+            if 'default' not in self.simulators:
+                simulator = Simulation.from_config(AGENCY_CONFIG_PATH)
+                self.simulators["default"] = simulator
+            else:
+                simulator = self.simulators["default"]
+
+        responses = await simulator.environment.step(
             input_messages,
-            system,
-            tools,
+            # system,
+            # tools,
             do_sample=request.do_sample,
             temperature=request.temperature,
             top_p=request.top_p,
@@ -193,8 +174,8 @@ class AgencyWorker:
             num_return_sequences=request.n,
         )
 
-        logger.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        logger.debug(f"Responses from current step is {responses}")
+        logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+        logger.info(f"Responses from current step is {responses}")
 
         return responses
 
@@ -236,13 +217,10 @@ async def create_chat_completion_response(
 
 
 async def create_stream_chat_completion_response(
-        request: "ChatCompletionRequest",
+        request: Union[ChatCompletionRequest, XinHaiChatCompletionRequest]
 ):
     completion_id = "chatcmpl-{}".format(uuid.uuid4().hex)
     response = await worker.interact(request)
-
-    prompt_length, response_length = 0, 0
-    choices = []
 
     yield json.dumps({
         "id": completion_id,
@@ -262,28 +240,27 @@ async def create_stream_chat_completion_response(
 
 def to_chat_completion_requests(
         request: XinHaiMMRequest,
-)->List[ChatCompletionRequest]:
+) -> List[ChatCompletionRequest]:
     prompts = request.prompts
     image = request.image
-    model=request.model
-    requests=[]
+    model = request.model
+    requests = []
     # messages的类型是messages: List[ChatMessage]，
     # 则构建messages
     messages = []
-    from llamafactory.api.protocol import MultimodalInputItem, ImageURL
-       # 接下来是参数对，第一是prompt，第二是name
+    # 接下来是参数对，第一是prompt，第二是name
     for xinhaiPrompt in prompts:
         prompt = xinhaiPrompt.prompt
         name = xinhaiPrompt.name
-        message='''Please extract the values of the following field according to the picture.
+        message = '''Please extract the values of the following field according to the picture.
                 field name:{}
                 field description:{}
-                '''.format(name,prompt)
+                '''.format(name, prompt)
         messages.append(message)
-        #messages.append(name.dict())
+        # messages.append(name.dict())
     # messages第一个参数是图片
     for message in messages:
-        content=[]
+        content = []
         content.append(MultimodalInputItem(type="text", text=message).dict())
         content.append(MultimodalInputItem(type="image_url", image_url=ImageURL(url=image)).dict())
         one_message = [{
@@ -297,35 +274,45 @@ def to_chat_completion_requests(
         requests.append(request)
     return requests
 
+
 def to_xinhai_mm_response(
-        request:XinHaiMMRequest,responses:List[ChatCompletionResponse]
-)->XinHaiMMResponse:
-    model=""
+        request: XinHaiMMRequest, responses: List[ChatCompletionResponse]
+) -> XinHaiMMResponse:
+    model = ""
     result = []
     extracted_dicts = []
     for response in responses:
-        model=response.model
+        model = response.model
         content = response.choices[0].message.content
         try:
             extracted_dict = json.loads(content)
             extracted_dicts.append(extracted_dict)
         except (ValueError, SyntaxError):
             print("字符串无法解析为字典")
-        #提取出原来字段
+        # 提取出原来字段
     prompts = request.prompts
     for index, extracted_dict in enumerate(extracted_dicts):
         value = next(iter(extracted_dict.values()))
-        name=prompts[index].name
+        name = prompts[index].name
         result.append(XinHaiMMResult(
             name=name,
             value=value
-            ))
+        ))
     return XinHaiMMResponse(
         result=result,
         model=model
     )
 
+
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def release_model_semaphore(fn=None):
@@ -343,9 +330,9 @@ async def verify_api_key(auth: Annotated[Optional[HTTPAuthorizationCredentials],
     "/v1/chat/completions",
     response_model=ChatCompletionResponse,
     status_code=status.HTTP_200_OK,
-    #dependencies=[Depends(verify_api_key)],
+    # dependencies=[Depends(verify_api_key)],
 )
-async def create_chat_completion(request: ChatCompletionRequest):
+async def create_chat_completion(request: Union[ChatCompletionRequest, XinHaiChatCompletionRequest]):
     if request.stream:
         generate = create_stream_chat_completion_response(request)
         return EventSourceResponse(generate, media_type="text/event-stream")
@@ -357,16 +344,17 @@ async def create_chat_completion(request: ChatCompletionRequest):
     "/v1/chat/agent",
     response_model=XinHaiMMResponse,
     status_code=status.HTTP_200_OK,
-    #dependencies=[Depends(verify_api_key)],
+    # dependencies=[Depends(verify_api_key)],
 )
 async def create_chat_completion(xinhaimmrequest: XinHaiMMRequest):
-        requests=to_chat_completion_requests(xinhaimmrequest)
-        respones=[]
-        for request in requests:
-            respone=await create_chat_completion_response(request)
-            respones.append(respone)
-        result=to_xinhai_mm_response(xinhaimmrequest,respones)
-        return result
+    requests = to_chat_completion_requests(xinhaimmrequest)
+    responses = []
+    for request in requests:
+        response = await create_chat_completion_response(request)
+        responses.append(response)
+    result = to_xinhai_mm_response(xinhaimmrequest, responses)
+    return result
+
 
 if __name__ == "__main__":
     worker = AgencyWorker()
