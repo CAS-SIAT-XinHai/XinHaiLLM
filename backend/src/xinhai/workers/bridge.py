@@ -20,10 +20,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from openai import OpenAI
 from sse_starlette import EventSourceResponse
 
-from xinhai.types.message import Role, ROLE_MAPPING, ChatCompletionStreamResponseChoice, ChatCompletionStreamResponse, \
-    ChatCompletionResponse, ChatCompletionRequest
+from xinhai.types.message import Role, ROLE_MAPPING, ChatCompletionResponse, ChatCompletionRequest
 from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
-from ..utils import build_logger, pretty_print_semaphore
+from ..utils import build_logger, pretty_print_semaphore, torch_gc
 
 GB = 1 << 30
 
@@ -207,35 +206,22 @@ def _process_request(request: "ChatCompletionRequest") -> Tuple[List[Dict[str, s
     return input_messages, system, tools
 
 
-def _create_stream_chat_completion_chunk(
-        completion_id: str,
-        model: str,
-        delta: "ChatCompletionMessage",
-        index: Optional[int] = 0,
-        finish_reason: Optional["Finish"] = None,
-) -> str:
-    choice_data = ChatCompletionStreamResponseChoice(index=index, delta=delta, finish_reason=finish_reason)
-    chunk = ChatCompletionStreamResponse(id=completion_id, model=model, choices=[choice_data])
-    return jsonify(chunk)
-
-
 async def create_chat_completion_response(
         request: "ChatCompletionRequest", chat_model
 ) -> "ChatCompletionResponse":
-    completion_id = "chatcmpl-{}".format(uuid.uuid4().hex)
     input_messages, system, tools = _process_request(request)
     response = chat_model.client.chat.completions.create(
         model=MODEL_NAME,
         messages=input_messages,
         stream=False
     )
-    return ChatCompletionResponse(id=completion_id, model=MODEL_NAME, choices=response.choices)
+    logger.info(f"Getting response: {response}")
+    return ChatCompletionResponse.model_validate_json(response.to_json())
 
 
 async def create_stream_chat_completion_response(
         request: "ChatCompletionRequest", chat_model
 ) -> AsyncGenerator[str, None]:
-    completion_id = "chatcmpl-{}".format(uuid.uuid4().hex)
     input_messages, system, tools = _process_request(request)
     if tools:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot stream function calls.")

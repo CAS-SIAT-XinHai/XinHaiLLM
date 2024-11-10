@@ -80,11 +80,11 @@ arena:
   name: XinHai OCR
 
   environment:
-    environment_type: ocragency
+    environment_type: agency
     environment_id: xinhai_ocr_simulation_4
     controller_address: http://controller:5000
     topologies:
-      - type: ocragency
+      - type: agency
         name: OCRAgency
         start: 0
         max_turns: 10

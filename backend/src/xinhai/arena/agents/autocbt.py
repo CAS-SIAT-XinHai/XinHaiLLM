@@ -56,12 +56,9 @@ class AutoCBTAgent(BaseAgent):
         t = datetime.now()
 
         return XinHaiChatMessage(
-            id=uuid.uuid4().hex,
-            indexId='-1',
             content=content,
             senderId=self.name,
             username=self.name,
-            role="user",
             date=t.strftime("%a %b %d %Y"),
             timestamp=t.strftime("%H:%M"),
         )

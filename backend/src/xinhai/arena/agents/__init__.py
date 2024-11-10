@@ -132,11 +132,6 @@ class BaseAgent:
 
         self.memory = self.retrieve_memory()
 
-    def generate_summary_id(self):
-        summaries = self.memory.long_term_memory.summaries
-        index_id = 0 if len(summaries) == 0 else int(summaries[-1].indexId)
-        return self.id_template.format(id=index_id + 1)
-
     def get_summary(self):
         summaries = self.memory.long_term_memory.summaries
         chat_summary = "" if len(summaries) == 0 else summaries[-1].content
@@ -248,7 +243,8 @@ class BaseAgent:
         }]
 
         while num_retries:
-            chat_response = self.chat_completion(self.client, model=self.llm, agent_id=self.agent_id, messages=messages)
+            chat_response = self.chat_completion(self.client, model=self.llm.model, agent_id=self.agent_id,
+                                                 messages=messages)
             if chat_response:
                 evaluate_ans = re.findall(r'\{(?:[^{}]|(?:\{(?:[^{}])*?\}))*?\}', chat_response)
                 if evaluate_ans:
@@ -281,7 +277,8 @@ class BaseAgent:
 
         while True:
             logger.debug(messages)
-            chat_response = self.chat_completion(self.client, model=self.llm, agent_id=self.agent_id, messages=messages)
+            chat_response = self.chat_completion(self.client, model=self.llm.model, agent_id=self.agent_id,
+                                                 messages=messages)
             if chat_response:
                 rr = self.format_pattern.findall(chat_response)
                 if rr:
@@ -358,20 +355,9 @@ class BaseAgent:
 
         return r.json()
 
+    @abstractmethod
     def dialogue_summary(self) -> XinHaiChatSummary:
-        chat_summary = self.get_summary()
-        chat_history = '\n'.join(self.get_history())
-        messages = [
-            # {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user",
-             "content": self.summary_prompt_template.format(chat_summary=chat_summary, chat_history=chat_history)},
-        ]
-        response = self.chat_completion(client=self.client, model=self.llm, agent_id=self.agent_id, messages=messages)
-        return XinHaiChatSummary(
-            indexId=str(self.generate_summary_id()),
-            content=response,
-            messages=self.memory.short_term_memory.messages[-self.summary_chunk_size:]
-        )
+        raise NotImplementedError
 
 
 # automatically import any Python files in the models/ directory

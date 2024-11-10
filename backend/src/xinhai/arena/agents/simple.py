@@ -16,6 +16,7 @@ from typing import List
 
 from xinhai.arena.agents import register_agent, BaseAgent
 from xinhai.types.arena import XinHaiArenaAgentTypes
+from xinhai.types.memory import XinHaiChatSummary
 from xinhai.types.message import XinHaiChatMessage
 from xinhai.types.routing import XinHaiRoutingMessage
 
@@ -70,6 +71,22 @@ class SimpleAgent(BaseAgent):
                         break
         return dialogue_context, dialogue_files
 
+    def dialogue_summary(self) -> XinHaiChatSummary:
+        chat_summary = self.get_summary()
+        chat_history, chat_files = self.get_history()
+        messages = [
+            # {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user",
+             "content": self.summary_prompt_template.format(chat_summary=chat_summary,
+                                                            chat_history='\n'.join(chat_history))},
+        ]
+        response = self.chat_completion(client=self.client, model=self.llm.model, agent_id=self.agent_id,
+                                        messages=messages)
+        return XinHaiChatSummary(
+            content=response,
+            messages=self.memory.short_term_memory.messages[-self.summary_chunk_size:]
+        )
+
     def step(
             self,
             routing_message_in: XinHaiRoutingMessage,
@@ -90,13 +107,10 @@ class SimpleAgent(BaseAgent):
         t = datetime.now()
 
         return XinHaiChatMessage(
-            id=uuid.uuid4().hex,
-            indexId='-1',
             content=content,
             senderId=str(self.agent_id),
             receiverIds=[str(a.agent_id) for a in target_agents],
             username=self.name,
-            role="user",
             date=t.strftime("%a %b %d %Y"),
             timestamp=t.strftime("%H:%M"),
             files=chat_files,
