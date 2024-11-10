@@ -6,13 +6,6 @@ arena:
     - "[Endcast]"
   llm: &llm
     model: Qwen2.5-7B-Instruct
-    api_key: EMPTY
-    api_base: http://localhost:40002/v1
-    do_sample:
-    temperature:
-    top_p:
-    max_new_tokens:
-    num_return_sequences:
   prompts:
     routing_prompt: &routing_prompt |-
       Now, you are working for an OCR Agency, playing the role of {agent_name}. 
@@ -108,7 +101,11 @@ arena:
     - agent_type: proxy
       agent_id: 0
       name: user
-      locale: zh
+      role_description: user agent
+      routing_prompt_template: *routing_prompt
+      summary_prompt_template: *summary_prompt
+      prompt_template:
+      locale: en
       allowed_routing_types:
         - "[Unicast]"
       llm: *llm
@@ -134,8 +131,6 @@ arena:
       llm: *llm
       mllm:
         model: Qwen2-VL-7B-Instruct
-        api_key: EMPTY
-        api_base: http://localhost:40002/v1
     - agent_type: ocr
       agent_id: 3
       name: ocr
