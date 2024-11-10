@@ -67,7 +67,8 @@ class MLLMAgent(SimpleAgent):
         chat_response = "no answer"
         while attempts < max_attempts:  # 设置循环条件为尝试次数不超过 5 次
             logger.debug(messages)
-            chat_response = self.chat_completion(self.client, model=self.llm, agent_id=self.agent_id, messages=messages)
+            chat_response = self.chat_completion(self.client, model=self.llm.model, agent_id=self.agent_id,
+                                                 messages=messages)
             if chat_response:
                 rr = format_pattern.findall(chat_response)
                 if rr:
@@ -113,13 +114,10 @@ class MLLMAgent(SimpleAgent):
         t = datetime.now()
 
         return XinHaiChatMessage(
-            id=uuid.uuid4().hex,
-            indexId='-1',
             content=content,
             senderId=str(self.agent_id),
             receiverIds=[str(a.agent_id) for a in target_agents],
             username=self.name,
-            role="user",
             date=t.strftime("%a %b %d %Y"),
             timestamp=t.strftime("%H:%M"),
             files=chat_files

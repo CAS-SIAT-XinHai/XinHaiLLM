@@ -9,7 +9,8 @@ Authors: Vimos Tan
 from enum import Enum
 from typing import List
 
-from pydantic import BaseModel
+import uuid6
+from pydantic import BaseModel, Field
 
 from xinhai.types.message import XinHaiChatMessage
 
@@ -20,7 +21,7 @@ class XinHaiMemoryType(str, Enum):
 
 
 class XinHaiChatSummary(BaseModel):
-    indexId: str
+    id: str = Field(default_factory=uuid6.uuid7)
     content: str
     messages: List[XinHaiChatMessage] = []
 

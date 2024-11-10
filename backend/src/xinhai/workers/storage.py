@@ -128,7 +128,7 @@ class StorageWorker:
                 embedding_function=self.embedding_fn
             )
 
-            ids = [message.indexId for message in short_term_messages]
+            ids = [message.id for message in short_term_messages]
             documents = [message.content for message in short_term_messages]
             metadatas = [{"message": m.model_dump_json()} for m in short_term_messages]
             collection.add(documents=documents, ids=ids, metadatas=metadatas)
@@ -139,7 +139,7 @@ class StorageWorker:
                 name=f"{request.storage_key}_summary",
                 embedding_function=self.embedding_fn
             )
-            ids = [summary.indexId for summary in long_term_summaries]
+            ids = [summary.id for summary in long_term_summaries]
             documents = [summary.content for summary in long_term_summaries]
             metadatas = [{"summary": s.model_dump_json()} for s in long_term_summaries]
             collection.add(documents=documents, ids=ids, metadatas=metadatas)
@@ -242,7 +242,7 @@ class StorageWorker:
         collection = self.client.get_or_create_collection(name="Room_" + str(room_id),
                                                           embedding_function=self.embedding_fn)
         res = collection.count()
-        ids = [message.indexId for message in request.messages]
+        ids = [message.id for message in request.messages]
         documents = [message.content for message in request.messages]
         collection.add(documents=documents, ids=ids,
                        metadatas=[{"message": m.model_dump_json()} for m in request.messages])

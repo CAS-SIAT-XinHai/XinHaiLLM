@@ -49,4 +49,6 @@ RUN conda install -y -c fastai opencv-python-headless
 
 RUN conda install -y cudnn
 
+RUN pip install uuid6
+
 WORKDIR ${WORK_DIR}/backend/src

@@ -102,6 +102,7 @@ export default {
           {
             roomId: roomId.value,
             roomName: roomId.value,
+            modelName: modelName.value,
             avatar: 'https://66.media.tumblr.com/avatar_c6a8eae4303e_512.pnj',
             users: [
               {_id: 0, username: 'User', role: 'user'},
@@ -211,10 +212,15 @@ export default {
       })
     }
 
-    function uuidv4() {
-      return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
-          (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
-      );
+    function uuidv7() {
+      return 'tttttttt-tttt-7xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = Math.trunc(Math.random() * 16);
+        const v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      }).replace(/^[t]{8}-[t]{4}/, function () {
+        const unixtimestamp = Date.now().toString(16).padStart(12, '0');
+        return unixtimestamp.slice(0, 8) + '-' + unixtimestamp.slice(8);
+      });
     }
 
     async function sendMessage({content, roomId, files}) {
@@ -230,7 +236,7 @@ export default {
 
       const message = {
         _id: messages.value.length,
-        id: uuidv4(),
+        id: uuidv7(),
         indexId: messages.value.length.toString(),
         content: content,
         senderId: currentUserId,
@@ -256,7 +262,8 @@ export default {
       }
 
       try {
-        const chat_id = uuidv4();
+        const chat_id = uuidv7();
+        const room = getRoomFromId(roomId);
         const response = await fetch('/api/chat-completion', {
           method: 'POST',
           headers: {
@@ -264,8 +271,8 @@ export default {
           },
           body: JSON.stringify({
             id: chat_id,
-            room: getRoomFromId(roomId),
-            model: modelName.value,
+            room: room,
+            model: room["modelName"],
             messages: messages.value,
           })
         });

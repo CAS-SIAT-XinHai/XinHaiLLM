@@ -13,9 +13,9 @@ import io
 import os
 import sys
 import time
-import uuid
 from datetime import datetime
 
+import uuid6
 from more_itertools import split_when
 from openai.types.chat import ChatCompletionMessage
 
@@ -144,7 +144,7 @@ class ChatCompletionResponseUsage(BaseModel):
 
 
 class ChatCompletionResponse(BaseModel):
-    id: str
+    id: str = Field(default_factory=uuid6.uuid7)
     object: Literal["chat.completion"] = "chat.completion"
     created: int = Field(default_factory=lambda: int(time.time()))
     model: str
@@ -153,7 +153,7 @@ class ChatCompletionResponse(BaseModel):
 
 
 class ChatCompletionStreamResponse(BaseModel):
-    id: str
+    id: str = Field(default_factory=uuid6.uuid7)
     object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
     created: int = Field(default_factory=lambda: int(time.time()))
     model: str
@@ -167,7 +167,7 @@ class ScoreEvaluationRequest(BaseModel):
 
 
 class ScoreEvaluationResponse(BaseModel):
-    id: str
+    id: str = Field(default_factory=uuid6.uuid7)
     object: Literal["score.evaluation"] = "score.evaluation"
     model: str
     scores: List[float]
@@ -186,13 +186,13 @@ class XinHaiChatFile(BaseModel):
 
 
 class XinHaiChatMessage(BaseModel):
-    _id: str
-    id: str
-    indexId: str
+    _id: str = "-1"
+    id: str = Field(default_factory=uuid6.uuid7)
+    indexId: str = Field(default="-1")
     content: str
     senderId: str
     username: str
-    role: str
+    role: str = Field(default=Role.USER)
     # avatar: Optional[str]
     date: str
     timestamp: str
@@ -279,7 +279,6 @@ class XinHaiChatMessage(BaseModel):
         for i, m in enumerate(messages):
             if isinstance(m['content'], str):
                 xinhai_message = cls(
-                    indexId=uuid.uuid4().hex,
                     content=m['content'],
                     senderId=role_mapping['role2id'][m['role']],
                     username=role_mapping['role2name'][m['role']],
@@ -298,7 +297,6 @@ class XinHaiChatMessage(BaseModel):
                         files.append(item.image_url)
 
                 xinhai_message = cls(
-                    indexId=uuid.uuid4().hex,
                     content=content,
                     senderId=role_mapping['role2id'][m['role']],
                     username=role_mapping['role2name'][m['role']],
