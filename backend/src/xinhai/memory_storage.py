@@ -1,9 +1,10 @@
-import chromadb
-from sentence_transformers import SentenceTransformer
-from chromadb.utils import embedding_functions
-import logger
-from typing import List
 import logging
+from typing import List
+
+import chromadb
+import logger
+from chromadb.utils import embedding_functions
+
 from config import MODEL_PATH
 
 logging.basicConfig(level=logging.INFO,

@@ -9,10 +9,10 @@ Authors: Vimos Tan
 from enum import Enum
 from typing import List
 
-import uuid6
 from pydantic import BaseModel, Field
 
 from xinhai.types.message import XinHaiChatMessage
+from xinhai.utils import generate_uuid7_str
 
 
 class XinHaiMemoryType(str, Enum):
@@ -21,7 +21,7 @@ class XinHaiMemoryType(str, Enum):
 
 
 class XinHaiChatSummary(BaseModel):
-    id: str = Field(default_factory=uuid6.uuid7)
+    id: str = Field(default_factory=generate_uuid7_str)
     content: str
     messages: List[XinHaiChatMessage] = []
 

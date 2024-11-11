@@ -145,20 +145,9 @@ class BaseAgent:
     def storage_key(self):
         return f"{self.environment_id}-{self.agent_id}"
 
+    @abstractmethod
     def get_routing_prompt(self, candidate_agents, **kwargs):
-        """Get one step response"""
-        chat_summary = self.get_summary()
-        chat_history = '\n'.join(self.get_history(candidate_agents))
-        agent_descriptions = "\n".join([f"{a.agent_id}: {a.role_description}" for a in candidate_agents])
-        return self.routing_prompt_template.format(agent_name=self.name,
-                                                   role_description=self.role_description,
-                                                   chat_summary=chat_summary,
-                                                   chat_history=chat_history,
-                                                   agent_descriptions=agent_descriptions,
-                                                   routing_descriptions=XinHaiRoutingType.to_description(
-                                                       locale=self.locale,
-                                                       allowed_routing_types=self.allowed_routing_types
-                                                   ))
+        raise NotImplementedError
 
     def routing(self, candidate_agents: List[Self], **kwargs) -> XinHaiRoutingMessage:
         """Routing logic for agent"""

@@ -8,6 +8,7 @@ from typing import Dict, Any
 
 import requests
 import torch
+import uuid6
 from transformers.utils import (
     is_torch_cuda_available,
     is_torch_mps_available,
@@ -161,3 +162,7 @@ def torch_gc() -> None:
         torch.mps.empty_cache()
     elif is_torch_cuda_available():
         torch.cuda.empty_cache()
+
+
+def generate_uuid7_str():
+    return str(uuid6.uuid7())

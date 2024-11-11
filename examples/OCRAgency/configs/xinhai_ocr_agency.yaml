@@ -45,36 +45,55 @@ arena:
       ###Attention###
       Only return the new conversation summary content, do not return the analysis process!
     receptionist_prompt: &receptionist_prompt |-
-      You are a {role_description}。
-      The user has a question related to image information extraction, and the responses have been provided by both the mllm_agent and the ocr_agent.
-      The information provided is as follows:
-      （1）User's text question:
-          {user_question}
-      （2）The required output format and specified fields for the extracted image information:
-          {answer_template}
-      （3）Response from ocr_agent:
-          {ocr_agent_answer}
-      （4）Response from mllm_agent:
-          {mllm_agent_answer}
-      （5）Your task:
-          Please determine whether the semantic content of the ocr_agent's and mllm_agent's responses is the same.If:
-          1. The responses from both agents are largely similar, output an answer that fully complies with the image information extraction format requirements.
-          2. The responses from the two agents differ significantly, choose the answer you believe is the most correct and most relevant to the user's question, and output an answer that fully complies with the image information extraction format requirements.
+      The OCR USER has a question related to image information extraction, and the responses have been provided by both the mllm_agent and the ocr_agent.
+      ### Role description:
+      {role_description}
+      
+      ### Task Description:
+      
+      ### A summary of the conversation history:
+      {chat_summary}
+      
+      ### Latest conversation history:
+      {chat_history}
+      
+      Now you have chosen to communicate with {target_agent_names} as {routing_type}.
+      Remembering your task, and then based on your role description and the person you are communicating with, what is the content of the message you would like to send to that person you are communicating with?
     mllm_prompt: &mllm_prompt |-
-      Now, you are a {role_description}. The known information is as follows:
-      (1) User's question:
-          {user_question}
-      (2) Response template:
-          {answer_template}
-      Please respond to the user's question according to the provided response template.
+      The OCR USER has a question related to image information extraction, and the responses have been provided by both the mllm_agent and the ocr_agent.
+      ### Role description:
+      {role_description}
+      
+      ### Task Description:
+      
+      ### A summary of the conversation history:
+      {chat_summary}
+      
+      ### Latest conversation history:
+      {chat_history}
+      
+      Now you have chosen to communicate with {target_agent_names} as {routing_type}.
+      Remembering your task, and then based on your role description and the person you are communicating with, what is the content of the message you would like to send to that person you are communicating with?
     ocr_prompt: &ocr_prompt |-
-      You are a {role_description}. Based on a VQA (Visual Question Answering) task involving an image, the known information includes:
-      (1) User's text question:
-          {user_question}
-      (2) Required output format and specified fields for the extracted image information:
-          {answer_template}
-      (3) ocr_tool_answer (responsible for recognizing all text in the image):
-          '''{ocr_tool_answer}'''
+      The OCR USER has a question related to image information extraction, and the responses have been provided by both the mllm_agent and the ocr_agent.
+      ### Role description:
+      {role_description}
+      
+      ### Task Description:
+      1) Evaluate whether the consultant's cognitive distortion judgment of the consultant is correct according to the consultant's description of the consultant. 2) If the judgment is wrong, only "judgment error" is returned.
+      2. If the judgment is wrong, only "judgment error" is returned. 3.
+      3. If the judgment is correct, return "Correct judgment" and give the method to treat the cognitive distortion. 4.
+      4. The dialog should not be too long, and should be concise and effective.
+      
+      ### A summary of the conversation history:
+      {chat_summary}
+      
+      ### Latest conversation history:
+      {chat_history}
+      
+      Now you have chosen to communicate with {target_agent_names} as {routing_type}.
+      Remembering your task, and then based on your role description and the person you are communicating with, what is the content of the message you would like to send to that person you are communicating with?
+      
       Now, you need to organize the above information, extract relevant details from the ocr_tool_answer to answer the user's question, and ensure that the response format complies with the required output format for image information extraction.
 
   name: XinHai OCR
@@ -100,7 +119,7 @@ arena:
   agents:
     - agent_type: proxy
       agent_id: 0
-      name: user
+      name: OCR USER
       role_description: user agent
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt

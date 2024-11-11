@@ -15,11 +15,12 @@ from typing import List
 import jsonlines
 import torch
 
+from xinhai.rag.augmentor import register_augmentor, XinHaiRAGAugmentorBase
 from xinhai.rag.generator import XinHaiRAGGeneratorBase
 from xinhai.rag.indexer import XinHaiRAGDenseIndexer, INDEXER_REGISTRY
-from xinhai.rag.augmentor import register_augmentor, XinHaiRAGAugmentorBase
 from xinhai.types.kg import XinHaiKGTriplet, XinHaiKGReasoningChain
-from xinhai.types.rag import XinHaiRAGAugmentorTypes, XinHaiRAGAugmentedResult, XinHaiRAGDocumentOut, XinHaiRAGIndexerTypes, \
+from xinhai.types.rag import XinHaiRAGAugmentorTypes, XinHaiRAGAugmentedResult, XinHaiRAGDocumentOut, \
+    XinHaiRAGIndexerTypes, \
     XinHaiRAGDocumentIn
 
 logger = logging.getLogger(__name__)
