@@ -22,6 +22,7 @@ from openai.types.chat import ChatCompletionMessage
 from sse_starlette import EventSourceResponse
 from starlette import status
 from starlette.middleware.cors import CORSMiddleware
+
 from xinhai.arena.simulation import Simulation
 from xinhai.config import WORKER_HEART_BEAT_INTERVAL, LOG_DIR
 from xinhai.types.message import XinHaiMMRequest, XinHaiMMResponse, XinHaiMMResult, XinHaiChatCompletionRequest, \

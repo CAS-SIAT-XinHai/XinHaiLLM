@@ -10,15 +10,14 @@ Date: 2024-07-19 17:22:57
 LastEditTime: 2024-07-19 17:28:20
 """
 import logging
-import uuid
 from datetime import datetime
 from typing import List
 
 from xinhai.arena.agents import register_agent, BaseAgent
 from xinhai.types.arena import XinHaiArenaAgentTypes
 from xinhai.types.memory import XinHaiChatSummary
-from xinhai.types.message import XinHaiChatMessage
-from xinhai.types.routing import XinHaiRoutingMessage
+from xinhai.types.message import XinHaiChatMessage, Role
+from xinhai.types.routing import XinHaiRoutingMessage, XinHaiRoutingType
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +28,21 @@ class SimpleAgent(BaseAgent):
 
     def reset(self) -> None:
         pass
+
+    def get_routing_prompt(self, candidate_agents, **kwargs):
+        """Get one step response"""
+        chat_summary = self.get_summary()
+        chat_history, chat_files = self.get_history(candidate_agents)
+        agent_descriptions = "\n".join([f"{a.agent_id}: {a.role_description}" for a in candidate_agents])
+        return self.routing_prompt_template.format(agent_name=self.name,
+                                                   role_description=self.role_description,
+                                                   chat_summary=chat_summary,
+                                                   chat_history="\n".join(chat_history),
+                                                   agent_descriptions=agent_descriptions,
+                                                   routing_descriptions=XinHaiRoutingType.to_description(
+                                                       locale=self.locale,
+                                                       allowed_routing_types=self.allowed_routing_types
+                                                   ))
 
     def get_history(self, target_agents=None):
         dialogue_context = []
@@ -76,9 +90,11 @@ class SimpleAgent(BaseAgent):
         chat_history, chat_files = self.get_history()
         messages = [
             # {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user",
-             "content": self.summary_prompt_template.format(chat_summary=chat_summary,
-                                                            chat_history='\n'.join(chat_history))},
+            {
+                "role": Role.USER,
+                "content": self.summary_prompt_template.format(chat_summary=chat_summary,
+                                                               chat_history='\n'.join(chat_history))
+            },
         ]
         response = self.chat_completion(client=self.client, model=self.llm.model, agent_id=self.agent_id,
                                         messages=messages)

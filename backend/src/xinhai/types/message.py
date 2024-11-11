@@ -15,12 +15,12 @@ import sys
 import time
 from datetime import datetime
 
-import uuid6
 from more_itertools import split_when
 from openai.types.chat import ChatCompletionMessage
 
 from .prompt import XinHaiMMPrompt
 from .room import XinHaiChatRoom
+from ..utils import generate_uuid7_str
 
 if sys.version_info >= (3, 11):
     from typing import Self, Literal, Any, Dict
@@ -144,7 +144,7 @@ class ChatCompletionResponseUsage(BaseModel):
 
 
 class ChatCompletionResponse(BaseModel):
-    id: str = Field(default_factory=uuid6.uuid7)
+    id: str = Field(default_factory=generate_uuid7_str)
     object: Literal["chat.completion"] = "chat.completion"
     created: int = Field(default_factory=lambda: int(time.time()))
     model: str
@@ -153,7 +153,7 @@ class ChatCompletionResponse(BaseModel):
 
 
 class ChatCompletionStreamResponse(BaseModel):
-    id: str = Field(default_factory=uuid6.uuid7)
+    id: str = Field(default_factory=generate_uuid7_str)
     object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
     created: int = Field(default_factory=lambda: int(time.time()))
     model: str
@@ -167,7 +167,7 @@ class ScoreEvaluationRequest(BaseModel):
 
 
 class ScoreEvaluationResponse(BaseModel):
-    id: str = Field(default_factory=uuid6.uuid7)
+    id: str = Field(default_factory=generate_uuid7_str)
     object: Literal["score.evaluation"] = "score.evaluation"
     model: str
     scores: List[float]
@@ -187,7 +187,7 @@ class XinHaiChatFile(BaseModel):
 
 class XinHaiChatMessage(BaseModel):
     _id: str = "-1"
-    id: str = Field(default_factory=uuid6.uuid7)
+    id: str = Field(default_factory=generate_uuid7_str)
     indexId: str = Field(default="-1")
     content: str
     senderId: str

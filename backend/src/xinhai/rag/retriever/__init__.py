@@ -10,9 +10,7 @@ import importlib
 import logging
 import os
 from abc import abstractmethod
-from typing import List, Dict, Union
-
-from pyserini.search.lucene import LuceneSearcher
+from typing import List, Dict
 
 from xinhai.rag.indexer import XinHaiRAGIndexerBase
 
