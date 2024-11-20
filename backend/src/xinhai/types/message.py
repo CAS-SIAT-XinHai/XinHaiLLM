@@ -274,41 +274,50 @@ class XinHaiChatMessage(BaseModel):
 
     @classmethod
     def from_chat(cls, messages, role_mapping):
-        t = datetime.now()
         xinhai_messages = []
         for i, m in enumerate(messages):
-            if isinstance(m['content'], str):
-                xinhai_message = cls(
-                    content=m['content'],
-                    senderId=role_mapping['role2id'][m['role']],
-                    username=role_mapping['role2name'][m['role']],
-                    role="user",
-                    date=t.strftime("%a %b %d %Y"),
-                    timestamp=t.strftime("%H:%M"),
-                    receiverIds=role_mapping['role2receivers'][m['role']],
-                )
-            elif isinstance(m['content'], list):
-                content = ''
-                files = []
-                for item in m['content']:
-                    if item.type == "text":
-                        content += item.text
-                    else:
-                        files.append(item.image_url)
-
-                xinhai_message = cls(
-                    content=content,
-                    senderId=role_mapping['role2id'][m['role']],
-                    username=role_mapping['role2name'][m['role']],
-                    role="user",
-                    date=t.strftime("%a %b %d %Y"),
-                    timestamp=t.strftime("%H:%M"),
-                    files=files,
-                    receiverIds=role_mapping['role2receivers'][m['role']],
-                )
+            if isinstance(m, XinHaiChatMessage):
+                xinhai_messages.append(m)
             else:
-                raise ValueError
-            xinhai_messages.append(xinhai_message)
+                t = datetime.now()
+                if isinstance(m['content'], str):
+                    xinhai_message = cls(
+                        content=m['content'],
+                        senderId=role_mapping['role2id'][m['role']],
+                        username=role_mapping['role2name'][m['role']],
+                        role="user",
+                        date=t.strftime("%a %b %d %Y"),
+                        timestamp=t.strftime("%H:%M"),
+                        receiverIds=role_mapping['role2receivers'][m['role']],
+                    )
+                elif isinstance(m['content'], list):
+                    content = ''
+                    files = []
+                    for item in m['content']:
+                        if item.type == "text":
+                            content += item.text
+                        else:
+                            files.append(
+                                XinHaiChatFile(
+                                    name="[IMAGE]",
+                                    type="image",
+                                    size=0,
+                                    url=item.image_url.url)
+                            )
+
+                    xinhai_message = cls(
+                        content=content,
+                        senderId=role_mapping['role2id'][m['role']],
+                        username=role_mapping['role2name'][m['role']],
+                        role="user",
+                        date=t.strftime("%a %b %d %Y"),
+                        timestamp=t.strftime("%H:%M"),
+                        files=files,
+                        receiverIds=role_mapping['role2receivers'][m['role']],
+                    )
+                else:
+                    raise ValueError
+                xinhai_messages.append(xinhai_message)
         return xinhai_messages
 
 

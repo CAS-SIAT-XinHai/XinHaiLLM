@@ -295,7 +295,7 @@ class BaseAgent:
 
             logger.info("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
             logger.info(
-                f"Get memories of Agent {self.agent_id}: {json.dumps(memory_response.model_dump_json(), ensure_ascii=False, indent=4)}")
+                f"Get memories of Agent {self.agent_id}: {json.dumps(json.loads(memory_response.model_dump_json()), ensure_ascii=False, indent=4)}")
 
             return memory_response.memory
         except requests.exceptions.RequestException as e:

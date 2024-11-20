@@ -140,7 +140,7 @@ arena:
       llm: *llm
     - agent_type: mllm
       agent_id: 2
-      name: mllm
+      name: MLLM AGENT
       role_description: mllm_agent, need to answer user questions based on pictures and the answer template must meet the requirements.
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
@@ -152,7 +152,7 @@ arena:
         model: Qwen2-VL-7B-Instruct
     - agent_type: ocr
       agent_id: 3
-      name: ocr
+      name: OCR AGENT
       role_description: ocr_agent, question answering assistant.
       routing_prompt_template: *routing_prompt
       summary_prompt_template: *summary_prompt
