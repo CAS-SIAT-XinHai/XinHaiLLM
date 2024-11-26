@@ -10,13 +10,15 @@ from __future__ import annotations
 
 import base64
 import io
-import os
 import sys
 import time
 from datetime import datetime
+from enum import Enum, unique
+from typing import List, Optional, Union
 
 from more_itertools import split_when
 from openai.types.chat import ChatCompletionMessage
+from pydantic import BaseModel, Field
 
 from .prompt import XinHaiMMPrompt
 from .room import XinHaiChatRoom
@@ -26,10 +28,6 @@ if sys.version_info >= (3, 11):
     from typing import Self, Literal, Any, Dict
 else:
     from typing_extensions import Self
-from enum import Enum, unique
-from typing import List, Optional, Union
-
-from pydantic import BaseModel, Field
 
 
 # The protocols are extracted from llamafactory
@@ -231,9 +229,7 @@ class XinHaiChatMessage(BaseModel):
                               MultimodalInputItem(
                                   type="image_url",
                                   text="",
-                                  image_url=ImageURL(
-                                      url=cls.to_base64(os.path.join(static_path,
-                                                                     f"{f.url.split(os.path.sep)[-1]}.{f.extension}"))))
+                                  image_url=ImageURL(url=f.url))
                               for
                               f in message.files
                           ]
@@ -249,7 +245,7 @@ class XinHaiChatMessage(BaseModel):
                 "content": content_str,
             }
 
-    def to_chat(self, static_path):
+    def to_chat(self, root_path):
         if self.files:
             content = [
                           MultimodalInputItem(
@@ -259,9 +255,7 @@ class XinHaiChatMessage(BaseModel):
                           MultimodalInputItem(
                               type="image_url",
                               text="",
-                              image_url=ImageURL(
-                                  url=self.to_base64(os.path.join(static_path,
-                                                                  f"{f.url.split(os.path.sep)[-1]}.{f.extension}"))))
+                              image_url=ImageURL(url=f.url))
                           for
                           f in self.files
                       ]
@@ -274,41 +268,50 @@ class XinHaiChatMessage(BaseModel):
 
     @classmethod
     def from_chat(cls, messages, role_mapping):
-        t = datetime.now()
         xinhai_messages = []
         for i, m in enumerate(messages):
-            if isinstance(m['content'], str):
-                xinhai_message = cls(
-                    content=m['content'],
-                    senderId=role_mapping['role2id'][m['role']],
-                    username=role_mapping['role2name'][m['role']],
-                    role="user",
-                    date=t.strftime("%a %b %d %Y"),
-                    timestamp=t.strftime("%H:%M"),
-                    receiverIds=role_mapping['role2receivers'][m['role']],
-                )
-            elif isinstance(m['content'], list):
-                content = ''
-                files = []
-                for item in m['content']:
-                    if item.type == "text":
-                        content += item.text
-                    else:
-                        files.append(item.image_url)
-
-                xinhai_message = cls(
-                    content=content,
-                    senderId=role_mapping['role2id'][m['role']],
-                    username=role_mapping['role2name'][m['role']],
-                    role="user",
-                    date=t.strftime("%a %b %d %Y"),
-                    timestamp=t.strftime("%H:%M"),
-                    files=files,
-                    receiverIds=role_mapping['role2receivers'][m['role']],
-                )
+            if isinstance(m, XinHaiChatMessage):
+                xinhai_messages.append(m)
             else:
-                raise ValueError
-            xinhai_messages.append(xinhai_message)
+                t = datetime.now()
+                if isinstance(m['content'], str):
+                    xinhai_message = cls(
+                        content=m['content'],
+                        senderId=role_mapping['role2id'][m['role']],
+                        username=role_mapping['role2name'][m['role']],
+                        role="user",
+                        date=t.strftime("%a %b %d %Y"),
+                        timestamp=t.strftime("%H:%M"),
+                        receiverIds=role_mapping['role2receivers'][m['role']],
+                    )
+                elif isinstance(m['content'], list):
+                    content = ''
+                    files = []
+                    for item in m['content']:
+                        if item.type == "text":
+                            content += item.text
+                        else:
+                            files.append(
+                                XinHaiChatFile(
+                                    name="[IMAGE]",
+                                    type="image",
+                                    size=0,
+                                    url=item.image_url.url)
+                            )
+
+                    xinhai_message = cls(
+                        content=content,
+                        senderId=role_mapping['role2id'][m['role']],
+                        username=role_mapping['role2name'][m['role']],
+                        role="user",
+                        date=t.strftime("%a %b %d %Y"),
+                        timestamp=t.strftime("%H:%M"),
+                        files=files,
+                        receiverIds=role_mapping['role2receivers'][m['role']],
+                    )
+                else:
+                    raise ValueError
+                xinhai_messages.append(xinhai_message)
         return xinhai_messages
 
 

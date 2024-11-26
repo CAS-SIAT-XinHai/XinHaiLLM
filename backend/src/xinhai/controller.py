@@ -10,6 +10,7 @@ import re
 import threading
 import time
 from enum import Enum, auto
+from pathlib import Path
 from typing import List, Union, Optional
 
 import aiofiles
@@ -21,7 +22,7 @@ from fastapi import UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from more_itertools import sliced
@@ -30,11 +31,13 @@ from pydantic import ValidationError
 from sse_starlette import EventSourceResponse
 
 from xinhai.types.message import XinHaiMMRequest, XinHaiMMResponse, ChatCompletionRequest, ChatCompletionResponse
-from .config import CONTROLLER_HEART_BEAT_EXPIRATION, LOG_DIR, STATIC_PATH
+from .config import CONTROLLER_HEART_BEAT_EXPIRATION, LOG_DIR
 from .types.message import XinHaiChatCompletionRequest
 from .utils import build_logger, server_error_msg
 
 logger = build_logger("controller", "controller.log", LOG_DIR)
+
+STATIC_PATH = os.environ.get("STATIC_PATH")
 
 
 class DispatchMethod(Enum):
@@ -1144,6 +1147,25 @@ async def worker_api_upload_file(file: UploadFile):
     return {"Result": out_file_path}
 
 
+@app.get("/{blob_id}")
+def get_image(blob_id: str):
+    out_file_path = Path(os.path.join(STATIC_PATH, blob_id))
+    if not out_file_path.is_file():
+        return {"error": "Image not found on the server"}
+    return FileResponse(out_file_path)
+
+
+# @app.get("/blob")
+# def get_blob():
+#     # Create a sample blob data
+#     blob_data = io.BytesIO(b"This is some blob data.")
+#
+#     # Return the blob as a streaming response
+#     return StreamingResponse(
+#         blob_data,
+#         media_type="application/octet-stream",  # Set the appropriate media type
+#         headers={"Content-Disposition": "attachment; filename=my_blob.bin"}
+#     )
 @app.post("/api/parse-file")
 async def worker_api_parse_file(request: Request):
     params = await request.json()

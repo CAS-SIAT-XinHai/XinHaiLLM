@@ -13,7 +13,6 @@ KNOW_DB_PATH = '/data2/AutoInvoice/KnowDB-bge-1.5-300'
 CHATGLM_PATH = '/data2/AutoInvoice/chatglm3-6b'
 
 LOG_DIR = './logs'
-STATIC_PATH = './static'
 
 CONTROLLER_HEART_BEAT_EXPIRATION = 130
 WORKER_HEART_BEAT_INTERVAL = 15

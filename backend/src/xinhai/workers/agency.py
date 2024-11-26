@@ -126,20 +126,6 @@ class AgencyWorker:
     async def interact(self, request: Union[ChatCompletionRequest, XinHaiChatCompletionRequest]) -> Tuple[
         List[Dict[str, str]], str, str]:
         logging.info(request)
-        input_messages = []
-        for i, m in enumerate(request.messages):
-            if i % 2 == 0 and m.role not in [Role.USER, Role.TOOL]:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
-            elif i % 2 == 1 and m.role not in [Role.ASSISTANT, Role.FUNCTION]:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
-
-            if m.role == Role.ASSISTANT and isinstance(m.tool_calls, list) and len(m.tool_calls):
-                name = m.tool_calls[0].function.name
-                arguments = m.tool_calls[0].function.arguments
-                content = json.dumps({"name": name, "argument": arguments}, ensure_ascii=False)
-                input_messages.append({"role": ROLE_MAPPING[Role.FUNCTION], "content": content})
-            else:
-                input_messages.append({"role": ROLE_MAPPING[m.role], "content": m.content})
 
         tool_list = request.tools
         if isinstance(tool_list, list) and len(tool_list):
@@ -157,7 +143,22 @@ class AgencyWorker:
                 self.simulators[request.room.roomId] = simulator
             else:
                 simulator = self.simulators[request.room.roomId]
+            input_messages = request.messages
         else:
+            input_messages = []
+            for i, m in enumerate(request.messages):
+                if i % 2 == 0 and m.role not in [Role.USER, Role.TOOL]:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
+                elif i % 2 == 1 and m.role not in [Role.ASSISTANT, Role.FUNCTION]:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
+
+                if m.role == Role.ASSISTANT and isinstance(m.tool_calls, list) and len(m.tool_calls):
+                    name = m.tool_calls[0].function.name
+                    arguments = m.tool_calls[0].function.arguments
+                    content = json.dumps({"name": name, "argument": arguments}, ensure_ascii=False)
+                    input_messages.append({"role": ROLE_MAPPING[Role.FUNCTION], "content": content})
+                else:
+                    input_messages.append({"role": ROLE_MAPPING[m.role], "content": m.content})
             if 'default' not in self.simulators:
                 simulator = Simulation.from_config(AGENCY_CONFIG_PATH)
                 self.simulators["default"] = simulator
