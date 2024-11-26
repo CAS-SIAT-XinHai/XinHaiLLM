@@ -23,7 +23,6 @@ from paddleocr import PaddleOCR, draw_ocr
 
 from xinhai.config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
 from xinhai.utils import build_logger, pretty_print_semaphore
-from ..config import STATIC_PATH
 
 GB = 1 << 30
 
@@ -33,6 +32,7 @@ global_counter = 0
 
 model_semaphore = None
 
+STATIC_PATH = os.environ.get("STATIC_PATH")
 CONTROLLER_ADDRESS = os.environ.get("CONTROLLER_ADDRESS")
 WORKER_ADDRESS = os.environ.get("WORKER_ADDRESS")
 WORKER_HOST = os.environ.get("WORKER_HOST")

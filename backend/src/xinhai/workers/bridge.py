@@ -2,23 +2,31 @@
 A model worker executes the model.
 """
 import asyncio
+import base64
+import io
 import json
 import os
+import re
 import threading
 import time
 import uuid
 from contextlib import asynccontextmanager
 from threading import Thread
-from typing import Sequence, Dict, Optional, List, Generator, AsyncGenerator, Any, Annotated, Tuple
+from typing import Sequence, Dict, Optional, List, Generator, AsyncGenerator, Any, Tuple
 
 import requests
 import uvicorn
-from fastapi import FastAPI, HTTPException, status, Depends
+from fastapi import FastAPI, HTTPException, status
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import HTTPBearer
 from openai import OpenAI
 from sse_starlette import EventSourceResponse
+
+try:
+    from urllib.parse import urlparse, ParseResult
+except ImportError:
+    from urlparse import urlparse, ParseResult
 
 from xinhai.types.message import Role, ROLE_MAPPING, ChatCompletionResponse, ChatCompletionRequest
 from ..config import LOG_DIR, WORKER_HEART_BEAT_INTERVAL
@@ -167,19 +175,24 @@ app.add_middleware(
 )
 
 
-def _process_request(request: "ChatCompletionRequest") -> Tuple[List[Dict[str, str]], str, str]:
+def _process_request(
+        request: "ChatCompletionRequest",
+) -> Tuple[List[Dict[str, str]], Optional[str], Optional[str], Optional[List["ImageInput"]]]:
+    logger.info(f"==== request ====\n{json.dumps(dictify(request), indent=2, ensure_ascii=False)}")
+
     if len(request.messages) == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid length")
 
     if request.messages[0].role == Role.SYSTEM:
         system = request.messages.pop(0).content
     else:
-        system = ""
+        system = None
 
     if len(request.messages) % 2 == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only supports u/a/u/a/u...")
 
     input_messages = []
+    images = []
     for i, message in enumerate(request.messages):
         if i % 2 == 0 and message.role not in [Role.USER, Role.TOOL]:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
@@ -187,10 +200,35 @@ def _process_request(request: "ChatCompletionRequest") -> Tuple[List[Dict[str, s
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
 
         if message.role == Role.ASSISTANT and isinstance(message.tool_calls, list) and len(message.tool_calls):
-            name = message.tool_calls[0].function.name
-            arguments = message.tool_calls[0].function.arguments
-            content = json.dumps({"name": name, "argument": arguments}, ensure_ascii=False)
+            tool_calls = [
+                {"name": tool_call.function.name, "arguments": tool_call.function.arguments}
+                for tool_call in message.tool_calls
+            ]
+            content = json.dumps(tool_calls, ensure_ascii=False)
             input_messages.append({"role": ROLE_MAPPING[Role.FUNCTION], "content": content})
+        elif isinstance(message.content, list):
+            content = []
+            for input_item in message.content:
+                if input_item.type == "text":
+                    content.append(input_item)
+                else:
+                    image_url = input_item.image_url.url
+                    if re.match(r"^data:image\/(png|jpg|jpeg|gif|bmp);base64,(.+)$", image_url):  # base64 image
+                        image_stream = io.BytesIO(base64.b64decode(image_url.split(",", maxsplit=1)[1]))
+                    elif os.path.isfile(image_url):  # local file
+                        image_stream = open(image_url, "rb")
+                    else:  # web uri
+                        if image_url.startswith("blob:"):
+                            image_url = image_url[7:]
+                        parsed_url = urlparse(image_url)
+                        updated_url = f"{CONTROLLER_ADDRESS}/{parsed_url.path}"
+                        image_stream = requests.get(updated_url, stream=True).raw
+
+                    # images.append(Image.open(image_stream).convert("RGB"))
+                    buf = io.BytesIO(image_stream.read())
+                    img_b64_str = base64.b64encode(buf.getvalue()).decode()
+                    content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64_str}"}})
+            input_messages.append({"role": ROLE_MAPPING[message.role], "content": content})
         else:
             input_messages.append({"role": ROLE_MAPPING[message.role], "content": message.content})
 
@@ -198,18 +236,18 @@ def _process_request(request: "ChatCompletionRequest") -> Tuple[List[Dict[str, s
     if isinstance(tool_list, list) and len(tool_list):
         try:
             tools = json.dumps([dictify(tool.function) for tool in tool_list], ensure_ascii=False)
-        except Exception:
+        except json.JSONDecodeError:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid tools")
     else:
-        tools = ""
+        tools = None
 
-    return input_messages, system, tools
+    return input_messages
 
 
 async def create_chat_completion_response(
         request: "ChatCompletionRequest", chat_model
 ) -> "ChatCompletionResponse":
-    input_messages, system, tools = _process_request(request)
+    input_messages = _process_request(request)
     response = chat_model.client.chat.completions.create(
         model=MODEL_NAME,
         messages=input_messages,
@@ -222,14 +260,14 @@ async def create_chat_completion_response(
 async def create_stream_chat_completion_response(
         request: "ChatCompletionRequest", chat_model
 ) -> AsyncGenerator[str, None]:
-    input_messages, system, tools = _process_request(request)
-    if tools:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot stream function calls.")
+    input_messages = _process_request(request)
+    # if tools:
+    #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot stream function calls.")
 
     for new_token in chat_model.stream_chat(
             input_messages,
-            system,
-            tools,
+            # system,
+            # tools,
             do_sample=request.do_sample,
             temperature=request.temperature,
             top_p=request.top_p,
@@ -238,9 +276,9 @@ async def create_stream_chat_completion_response(
         yield new_token
 
 
-async def verify_api_key(auth: Annotated[Optional[HTTPAuthorizationCredentials], Depends(security)]):
-    if API_KEY and (auth is None or auth.credentials != API_KEY):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key.")
+# async def verify_api_key(auth: Annotated[Optional[HTTPAuthorizationCredentials], Depends(security)]):
+#     if API_KEY and (auth is None or auth.credentials != API_KEY):
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key.")
 
 
 @app.post(

@@ -14,6 +14,7 @@ from typing import List
 
 from xinhai.arena.agents import BaseAgent
 from xinhai.arena.topology import BaseTopology
+from xinhai.types.message import XinHaiChatMessage
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,7 @@ class BaseEnvironment:
     environment_id: str
     agents: List[BaseAgent]
     topologies: List[BaseTopology]
+    messages: List[XinHaiChatMessage] = []
 
     def __init__(self, environment_id, agents: List[BaseAgent], topologies: List[BaseTopology], controller_address,
                  max_turns=10,
@@ -79,6 +81,9 @@ class BaseEnvironment:
         self.max_turns = max_turns
         self.cnt_turn = cnt_turn
         self.controller_address = controller_address
+
+        for a in self.agents:
+            self.messages.extend(a.memory.short_term_memory.messages)
 
     @abstractmethod
     async def step(self, *args, **kwargs) -> None:

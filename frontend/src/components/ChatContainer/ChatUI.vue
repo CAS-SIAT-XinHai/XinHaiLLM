@@ -198,7 +198,8 @@ export default {
 
         console.log(file)
 
-        const filename = (file.url || file.localUrl) + "." + (file.extension || file.type)
+        // const filename = (file.url || file.localUrl) + "." + (file.extension || file.type)
+        const filename = file.url || file.localUrl
 
         const formData = new FormData();
         formData.append('file', file.blob, filename);

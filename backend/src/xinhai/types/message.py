@@ -10,13 +10,15 @@ from __future__ import annotations
 
 import base64
 import io
-import os
 import sys
 import time
 from datetime import datetime
+from enum import Enum, unique
+from typing import List, Optional, Union
 
 from more_itertools import split_when
 from openai.types.chat import ChatCompletionMessage
+from pydantic import BaseModel, Field
 
 from .prompt import XinHaiMMPrompt
 from .room import XinHaiChatRoom
@@ -26,10 +28,6 @@ if sys.version_info >= (3, 11):
     from typing import Self, Literal, Any, Dict
 else:
     from typing_extensions import Self
-from enum import Enum, unique
-from typing import List, Optional, Union
-
-from pydantic import BaseModel, Field
 
 
 # The protocols are extracted from llamafactory
@@ -231,9 +229,7 @@ class XinHaiChatMessage(BaseModel):
                               MultimodalInputItem(
                                   type="image_url",
                                   text="",
-                                  image_url=ImageURL(
-                                      url=cls.to_base64(os.path.join(static_path,
-                                                                     f"{f.url.split(os.path.sep)[-1]}.{f.extension}"))))
+                                  image_url=ImageURL(url=f.url))
                               for
                               f in message.files
                           ]
@@ -249,7 +245,7 @@ class XinHaiChatMessage(BaseModel):
                 "content": content_str,
             }
 
-    def to_chat(self, static_path):
+    def to_chat(self, root_path):
         if self.files:
             content = [
                           MultimodalInputItem(
@@ -259,9 +255,7 @@ class XinHaiChatMessage(BaseModel):
                           MultimodalInputItem(
                               type="image_url",
                               text="",
-                              image_url=ImageURL(
-                                  url=self.to_base64(os.path.join(static_path,
-                                                                  f"{f.url.split(os.path.sep)[-1]}.{f.extension}"))))
+                              image_url=ImageURL(url=f.url))
                           for
                           f in self.files
                       ]
