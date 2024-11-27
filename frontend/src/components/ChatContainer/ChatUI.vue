@@ -132,7 +132,8 @@ export default {
 
       if (!message || !message.files) return
 
-      message.files.find(file => file.url === fileUrl).progress = progress
+      const filename = '/api/' + fileUrl.split("/").pop();
+      message.files.find(file => file.url === filename).progress = progress
       messages.value = [...messages.value]
     }
 
@@ -140,12 +141,13 @@ export default {
       const formattedFiles = []
 
       files.forEach(file => {
+        const filename = file.localUrl.split("/").pop();
         const messageFile = {
           name: file.name,
           size: file.size,
           type: file.type,
           extension: file.extension || file.type,
-          url: file.url || file.localUrl
+          url: '/api/' + filename
         }
 
         if (file.audio) {
@@ -196,11 +198,8 @@ export default {
           resolve(true)
         }
 
-        console.log(file)
-
         // const filename = (file.url || file.localUrl) + "." + (file.extension || file.type)
-        const filename = file.url || file.localUrl
-
+        const filename = file.localUrl.split("/").pop();
         const formData = new FormData();
         formData.append('file', file.blob, filename);
         xhr.open('post', '/api/upload-file', true);

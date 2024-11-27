@@ -150,7 +150,7 @@ services:
       - pretrained_models:/usr/share/xinhai/pretrained_models
     environment:
       MODEL_NAME: ${LLM_MODEL_NAME}
-    command: vllm serve /usr/share/xinhai/pretrained_models/${MLLM_MODEL_PATH} --served_model_name ${MLLM_MODEL_NAME} --dtype float16 --host 0.0.0.0 --port ${MLLM_SERVER_PORT} --gpu-memory-utilization 0.9 --max_model_len 10000
+    command: vllm serve /usr/share/xinhai/pretrained_models/${MLLM_MODEL_PATH} --served_model_name ${MLLM_MODEL_NAME} --dtype float16 --host 0.0.0.0 --port ${MLLM_SERVER_PORT} --gpu-memory-utilization 0.9 --max_model_len 10000 --limit-mm-per-prompt "image=${MLLM_LIMIT_MM_PER_PROMPT}"
     deploy:
       resources:
         reservations:
@@ -186,6 +186,7 @@ services:
       WORKER_PORT: ${MLLM_WORKER_PORT}
       API_KEY: BRIDGE_API_KEY
       API_BASE: http://mllm-server:${MLLM_SERVER_PORT}/v1
+      MLLM_LIMIT_MM_PER_PROMPT: ${MLLM_LIMIT_MM_PER_PROMPT}
     command: python -m xinhai.workers.bridge
     healthcheck:
       test: [
