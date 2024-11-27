@@ -16,6 +16,7 @@ from typing import Sequence, Dict, Optional, List, Generator, AsyncGenerator, An
 
 import requests
 import uvicorn
+from PIL import Image
 from fastapi import FastAPI, HTTPException, status
 from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,6 +48,7 @@ MODEL_NAME = os.environ.get("MODEL_NAME", "paddleocr")
 LIMIT_MODEL_CONCURRENCY = int(os.environ.get("LIMIT_MODEL_CONCURRENCY", 5))
 API_KEY = os.environ.get("API_KEY")
 API_BASE = os.environ.get("API_BASE")
+MLLM_LIMIT_MM_PER_PROMPT = int(os.environ.get("MLLM_LIMIT_MM_PER_PROMPT"))
 DEVICE = "cuda"
 
 model_semaphore = None
@@ -224,13 +226,23 @@ def _process_request(
                         updated_url = f"{CONTROLLER_ADDRESS}/{parsed_url.path}"
                         image_stream = requests.get(updated_url, stream=True).raw
 
-                    # images.append(Image.open(image_stream).convert("RGB"))
                     buf = io.BytesIO(image_stream.read())
+                    images.append(Image.open(buf).convert("RGB"))
                     img_b64_str = base64.b64encode(buf.getvalue()).decode()
                     content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64_str}"}})
             input_messages.append({"role": ROLE_MAPPING[message.role], "content": content})
         else:
             input_messages.append({"role": ROLE_MAPPING[message.role], "content": message.content})
+
+    if len(images) > MLLM_LIMIT_MM_PER_PROMPT:
+        start = 0
+        count = 0
+        for j, m in enumerate(input_messages):
+            if isinstance(m['content'], list):
+                count += 1
+                if count == len(images) - MLLM_LIMIT_MM_PER_PROMPT:
+                    start = j
+        input_messages = input_messages[start + 2:]
 
     tool_list = request.tools
     if isinstance(tool_list, list) and len(tool_list):

@@ -1147,7 +1147,7 @@ async def worker_api_upload_file(file: UploadFile):
     return {"Result": out_file_path}
 
 
-@app.get("/{blob_id}")
+@app.get("/api/{blob_id}")
 def get_image(blob_id: str):
     out_file_path = Path(os.path.join(STATIC_PATH, blob_id))
     if not out_file_path.is_file():
