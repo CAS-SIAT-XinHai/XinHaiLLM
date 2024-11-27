@@ -48,7 +48,7 @@ MODEL_NAME = os.environ.get("MODEL_NAME", "paddleocr")
 LIMIT_MODEL_CONCURRENCY = int(os.environ.get("LIMIT_MODEL_CONCURRENCY", 5))
 API_KEY = os.environ.get("API_KEY")
 API_BASE = os.environ.get("API_BASE")
-MLLM_LIMIT_MM_PER_PROMPT = int(os.environ.get("MLLM_LIMIT_MM_PER_PROMPT"))
+MLLM_LIMIT_MM_PER_PROMPT = int(os.environ.get("MLLM_LIMIT_MM_PER_PROMPT", 0))
 DEVICE = "cuda"
 
 model_semaphore = None
